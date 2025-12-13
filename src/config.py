@@ -19,6 +19,9 @@ class Config:
     # OAuth
     oauth_scopes: List[str]
 
+    # API Keys
+    fathom_api_key: str
+
     # Server
     server_name: str
     log_level: str
@@ -69,6 +72,8 @@ class Config:
         )
         oauth_scopes = [s.strip() for s in oauth_scopes_str.split(",")]
 
+        fathom_api_key = os.getenv("FATHOM_API_KEY", "")
+
         server_name = os.getenv("MCP_SERVER_NAME", "gmail-reply-tracker")
         log_level = os.getenv("LOG_LEVEL", "INFO")
 
@@ -81,6 +86,7 @@ class Config:
             credentials_path=credentials_path,
             token_path=token_path,
             oauth_scopes=oauth_scopes,
+            fathom_api_key=fathom_api_key,
             server_name=server_name,
             log_level=log_level,
             max_requests_per_minute=max_requests_per_minute
@@ -133,6 +139,13 @@ class Config:
             errors.append(
                 f"Invalid max_requests_per_minute: {self.max_requests_per_minute}. "
                 f"Must be greater than 0"
+            )
+
+        # Warn if Fathom API key is not set (optional feature)
+        if not self.fathom_api_key:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "FATHOM_API_KEY not set. Fathom meeting tools will not be available."
             )
 
         return errors

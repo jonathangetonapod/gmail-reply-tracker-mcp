@@ -1,31 +1,71 @@
-# Gmail Reply Tracker MCP Server
+# Gmail, Calendar & Fathom MCP Server
 
-An MCP (Model Context Protocol) server that connects to Gmail and helps track which emails need replies. This server exposes tools that let Claude analyze your inbox in real-time during conversations.
+An MCP (Model Context Protocol) server that connects to Gmail, Google Calendar, and Fathom AI to help you manage emails, meetings, and meeting insights. This server exposes tools that let Claude interact with your productivity suite in real-time during conversations.
 
 ## Features
 
+### Gmail
 - **Smart Unreplied Email Detection**: Identifies emails you've read but haven't replied to
 - **Automated Email Filtering**: Excludes newsletters, no-reply addresses, and automated messages
 - **Full Thread Context**: Retrieves complete conversation history for any email
 - **Powerful Search**: Query emails using Gmail's search syntax
 - **Inbox Analytics**: Get summary statistics on response times and volume
 - **Sender Filtering**: Find unreplied emails from specific people or domains
+- **Email Sending & Replies**: Send emails and reply to threads with confirmation
+
+### Google Calendar
+- **Event Management**: List, create, update, and delete calendar events
+- **Multi-Calendar Support**: Work with multiple calendars
+- **Natural Language Event Creation**: Quick add events using plain English
+- **Past & Future Events**: View events in any time range
+- **Attendee Management**: Handle meeting invitations and responses
+
+### Fathom AI Integration
+- **Meeting Recordings**: List and access all your Fathom meeting recordings
+- **Full Transcripts**: Get complete meeting transcripts with speaker attribution
+- **AI Summaries**: Access AI-generated meeting summaries and key points
+- **Action Items**: Extract and track action items from meetings
+- **Search Meetings**: Find meetings by title, attendee, or date
+- **Calendar Cross-Reference**: Connect calendar events with meeting recordings
 
 ## Tools Provided
 
-The MCP server exposes 5 tools for Claude to use:
+The MCP server exposes 25+ tools across Gmail, Calendar, and Fathom:
 
+### Gmail Tools (13)
 1. **`get_unreplied_emails`** - Find emails you've read but haven't replied to
 2. **`get_email_thread`** - Get full conversation history for an email thread
 3. **`search_emails`** - Search emails using Gmail query syntax
 4. **`get_inbox_summary`** - Get statistics on unreplied emails
 5. **`get_unreplied_by_sender`** - Filter unreplied emails by sender or domain
+6. **`send_email`** - Send a new email (with confirmation)
+7. **`reply_to_email`** - Reply to an email thread (with confirmation)
+8. **`reply_all_to_email`** - Reply all to an email thread (with confirmation)
+9. **`create_email_draft`** - Create an email draft without sending
+
+### Calendar Tools (7)
+10. **`list_calendars`** - List all accessible calendars
+11. **`list_calendar_events`** - List upcoming events
+12. **`list_past_calendar_events`** - List past events
+13. **`create_calendar_event`** - Create a new calendar event
+14. **`update_calendar_event`** - Update an existing event
+15. **`delete_calendar_event`** - Delete a calendar event
+16. **`quick_add_calendar_event`** - Create event using natural language
+
+### Fathom Meeting Tools (6)
+17. **`list_fathom_meetings`** - List recent meeting recordings
+18. **`get_fathom_transcript`** - Get full meeting transcript
+19. **`get_fathom_summary`** - Get AI-generated meeting summary
+20. **`get_fathom_action_items`** - Extract action items from meeting
+21. **`search_fathom_meetings_by_title`** - Search meetings by title
+22. **`search_fathom_meetings_by_attendee`** - Find meetings with specific people
 
 ## Prerequisites
 
 - Python 3.10 or higher
 - A Gmail account
-- A Google Cloud Project with Gmail API enabled
+- A Google Cloud Project with Gmail API and Calendar API enabled
+- (Optional) Fathom AI account with API access
 - Claude Desktop app
 
 ## Installation
@@ -59,11 +99,11 @@ pip install -r requirements.txt
 2. Create a new project (or select an existing one)
 3. Note your project ID
 
-#### Enable Gmail API
+#### Enable Gmail and Calendar APIs
 
 1. In your project, go to **APIs & Services** > **Library**
-2. Search for "Gmail API"
-3. Click on it and click **Enable**
+2. Search for "Gmail API" and click **Enable**
+3. Search for "Google Calendar API" and click **Enable**
 
 #### Create OAuth 2.0 Credentials
 
@@ -74,7 +114,10 @@ pip install -r requirements.txt
    - App name: `Gmail Reply Tracker`
    - User support email: Your email
    - Developer contact: Your email
-   - Scopes: Add `https://www.googleapis.com/auth/gmail.readonly`
+   - Scopes: Add the following scopes:
+     - `https://www.googleapis.com/auth/gmail.readonly`
+     - `https://www.googleapis.com/auth/gmail.send`
+     - `https://www.googleapis.com/auth/calendar`
    - Test users: Add your Gmail address
    - Click **Save and Continue**
 4. Back at Create OAuth client ID:
@@ -108,24 +151,35 @@ This script will:
 
 **Important**: When authorizing, you may see a warning that the app is not verified. Click "Advanced" > "Go to Gmail Reply Tracker (unsafe)" to proceed. This is normal for apps in development.
 
-### 6. Configure Environment (Optional)
+### 6. Configure Environment
 
-Copy the example environment file and customize if needed:
+Create a `.env` file in the project root with your configuration:
 
 ```bash
-cp .env.example .env
+# Create .env file
+touch .env
 ```
 
-Edit `.env` to customize paths or settings:
+Edit `.env` and add the following (update paths and API keys as needed):
 
 ```env
+# Gmail & Calendar
 GMAIL_CREDENTIALS_PATH=./credentials/credentials.json
 GMAIL_TOKEN_PATH=./credentials/token.json
-GMAIL_OAUTH_SCOPES=https://www.googleapis.com/auth/gmail.readonly
-MCP_SERVER_NAME=gmail-reply-tracker
+GMAIL_OAUTH_SCOPES=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar
+MCP_SERVER_NAME=gmail-calendar-fathom
 LOG_LEVEL=INFO
 GMAIL_API_MAX_REQUESTS_PER_MINUTE=60
+
+# Fathom AI (optional)
+FATHOM_API_KEY=your_fathom_api_key_here
 ```
+
+**To get your Fathom API key:**
+1. Log in to [Fathom](https://fathom.video)
+2. Go to Settings > API
+3. Generate a new API key
+4. Copy and paste it into your `.env` file
 
 ### 7. Configure Claude Desktop
 
@@ -140,14 +194,16 @@ Add this configuration:
 ```json
 {
   "mcpServers": {
-    "gmail-reply-tracker": {
+    "gmail-calendar-fathom": {
       "command": "python",
       "args": [
         "/Users/jonathangarces/Desktop/MCP_Gmail/src/server.py"
       ],
       "env": {
         "GMAIL_CREDENTIALS_PATH": "/Users/jonathangarces/Desktop/MCP_Gmail/credentials/credentials.json",
-        "GMAIL_TOKEN_PATH": "/Users/jonathangarces/Desktop/MCP_Gmail/credentials/token.json"
+        "GMAIL_TOKEN_PATH": "/Users/jonathangarces/Desktop/MCP_Gmail/credentials/token.json",
+        "GMAIL_OAUTH_SCOPES": "https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar",
+        "FATHOM_API_KEY": "your_fathom_api_key_here"
       }
     }
   }
@@ -199,6 +255,22 @@ Find emails from my boss after January 1st
 **Get thread context:**
 ```
 Show me the full conversation for thread [thread-id]
+```
+
+**Calendar queries:**
+```
+What's on my calendar this week?
+Schedule a meeting with John tomorrow at 2pm
+Show me my meetings from last week
+```
+
+**Fathom meeting queries:**
+```
+List my recent Fathom meetings
+Get the transcript from my meeting about the Q4 budget
+What action items came out of my last meeting with Sarah?
+Find all meetings with john@company.com
+Summarize the Project Phoenix kickoff meeting
 ```
 
 ## Tool Reference

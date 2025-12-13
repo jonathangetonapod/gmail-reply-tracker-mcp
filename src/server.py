@@ -15,6 +15,7 @@ from auth import GmailAuthManager
 from gmail_client import GmailClient
 from email_analyzer import EmailAnalyzer
 from calendar_client import CalendarClient
+from fathom_client import FathomClient
 
 
 # Initialize logging
@@ -32,11 +33,12 @@ auth_manager: Optional[GmailAuthManager] = None
 gmail_client: Optional[GmailClient] = None
 email_analyzer: Optional[EmailAnalyzer] = None
 calendar_client: Optional[CalendarClient] = None
+fathom_client: Optional[FathomClient] = None
 
 
 def initialize_clients():
-    """Initialize Gmail and Calendar clients."""
-    global auth_manager, gmail_client, email_analyzer, calendar_client
+    """Initialize Gmail, Calendar, and Fathom clients."""
+    global auth_manager, gmail_client, email_analyzer, calendar_client, fathom_client
 
     if gmail_client is not None and calendar_client is not None:
         return
@@ -77,6 +79,16 @@ def initialize_clients():
         credentials,
         config.max_requests_per_minute
     )
+
+    # Initialize Fathom client (if API key is configured)
+    if config.fathom_api_key:
+        fathom_client = FathomClient(
+            config.fathom_api_key,
+            config.max_requests_per_minute
+        )
+        logger.info("Fathom client initialized")
+    else:
+        logger.warning("Fathom API key not configured. Fathom tools will not be available.")
 
     logger.info("Clients initialized successfully")
 
@@ -1412,6 +1424,397 @@ async def create_email_draft(
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in create_email_draft: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+# ============================================================================
+# FATHOM MEETING TOOLS
+# ============================================================================
+
+@mcp.tool()
+async def list_fathom_meetings(
+    limit: int = 20,
+    calendar_invitees_domains_type: str = "all"
+) -> str:
+    """
+    List recent Fathom meeting recordings.
+
+    This tool retrieves your recent meetings recorded by Fathom with basic
+    information including title, date, participants, and recording URL.
+
+    Args:
+        limit: Maximum number of meetings to return (default: 20)
+        calendar_invitees_domains_type: Filter meetings by attendee type
+            - "all": All meetings
+            - "internal_only": Only meetings with internal attendees
+            - "one_or_more_external": Meetings with at least one external attendee
+
+    Returns:
+        JSON string with list of meetings
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Fetching %d Fathom meetings...", limit)
+
+        response = fathom_client.list_meetings(
+            limit=limit,
+            calendar_invitees_domains_type=calendar_invitees_domains_type
+        )
+
+        meetings = response.get('items', [])
+
+        # Format meeting information
+        meeting_list = []
+        for meeting in meetings:
+            meeting_list.append({
+                "recording_id": meeting.get('recording_id'),
+                "title": meeting.get('title') or meeting.get('meeting_title'),
+                "url": meeting.get('url'),
+                "share_url": meeting.get('share_url'),
+                "scheduled_start": meeting.get('scheduled_start_time'),
+                "scheduled_end": meeting.get('scheduled_end_time'),
+                "recording_start": meeting.get('recording_start_time'),
+                "recording_end": meeting.get('recording_end_time'),
+                "language": meeting.get('transcript_language'),
+                "attendees": [
+                    {
+                        "name": att.get('name'),
+                        "email": att.get('email'),
+                        "is_external": att.get('is_external')
+                    }
+                    for att in meeting.get('calendar_invitees', [])
+                ]
+            })
+
+        logger.info("Found %d Fathom meetings", len(meeting_list))
+
+        return json.dumps({
+            "success": True,
+            "count": len(meeting_list),
+            "meetings": meeting_list,
+            "next_cursor": response.get('next_cursor')
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in list_fathom_meetings: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_fathom_transcript(recording_id: int) -> str:
+    """
+    Get the full transcript of a Fathom meeting recording.
+
+    This tool retrieves the complete transcript with speaker names,
+    timestamps, and the spoken text.
+
+    Args:
+        recording_id: Fathom recording ID
+
+    Returns:
+        JSON string with complete transcript
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Fetching transcript for recording %d...", recording_id)
+
+        response = fathom_client.get_meeting_transcript(recording_id)
+        transcript = response.get('transcript', [])
+
+        # Format transcript entries
+        transcript_list = []
+        for entry in transcript:
+            speaker = entry.get('speaker', {})
+            transcript_list.append({
+                "speaker_name": speaker.get('display_name'),
+                "speaker_email": speaker.get('matched_calendar_invitee_email'),
+                "text": entry.get('text'),
+                "timestamp": entry.get('timestamp')
+            })
+
+        logger.info("Retrieved transcript with %d entries", len(transcript_list))
+
+        return json.dumps({
+            "success": True,
+            "recording_id": recording_id,
+            "entry_count": len(transcript_list),
+            "transcript": transcript_list
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_fathom_transcript: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_fathom_summary(recording_id: int) -> str:
+    """
+    Get the AI-generated summary of a Fathom meeting recording.
+
+    This tool retrieves a concise summary of the meeting with key points,
+    decisions, and action items.
+
+    Args:
+        recording_id: Fathom recording ID
+
+    Returns:
+        JSON string with meeting summary
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Fetching summary for recording %d...", recording_id)
+
+        response = fathom_client.get_meeting_summary(recording_id)
+        summary = response.get('summary', {})
+
+        logger.info("Retrieved summary for recording %d", recording_id)
+
+        return json.dumps({
+            "success": True,
+            "recording_id": recording_id,
+            "template": summary.get('template_name'),
+            "summary": summary.get('markdown_formatted')
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_fathom_summary: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def search_fathom_meetings_by_title(
+    search_term: str,
+    limit: int = 50
+) -> str:
+    """
+    Search Fathom meetings by title or meeting name.
+
+    This tool searches through your recent meetings to find those matching
+    the search term in the title.
+
+    Args:
+        search_term: Search term to match in meeting titles
+        limit: Maximum number of meetings to search through (default: 50)
+
+    Returns:
+        JSON string with matching meetings
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Searching for meetings with title containing '%s'...", search_term)
+
+        meetings = fathom_client.search_meetings_by_title(search_term, limit)
+
+        # Format meeting information
+        meeting_list = []
+        for meeting in meetings:
+            meeting_list.append({
+                "recording_id": meeting.get('recording_id'),
+                "title": meeting.get('title') or meeting.get('meeting_title'),
+                "url": meeting.get('url'),
+                "scheduled_start": meeting.get('scheduled_start_time'),
+                "attendees": [
+                    att.get('email') for att in meeting.get('calendar_invitees', [])
+                ]
+            })
+
+        logger.info("Found %d meetings matching '%s'", len(meeting_list), search_term)
+
+        return json.dumps({
+            "success": True,
+            "search_term": search_term,
+            "count": len(meeting_list),
+            "meetings": meeting_list
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in search_fathom_meetings_by_title: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def search_fathom_meetings_by_attendee(
+    email: str,
+    limit: int = 50
+) -> str:
+    """
+    Find Fathom meetings with a specific attendee.
+
+    This tool searches through your recent meetings to find those that
+    included a specific person (by email address).
+
+    Args:
+        email: Email address of the attendee to search for
+        limit: Maximum number of meetings to search through (default: 50)
+
+    Returns:
+        JSON string with meetings including the specified attendee
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Searching for meetings with attendee '%s'...", email)
+
+        meetings = fathom_client.search_meetings_by_attendee(email, limit)
+
+        # Format meeting information
+        meeting_list = []
+        for meeting in meetings:
+            meeting_list.append({
+                "recording_id": meeting.get('recording_id'),
+                "title": meeting.get('title') or meeting.get('meeting_title'),
+                "url": meeting.get('url'),
+                "scheduled_start": meeting.get('scheduled_start_time'),
+                "all_attendees": [
+                    {
+                        "name": att.get('name'),
+                        "email": att.get('email')
+                    }
+                    for att in meeting.get('calendar_invitees', [])
+                ]
+            })
+
+        logger.info("Found %d meetings with attendee '%s'", len(meeting_list), email)
+
+        return json.dumps({
+            "success": True,
+            "attendee_email": email,
+            "count": len(meeting_list),
+            "meetings": meeting_list
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in search_fathom_meetings_by_attendee: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_fathom_action_items(recording_id: int) -> str:
+    """
+    Get action items from a Fathom meeting recording.
+
+    This tool retrieves all action items identified in a meeting, including
+    who they're assigned to and whether they've been completed.
+
+    Args:
+        recording_id: Fathom recording ID
+
+    Returns:
+        JSON string with action items
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Fetching action items for recording %d...", recording_id)
+
+        # Get the full meeting data which includes action items
+        response = fathom_client.list_meetings(limit=100)
+        meetings = response.get('items', [])
+
+        # Find the specific meeting
+        target_meeting = None
+        for meeting in meetings:
+            if meeting.get('recording_id') == recording_id:
+                target_meeting = meeting
+                break
+
+        if not target_meeting:
+            return json.dumps({
+                "success": False,
+                "error": f"Meeting with recording_id {recording_id} not found"
+            }, indent=2)
+
+        action_items = target_meeting.get('action_items', [])
+
+        # Format action items
+        action_list = []
+        for item in action_items:
+            assignee = item.get('assignee', {})
+            action_list.append({
+                "description": item.get('description'),
+                "completed": item.get('completed'),
+                "user_generated": item.get('user_generated'),
+                "timestamp": item.get('recording_timestamp'),
+                "playback_url": item.get('recording_playback_url'),
+                "assignee_name": assignee.get('name'),
+                "assignee_email": assignee.get('email')
+            })
+
+        logger.info("Found %d action items for recording %d", len(action_list), recording_id)
+
+        return json.dumps({
+            "success": True,
+            "recording_id": recording_id,
+            "count": len(action_list),
+            "action_items": action_list
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_fathom_action_items: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg
