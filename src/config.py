@@ -37,9 +37,20 @@ class Config:
         Returns:
             Config object with loaded settings
         """
-        # Load .env file if it exists
+        # Try to find .env file - check current dir, then script dir
+        env_file = None
         if Path(env_path).exists():
-            load_dotenv(env_path)
+            env_file = env_path
+        else:
+            # Try relative to this file's directory
+            script_dir = Path(__file__).parent.parent
+            env_candidate = script_dir / env_path
+            if env_candidate.exists():
+                env_file = str(env_candidate)
+
+        # Load .env file if found
+        if env_file:
+            load_dotenv(env_file)
 
         # Parse configuration from environment variables
         credentials_path = Path(os.getenv(

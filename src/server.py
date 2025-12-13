@@ -14,6 +14,7 @@ from config import Config
 from auth import GmailAuthManager
 from gmail_client import GmailClient
 from email_analyzer import EmailAnalyzer
+from calendar_client import CalendarClient
 
 
 # Initialize logging
@@ -30,16 +31,17 @@ mcp = FastMCP(config.server_name)
 auth_manager: Optional[GmailAuthManager] = None
 gmail_client: Optional[GmailClient] = None
 email_analyzer: Optional[EmailAnalyzer] = None
+calendar_client: Optional[CalendarClient] = None
 
 
 def initialize_clients():
-    """Initialize Gmail client and analyzer."""
-    global auth_manager, gmail_client, email_analyzer
+    """Initialize Gmail and Calendar clients."""
+    global auth_manager, gmail_client, email_analyzer, calendar_client
 
-    if gmail_client is not None:
+    if gmail_client is not None and calendar_client is not None:
         return
 
-    logger.info("Initializing Gmail client...")
+    logger.info("Initializing clients...")
 
     # Validate configuration
     errors = config.validate()
@@ -70,7 +72,13 @@ def initialize_clients():
     # Initialize email analyzer
     email_analyzer = EmailAnalyzer()
 
-    logger.info("Gmail client initialized successfully")
+    # Initialize Calendar client
+    calendar_client = CalendarClient(
+        credentials,
+        config.max_requests_per_minute
+    )
+
+    logger.info("Clients initialized successfully")
 
 
 @mcp.tool()
@@ -473,10 +481,572 @@ async def get_unreplied_by_sender(email_or_domain: str) -> str:
         }, indent=2)
 
 
+@mcp.tool()
+async def list_calendars() -> str:
+    """
+    List all calendars accessible to the user.
+
+    Returns:
+        JSON string with list of calendars
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Fetching calendars...")
+
+        calendars = calendar_client.list_calendars()
+
+        # Format calendar information
+        calendar_list = []
+        for cal in calendars:
+            calendar_list.append({
+                "id": cal.get('id'),
+                "summary": cal.get('summary'),
+                "description": cal.get('description', ''),
+                "primary": cal.get('primary', False),
+                "time_zone": cal.get('timeZone', ''),
+                "access_role": cal.get('accessRole', '')
+            })
+
+        logger.info("Found %d calendars", len(calendar_list))
+
+        return json.dumps({
+            "success": True,
+            "count": len(calendar_list),
+            "calendars": calendar_list
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in list_calendars: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def list_calendar_events(
+    calendar_id: str = 'primary',
+    days_ahead: int = 7,
+    max_results: int = 50,
+    query: str = None
+) -> str:
+    """
+    List upcoming calendar events.
+
+    Args:
+        calendar_id: Calendar ID (default: 'primary')
+        days_ahead: Number of days ahead to fetch events (default: 7)
+        max_results: Maximum number of events to return (default: 50)
+        query: Optional search query to filter events
+
+    Returns:
+        JSON string with list of events
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Fetching calendar events for next %d days...", days_ahead)
+
+        # Calculate time range
+        time_min = datetime.now()
+        time_max = time_min + timedelta(days=days_ahead)
+
+        # Fetch events
+        events = calendar_client.list_events(
+            calendar_id=calendar_id,
+            time_min=time_min,
+            time_max=time_max,
+            max_results=max_results,
+            query=query
+        )
+
+        # Format event information
+        event_list = []
+        for event in events:
+            start = event.get('start', {})
+            end = event.get('end', {})
+            start_time_str = start.get('dateTime', start.get('date'))
+
+            # Parse start time to get day of week and formatted date
+            day_of_week = None
+            formatted_date = None
+            formatted_start_time = None
+            if start_time_str:
+                try:
+                    if 'T' in start_time_str:
+                        # DateTime format
+                        start_dt = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                        day_of_week = start_dt.strftime('%A')  # Monday, Tuesday, etc.
+                        formatted_date = start_dt.strftime('%B %d, %Y')  # December 08, 2025
+                        formatted_start_time = start_dt.strftime('%I:%M %p')  # 09:00 AM
+                    else:
+                        # Date-only format
+                        start_dt = datetime.fromisoformat(start_time_str)
+                        day_of_week = start_dt.strftime('%A')
+                        formatted_date = start_dt.strftime('%B %d, %Y')
+                except (ValueError, AttributeError):
+                    # If we can't parse, leave as None
+                    pass
+
+            event_list.append({
+                "id": event.get('id'),
+                "summary": event.get('summary', 'No title'),
+                "description": event.get('description', ''),
+                "location": event.get('location', ''),
+                "start": start_time_str,
+                "end": end.get('dateTime', end.get('date')),
+                "day_of_week": day_of_week,
+                "formatted_date": formatted_date,
+                "formatted_start_time": formatted_start_time,
+                "attendees": [
+                    {
+                        "email": att.get('email'),
+                        "response_status": att.get('responseStatus')
+                    }
+                    for att in event.get('attendees', [])
+                ],
+                "html_link": event.get('htmlLink', '')
+            })
+
+        logger.info("Found %d events", len(event_list))
+
+        return json.dumps({
+            "success": True,
+            "calendar_id": calendar_id,
+            "days_ahead": days_ahead,
+            "count": len(event_list),
+            "events": event_list
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Calendar API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in list_calendar_events: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def create_calendar_event(
+    summary: str,
+    start_time: str,
+    end_time: str,
+    calendar_id: str = 'primary',
+    description: str = None,
+    location: str = None,
+    attendees: str = None,
+    time_zone: str = 'UTC'
+) -> str:
+    """
+    Create a new calendar event.
+
+    Args:
+        summary: Event title
+        start_time: Event start time (ISO 8601 format: YYYY-MM-DDTHH:MM:SS)
+        end_time: Event end time (ISO 8601 format: YYYY-MM-DDTHH:MM:SS)
+        calendar_id: Calendar ID (default: 'primary')
+        description: Event description
+        location: Event location
+        attendees: Comma-separated list of attendee emails
+        time_zone: Time zone (default: 'UTC')
+
+    Returns:
+        JSON string with created event details
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Creating calendar event: %s", summary)
+
+        # Parse datetime strings
+        start_dt = datetime.fromisoformat(start_time)
+        end_dt = datetime.fromisoformat(end_time)
+
+        # Parse attendees if provided
+        attendee_list = None
+        if attendees:
+            attendee_list = [email.strip() for email in attendees.split(',')]
+
+        # Create event
+        event = calendar_client.create_event(
+            summary=summary,
+            start_time=start_dt,
+            end_time=end_dt,
+            calendar_id=calendar_id,
+            description=description,
+            location=location,
+            attendees=attendee_list,
+            time_zone=time_zone
+        )
+
+        logger.info("Created event: %s (ID: %s)", summary, event['id'])
+
+        return json.dumps({
+            "success": True,
+            "event_id": event['id'],
+            "summary": event.get('summary'),
+            "start": event.get('start', {}).get('dateTime'),
+            "end": event.get('end', {}).get('dateTime'),
+            "html_link": event.get('htmlLink', '')
+        }, indent=2)
+
+    except ValueError as e:
+        error_msg = f"Invalid datetime format: {str(e)}. Use ISO 8601 format (YYYY-MM-DDTHH:MM:SS)"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Calendar API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in create_calendar_event: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def update_calendar_event(
+    event_id: str,
+    calendar_id: str = 'primary',
+    summary: str = None,
+    start_time: str = None,
+    end_time: str = None,
+    description: str = None,
+    location: str = None,
+    time_zone: str = 'UTC'
+) -> str:
+    """
+    Update an existing calendar event.
+
+    Args:
+        event_id: Event ID
+        calendar_id: Calendar ID (default: 'primary')
+        summary: New event title
+        start_time: New start time (ISO 8601 format)
+        end_time: New end time (ISO 8601 format)
+        description: New description
+        location: New location
+        time_zone: Time zone (default: 'UTC')
+
+    Returns:
+        JSON string with updated event details
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Updating calendar event: %s", event_id)
+
+        # Parse datetime strings if provided
+        start_dt = datetime.fromisoformat(start_time) if start_time else None
+        end_dt = datetime.fromisoformat(end_time) if end_time else None
+
+        # Update event
+        event = calendar_client.update_event(
+            event_id=event_id,
+            calendar_id=calendar_id,
+            summary=summary,
+            start_time=start_dt,
+            end_time=end_dt,
+            description=description,
+            location=location,
+            time_zone=time_zone
+        )
+
+        logger.info("Updated event: %s", event_id)
+
+        return json.dumps({
+            "success": True,
+            "event_id": event['id'],
+            "summary": event.get('summary'),
+            "start": event.get('start', {}).get('dateTime'),
+            "end": event.get('end', {}).get('dateTime'),
+            "html_link": event.get('htmlLink', '')
+        }, indent=2)
+
+    except ValueError as e:
+        error_msg = f"Invalid datetime format: {str(e)}. Use ISO 8601 format (YYYY-MM-DDTHH:MM:SS)"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except HttpError as e:
+        if e.resp.status == 404:
+            error_msg = f"Event {event_id} not found"
+            logger.error(error_msg)
+            return json.dumps({
+                "success": False,
+                "error": error_msg
+            }, indent=2)
+
+        error_msg = f"Calendar API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in update_calendar_event: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def delete_calendar_event(
+    event_id: str,
+    calendar_id: str = 'primary'
+) -> str:
+    """
+    Delete a calendar event.
+
+    Args:
+        event_id: Event ID
+        calendar_id: Calendar ID (default: 'primary')
+
+    Returns:
+        JSON string with deletion confirmation
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Deleting calendar event: %s", event_id)
+
+        calendar_client.delete_event(event_id, calendar_id)
+
+        logger.info("Deleted event: %s", event_id)
+
+        return json.dumps({
+            "success": True,
+            "event_id": event_id,
+            "message": "Event deleted successfully"
+        }, indent=2)
+
+    except HttpError as e:
+        if e.resp.status == 404:
+            error_msg = f"Event {event_id} not found"
+            logger.error(error_msg)
+            return json.dumps({
+                "success": False,
+                "error": error_msg
+            }, indent=2)
+
+        error_msg = f"Calendar API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in delete_calendar_event: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def list_past_calendar_events(
+    calendar_id: str = 'primary',
+    days_back: int = 7,
+    max_results: int = 50,
+    query: str = None
+) -> str:
+    """
+    List past calendar events.
+
+    Args:
+        calendar_id: Calendar ID (default: 'primary')
+        days_back: Number of days back to fetch events (default: 7)
+        max_results: Maximum number of events to return (default: 50)
+        query: Optional search query to filter events
+
+    Returns:
+        JSON string with list of past events
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Fetching past calendar events for last %d days...", days_back)
+
+        # Calculate time range
+        time_max = datetime.now()
+        time_min = time_max - timedelta(days=days_back)
+
+        # Fetch events
+        events = calendar_client.list_events(
+            calendar_id=calendar_id,
+            time_min=time_min,
+            time_max=time_max,
+            max_results=max_results,
+            query=query
+        )
+
+        # Format event information
+        event_list = []
+        for event in events:
+            start = event.get('start', {})
+            end = event.get('end', {})
+            start_time_str = start.get('dateTime', start.get('date'))
+
+            # Parse start time to get day of week and formatted date
+            day_of_week = None
+            formatted_date = None
+            formatted_start_time = None
+            if start_time_str:
+                try:
+                    if 'T' in start_time_str:
+                        # DateTime format
+                        start_dt = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                        day_of_week = start_dt.strftime('%A')  # Monday, Tuesday, etc.
+                        formatted_date = start_dt.strftime('%B %d, %Y')  # December 08, 2025
+                        formatted_start_time = start_dt.strftime('%I:%M %p')  # 09:00 AM
+                    else:
+                        # Date-only format
+                        start_dt = datetime.fromisoformat(start_time_str)
+                        day_of_week = start_dt.strftime('%A')
+                        formatted_date = start_dt.strftime('%B %d, %Y')
+                except (ValueError, AttributeError):
+                    # If we can't parse, leave as None
+                    pass
+
+            event_list.append({
+                "id": event.get('id'),
+                "summary": event.get('summary', 'No title'),
+                "description": event.get('description', ''),
+                "location": event.get('location', ''),
+                "start": start_time_str,
+                "end": end.get('dateTime', end.get('date')),
+                "day_of_week": day_of_week,
+                "formatted_date": formatted_date,
+                "formatted_start_time": formatted_start_time,
+                "attendees": [
+                    {
+                        "email": att.get('email'),
+                        "response_status": att.get('responseStatus')
+                    }
+                    for att in event.get('attendees', [])
+                ],
+                "html_link": event.get('htmlLink', '')
+            })
+
+        logger.info("Found %d past events", len(event_list))
+
+        return json.dumps({
+            "success": True,
+            "calendar_id": calendar_id,
+            "days_back": days_back,
+            "count": len(event_list),
+            "events": event_list
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Calendar API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in list_past_calendar_events: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def quick_add_calendar_event(
+    text: str,
+    calendar_id: str = 'primary'
+) -> str:
+    """
+    Create a calendar event using natural language.
+
+    This tool uses Google Calendar's natural language processing
+    to create events from text descriptions.
+
+    Args:
+        text: Natural language description (e.g., "Dinner with John tomorrow at 7pm")
+        calendar_id: Calendar ID (default: 'primary')
+
+    Returns:
+        JSON string with created event details
+
+    Examples:
+        - "Meeting with team tomorrow at 3pm"
+        - "Lunch at Cafe Roma on Friday at noon"
+        - "Vacation from Dec 20 to Dec 30"
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Quick adding calendar event: %s", text)
+
+        event = calendar_client.quick_add_event(text, calendar_id)
+
+        logger.info("Quick added event: %s (ID: %s)", text, event['id'])
+
+        return json.dumps({
+            "success": True,
+            "event_id": event['id'],
+            "summary": event.get('summary'),
+            "start": event.get('start', {}).get('dateTime', event.get('start', {}).get('date')),
+            "end": event.get('end', {}).get('dateTime', event.get('end', {}).get('date')),
+            "html_link": event.get('htmlLink', '')
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Calendar API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in quick_add_calendar_event: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
 def main():
     """Main entry point for MCP server."""
     try:
-        logger.info("Starting Gmail Reply Tracker MCP Server...")
+        logger.info("Starting Gmail & Calendar MCP Server...")
 
         # Initialize clients at startup
         initialize_clients()
