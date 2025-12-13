@@ -1043,6 +1043,381 @@ async def quick_add_calendar_event(
         }, indent=2)
 
 
+@mcp.tool()
+async def send_email(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str = None,
+    bcc: str = None,
+    confirm: bool = False
+) -> str:
+    """
+    Send a new email. Requires confirmation before sending.
+
+    This tool will show you a preview first. Reply with confirmation to actually send.
+
+    Args:
+        to: Recipient email address
+        subject: Email subject
+        body: Email body (plain text)
+        cc: CC recipients (comma-separated, optional)
+        bcc: BCC recipients (comma-separated, optional)
+        confirm: Set to True to actually send (after previewing)
+
+    Returns:
+        JSON string with preview or sent message confirmation
+    """
+    try:
+        initialize_clients()
+
+        # If not confirmed, return preview
+        if not confirm:
+            preview = {
+                "action": "PREVIEW - NOT SENT",
+                "to": to,
+                "subject": subject,
+                "body": body,
+                "message": "Email NOT sent yet. Review the details above. To send, confirm with the user first."
+            }
+
+            if cc:
+                preview["cc"] = cc
+            if bcc:
+                preview["bcc"] = bcc
+
+            return json.dumps({
+                "success": True,
+                "requires_confirmation": True,
+                "preview": preview
+            }, indent=2)
+
+        # Confirmed - send the email
+        logger.info("Sending email to: %s, subject: %s", to, subject)
+
+        sent_message = gmail_client.send_message(
+            to=to,
+            subject=subject,
+            body=body,
+            cc=cc,
+            bcc=bcc
+        )
+
+        logger.info("Email sent successfully: %s", sent_message['id'])
+
+        return json.dumps({
+            "success": True,
+            "message_id": sent_message['id'],
+            "message": f"Email sent successfully to {to}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Gmail API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in send_email: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def reply_to_email(
+    thread_id: str,
+    body: str,
+    confirm: bool = False
+) -> str:
+    """
+    Reply to an email thread. Requires confirmation before sending.
+
+    This tool will show you a preview first. Reply with confirmation to actually send.
+
+    Args:
+        thread_id: Gmail thread ID to reply to
+        body: Reply body (plain text)
+        confirm: Set to True to actually send (after previewing)
+
+    Returns:
+        JSON string with preview or sent message confirmation
+    """
+    try:
+        initialize_clients()
+
+        # Get the thread to extract reply information
+        thread = gmail_client.get_thread(thread_id)
+        last_message = thread['messages'][-1]
+
+        # Parse headers
+        from email_analyzer import EmailAnalyzer
+        analyzer = EmailAnalyzer()
+        headers = analyzer.parse_headers(last_message.get('payload', {}).get('headers', []))
+
+        # Extract reply info
+        from_addr = headers.get('From', '')
+        subject = headers.get('Subject', '')
+        message_id = headers.get('Message-ID', '')
+        references = headers.get('References', '')
+
+        # Add Re: if not already present
+        if not subject.startswith('Re:'):
+            subject = f"Re: {subject}"
+
+        # Build references header
+        if references:
+            new_references = f"{references} {message_id}"
+        else:
+            new_references = message_id
+
+        # If not confirmed, return preview
+        if not confirm:
+            preview = {
+                "action": "PREVIEW - NOT SENT",
+                "to": from_addr,
+                "subject": subject,
+                "body": body,
+                "thread_id": thread_id,
+                "message": "Reply NOT sent yet. Review the details above. To send, confirm with the user first."
+            }
+
+            return json.dumps({
+                "success": True,
+                "requires_confirmation": True,
+                "preview": preview
+            }, indent=2)
+
+        # Confirmed - send the reply
+        logger.info("Sending reply to thread: %s", thread_id)
+
+        sent_message = gmail_client.send_message(
+            to=from_addr,
+            subject=subject,
+            body=body,
+            thread_id=thread_id,
+            in_reply_to=message_id,
+            references=new_references
+        )
+
+        logger.info("Reply sent successfully: %s", sent_message['id'])
+
+        return json.dumps({
+            "success": True,
+            "message_id": sent_message['id'],
+            "thread_id": thread_id,
+            "message": f"Reply sent successfully to thread {thread_id}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Gmail API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in reply_to_email: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def reply_all_to_email(
+    thread_id: str,
+    body: str,
+    confirm: bool = False
+) -> str:
+    """
+    Reply to all recipients in an email thread. Requires confirmation before sending.
+
+    This tool will show you a preview first. Reply with confirmation to actually send.
+
+    Args:
+        thread_id: Gmail thread ID to reply to
+        body: Reply body (plain text)
+        confirm: Set to True to actually send (after previewing)
+
+    Returns:
+        JSON string with preview or sent message confirmation
+    """
+    try:
+        initialize_clients()
+
+        # Get the thread to extract reply information
+        thread = gmail_client.get_thread(thread_id)
+        last_message = thread['messages'][-1]
+
+        # Parse headers
+        from email_analyzer import EmailAnalyzer
+        analyzer = EmailAnalyzer()
+        headers = analyzer.parse_headers(last_message.get('payload', {}).get('headers', []))
+
+        # Extract reply info
+        from_addr = headers.get('From', '')
+        to_addr = headers.get('To', '')
+        cc_addr = headers.get('Cc', '')
+        subject = headers.get('Subject', '')
+        message_id = headers.get('Message-ID', '')
+        references = headers.get('References', '')
+
+        # Get user email to exclude from recipients
+        user_email = gmail_client.get_user_email()
+
+        # Build recipient lists (excluding user)
+        all_recipients = []
+        if to_addr:
+            all_recipients.extend([addr.strip() for addr in to_addr.split(',')])
+        if cc_addr:
+            all_recipients.extend([addr.strip() for addr in cc_addr.split(',')])
+
+        # Filter out user's own email
+        all_recipients = [r for r in all_recipients if user_email.lower() not in r.lower()]
+
+        # Primary recipient is the sender
+        to = from_addr
+
+        # CC is everyone else
+        cc = ', '.join(all_recipients) if all_recipients else None
+
+        # Add Re: if not already present
+        if not subject.startswith('Re:'):
+            subject = f"Re: {subject}"
+
+        # Build references header
+        if references:
+            new_references = f"{references} {message_id}"
+        else:
+            new_references = message_id
+
+        # If not confirmed, return preview
+        if not confirm:
+            preview = {
+                "action": "PREVIEW - NOT SENT",
+                "to": to,
+                "cc": cc,
+                "subject": subject,
+                "body": body,
+                "thread_id": thread_id,
+                "message": "Reply All NOT sent yet. Review the details above. To send, confirm with the user first."
+            }
+
+            return json.dumps({
+                "success": True,
+                "requires_confirmation": True,
+                "preview": preview
+            }, indent=2)
+
+        # Confirmed - send the reply
+        logger.info("Sending reply-all to thread: %s", thread_id)
+
+        sent_message = gmail_client.send_message(
+            to=to,
+            subject=subject,
+            body=body,
+            cc=cc,
+            thread_id=thread_id,
+            in_reply_to=message_id,
+            references=new_references
+        )
+
+        logger.info("Reply-all sent successfully: %s", sent_message['id'])
+
+        return json.dumps({
+            "success": True,
+            "message_id": sent_message['id'],
+            "thread_id": thread_id,
+            "message": f"Reply-all sent successfully to thread {thread_id}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Gmail API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in reply_all_to_email: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def create_email_draft(
+    to: str,
+    subject: str,
+    body: str,
+    cc: str = None,
+    bcc: str = None
+) -> str:
+    """
+    Create an email draft without sending.
+
+    Drafts can be reviewed and edited in Gmail before sending.
+
+    Args:
+        to: Recipient email address
+        subject: Email subject
+        body: Email body (plain text)
+        cc: CC recipients (comma-separated, optional)
+        bcc: BCC recipients (comma-separated, optional)
+
+    Returns:
+        JSON string with draft creation confirmation
+    """
+    try:
+        initialize_clients()
+
+        logger.info("Creating email draft to: %s, subject: %s", to, subject)
+
+        draft = gmail_client.create_draft(
+            to=to,
+            subject=subject,
+            body=body,
+            cc=cc,
+            bcc=bcc
+        )
+
+        logger.info("Draft created successfully: %s", draft['id'])
+
+        return json.dumps({
+            "success": True,
+            "draft_id": draft['id'],
+            "message": f"Draft created successfully. You can review and edit it in Gmail before sending.",
+            "to": to,
+            "subject": subject
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Gmail API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in create_email_draft: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
 def main():
     """Main entry point for MCP server."""
     try:

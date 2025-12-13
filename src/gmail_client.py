@@ -2,6 +2,9 @@
 
 import time
 import logging
+import base64
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import List, Dict, Any, Optional
 from collections import deque
 
@@ -308,3 +311,117 @@ class GmailClient:
 
         logger.info("Retrieved %d/%d messages", len(messages), len(message_ids))
         return messages
+
+    def send_message(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        cc: Optional[str] = None,
+        bcc: Optional[str] = None,
+        thread_id: Optional[str] = None,
+        in_reply_to: Optional[str] = None,
+        references: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Send an email message.
+
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            body: Email body (plain text)
+            cc: CC recipients (comma-separated)
+            bcc: BCC recipients (comma-separated)
+            thread_id: Thread ID to reply to (optional)
+            in_reply_to: Message-ID being replied to (optional)
+            references: References header for threading (optional)
+
+        Returns:
+            Sent message object
+
+        Raises:
+            HttpError: If API request fails
+        """
+        # Create MIME message
+        message = MIMEText(body, 'plain')
+        message['to'] = to
+        message['subject'] = subject
+
+        if cc:
+            message['cc'] = cc
+
+        if bcc:
+            message['bcc'] = bcc
+
+        # Add threading headers for replies
+        if in_reply_to:
+            message['In-Reply-To'] = in_reply_to
+
+        if references:
+            message['References'] = references
+
+        # Encode message
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        # Prepare API request body
+        body_data = {'raw': raw}
+        if thread_id:
+            body_data['threadId'] = thread_id
+
+        # Send message
+        request = self.service.users().messages().send(
+            userId='me',
+            body=body_data
+        )
+
+        sent_message = self._execute_with_retry(request)
+        logger.info("Sent message: %s", sent_message['id'])
+        return sent_message
+
+    def create_draft(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        cc: Optional[str] = None,
+        bcc: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a draft email.
+
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            body: Email body (plain text)
+            cc: CC recipients (comma-separated)
+            bcc: BCC recipients (comma-separated)
+
+        Returns:
+            Draft object
+
+        Raises:
+            HttpError: If API request fails
+        """
+        # Create MIME message
+        message = MIMEText(body, 'plain')
+        message['to'] = to
+        message['subject'] = subject
+
+        if cc:
+            message['cc'] = cc
+
+        if bcc:
+            message['bcc'] = bcc
+
+        # Encode message
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        # Create draft
+        request = self.service.users().drafts().create(
+            userId='me',
+            body={'message': {'raw': raw}}
+        )
+
+        draft = self._execute_with_retry(request)
+        logger.info("Created draft: %s", draft['id'])
+        return draft
