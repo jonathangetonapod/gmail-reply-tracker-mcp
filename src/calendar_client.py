@@ -288,7 +288,8 @@ class CalendarClient:
 
         request = self.service.events().insert(
             calendarId=calendar_id,
-            body=event
+            body=event,
+            sendUpdates='all'  # Send email notifications to all attendees
         )
 
         created_event = self._execute_with_retry(request)
@@ -353,7 +354,8 @@ class CalendarClient:
         request = self.service.events().update(
             calendarId=calendar_id,
             eventId=event_id,
-            body=event
+            body=event,
+            sendUpdates='all'  # Send email notifications to all attendees
         )
 
         updated_event = self._execute_with_retry(request)
