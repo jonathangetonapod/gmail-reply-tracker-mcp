@@ -658,7 +658,7 @@ async def create_calendar_event(
     description: str = None,
     location: str = None,
     attendees: str = None,
-    time_zone: str = 'UTC'
+    time_zone: str = None
 ) -> str:
     """
     Create a new calendar event.
@@ -671,7 +671,7 @@ async def create_calendar_event(
         description: Event description
         location: Event location
         attendees: Comma-separated list of attendee emails
-        time_zone: Time zone (default: 'UTC')
+        time_zone: Time zone (default: auto-detect from system, or 'America/Bogota')
 
     Returns:
         JSON string with created event details
@@ -680,6 +680,19 @@ async def create_calendar_event(
         initialize_clients()
 
         logger.info("Creating calendar event: %s", summary)
+
+        # Auto-detect timezone if not provided
+        if time_zone is None:
+            import pytz
+            from tzlocal import get_localzone
+            try:
+                local_tz = get_localzone()
+                time_zone = str(local_tz)
+                logger.info("Auto-detected timezone: %s", time_zone)
+            except Exception:
+                # Fallback to Colombia timezone
+                time_zone = 'America/Bogota'
+                logger.info("Using fallback timezone: %s", time_zone)
 
         # Parse datetime strings
         start_dt = datetime.fromisoformat(start_time)
@@ -747,7 +760,7 @@ async def update_calendar_event(
     end_time: str = None,
     description: str = None,
     location: str = None,
-    time_zone: str = 'UTC'
+    time_zone: str = None
 ) -> str:
     """
     Update an existing calendar event.
@@ -760,7 +773,7 @@ async def update_calendar_event(
         end_time: New end time (ISO 8601 format)
         description: New description
         location: New location
-        time_zone: Time zone (default: 'UTC')
+        time_zone: Time zone (default: auto-detect from system, or 'America/Bogota')
 
     Returns:
         JSON string with updated event details
@@ -769,6 +782,19 @@ async def update_calendar_event(
         initialize_clients()
 
         logger.info("Updating calendar event: %s", event_id)
+
+        # Auto-detect timezone if not provided
+        if time_zone is None:
+            import pytz
+            from tzlocal import get_localzone
+            try:
+                local_tz = get_localzone()
+                time_zone = str(local_tz)
+                logger.info("Auto-detected timezone: %s", time_zone)
+            except Exception:
+                # Fallback to Colombia timezone
+                time_zone = 'America/Bogota'
+                logger.info("Using fallback timezone: %s", time_zone)
 
         # Parse datetime strings if provided
         start_dt = datetime.fromisoformat(start_time) if start_time else None
