@@ -1,6 +1,12 @@
 # Gmail, Calendar & Fathom MCP Server
 
-An MCP (Model Context Protocol) server that connects to Gmail, Google Calendar, and Fathom AI to help you manage emails, meetings, and meeting insights. This server exposes tools that let Claude interact with your productivity suite in real-time during conversations.
+A powerful MCP (Model Context Protocol) server that unifies Gmail, Google Calendar, and Fathom AI into a single intelligent interface. Chat with Claude to manage your emails, schedule meetings, access meeting transcripts, and extract action items—all in natural language.
+
+**Latest Updates:**
+- ✅ Automatic timezone detection (no more UTC confusion)
+- ✅ Calendar invitations automatically send to attendees
+- ✅ Full Fathom AI integration with transcripts and summaries
+- ✅ Cross-platform intelligence (search across email, calendar, and meetings)
 
 ## Features
 
@@ -15,10 +21,12 @@ An MCP (Model Context Protocol) server that connects to Gmail, Google Calendar, 
 
 ### Google Calendar
 - **Event Management**: List, create, update, and delete calendar events
+- **Smart Timezone Handling**: Automatically detects your local timezone
 - **Multi-Calendar Support**: Work with multiple calendars
 - **Natural Language Event Creation**: Quick add events using plain English
 - **Past & Future Events**: View events in any time range
-- **Attendee Management**: Handle meeting invitations and responses
+- **Attendee Management**: Automatic email invitations to attendees
+- **Meeting Coordination**: Send calendar invites that actually work
 
 ### Fathom AI Integration
 - **Meeting Recordings**: List and access all your Fathom meeting recordings
@@ -218,59 +226,42 @@ Quit and restart Claude Desktop to load the new MCP server.
 
 ## Usage
 
-Once configured, you can ask Claude natural language questions about your Gmail:
+Once configured, you can ask Claude natural language questions about your entire productivity suite:
 
 ### Example Queries
 
-**Find unreplied emails:**
+**Email Management:**
 ```
 What emails do I need to reply to?
-```
-
-**Search by sender:**
-```
 Show me unreplied emails from john@example.com
+Draft a reply to this email thread
+Send an email to team@company.com about the project update
 ```
 
-**Search by domain:**
-```
-What emails from @acme.com need replies?
-```
-
-**Get inbox summary:**
-```
-Give me my inbox summary
-```
-
-**Who are you ghosting:**
-```
-Who have I ghosted this week?
-```
-
-**Search with Gmail syntax:**
-```
-Find emails from my boss after January 1st
-```
-
-**Get thread context:**
-```
-Show me the full conversation for thread [thread-id]
-```
-
-**Calendar queries:**
+**Calendar & Scheduling:**
 ```
 What's on my calendar this week?
-Schedule a meeting with John tomorrow at 2pm
+Schedule a meeting with john@company.com tomorrow at 2pm
+Send a calendar invite to sarah@company.com for Friday at 3pm
 Show me my meetings from last week
+Cancel my 3pm meeting
 ```
 
-**Fathom meeting queries:**
+**Meeting Intelligence (Fathom):**
 ```
 List my recent Fathom meetings
-Get the transcript from my meeting about the Q4 budget
-What action items came out of my last meeting with Sarah?
-Find all meetings with john@company.com
+Get the transcript from yesterday's client call
+What action items came out of my meeting with the engineering team?
 Summarize the Project Phoenix kickoff meeting
+Find all meetings where we discussed the Q4 budget
+```
+
+**Cross-Platform Queries:**
+```
+What's the status of the marketing campaign? Check emails, calendar, and meeting notes
+Find all action items from this week across meetings and emails
+Who have I been meeting with most this month?
+What was decided in the meeting and has anyone emailed about it?
 ```
 
 ## Tool Reference
@@ -396,25 +387,46 @@ pytest --cov=src tests/
 MCP_Gmail/
 ├── src/
 │   ├── __init__.py
-│   ├── server.py              # MCP server entry point
+│   ├── server.py              # MCP server entry point (25+ tools)
 │   ├── gmail_client.py        # Gmail API wrapper
+│   ├── calendar_client.py     # Google Calendar API wrapper
+│   ├── fathom_client.py       # Fathom AI API wrapper
 │   ├── email_analyzer.py      # Reply detection logic
 │   ├── auth.py                # OAuth authentication
 │   └── config.py              # Configuration management
 ├── tests/
 │   ├── __init__.py
 │   ├── test_analyzer.py       # Email analyzer tests
-│   └── test_gmail_client.py  # Gmail client tests
+│   └── test_gmail_client.py   # Gmail client tests
 ├── credentials/
 │   ├── credentials.json       # OAuth credentials (gitignored)
-│   └── token.json            # Access token (gitignored)
+│   └── token.json             # Access token (gitignored)
 ├── requirements.txt           # Python dependencies
 ├── .env                       # Environment config (gitignored)
-├── .env.example               # Environment template
 ├── .gitignore
 ├── README.md
 └── setup_oauth.py             # OAuth setup script
 ```
+
+## Recent Improvements
+
+### December 2024 Updates
+
+**Timezone Auto-Detection (v1.2)**
+- Calendar events now automatically use your local timezone
+- No more UTC confusion when scheduling meetings
+- Falls back to America/Bogota if detection fails
+
+**Calendar Invitation Fix (v1.2)**
+- Attendees now automatically receive email invitations
+- Previously, events were created but no emails were sent
+- Both create and update operations send notifications
+
+**Fathom AI Integration (v1.1)**
+- Full integration with Fathom meeting recordings
+- Access transcripts, summaries, and action items
+- Search meetings by title, attendee, or content
+- 6 new MCP tools for meeting intelligence
 
 ## Troubleshooting
 
@@ -449,6 +461,33 @@ MCP_Gmail/
 2. Reduce `max_results` parameters in your queries
 3. Adjust `GMAIL_API_MAX_REQUESTS_PER_MINUTE` in `.env`
 
+### Calendar invitations not being sent
+
+**Solution**: Update to the latest version (v1.2+):
+```bash
+git pull origin main
+pip install -r requirements.txt
+# Restart Claude Desktop
+```
+The fix ensures all calendar events with attendees automatically send email invitations.
+
+### Calendar events at wrong time
+
+**Solution**: Update to v1.2+ which includes automatic timezone detection:
+```bash
+git pull origin main
+pip install -r requirements.txt
+# Restart Claude Desktop
+```
+Events will now be created in your local timezone automatically.
+
+### Fathom tools not available
+
+**Solution**:
+1. Ensure `FATHOM_API_KEY` is set in your `.env` file
+2. Get your API key from https://fathom.video Settings > API
+3. Restart Claude Desktop after updating `.env`
+
 ### Server crashes or errors
 
 **Solutions**:
@@ -461,9 +500,10 @@ MCP_Gmail/
 
 ### What This Server Can Access
 
-- **Read-only access** to your Gmail (uses `gmail.readonly` scope)
-- Can read email headers, content, and metadata
-- **Cannot send, delete, or modify emails**
+- **Gmail**: Read/write access to send emails and create drafts (uses `gmail.modify` scope)
+- **Calendar**: Full access to create, read, update, and delete events
+- **Fathom**: Read access to meeting recordings, transcripts, and summaries via API key
+- **All data processed locally** - no third-party servers involved
 
 ### Where Data Is Stored
 
@@ -501,6 +541,16 @@ Each team member needs to:
 
 Yes! Edit the `AUTOMATED_FROM_PATTERNS` list in `src/email_analyzer.py` to add your own patterns.
 
+## Roadmap
+
+**Coming Soon:**
+- [ ] Slack integration for unified communication
+- [ ] Email templates and quick replies
+- [ ] Advanced meeting analytics from Fathom
+- [ ] Calendar smart scheduling suggestions
+- [ ] Email categorization and auto-sorting
+- [ ] Meeting preparation summaries
+
 ## Contributing
 
 Contributions are welcome! Please:
@@ -510,6 +560,23 @@ Contributions are welcome! Please:
 3. Add tests for new functionality
 4. Ensure all tests pass: `pytest`
 5. Submit a pull request
+
+## Changelog
+
+### v1.2.0 (December 2024)
+- Added automatic timezone detection for calendar events
+- Fixed calendar invitation emails not being sent
+- Improved error handling and logging
+
+### v1.1.0 (December 2024)
+- Added Fathom AI integration
+- 6 new tools for meeting transcripts and summaries
+- Cross-platform search capabilities
+
+### v1.0.0 (December 2024)
+- Initial release with Gmail and Calendar support
+- Email reply tracking and inbox analytics
+- Calendar event management
 
 ## License
 
