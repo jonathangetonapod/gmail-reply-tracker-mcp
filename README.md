@@ -78,6 +78,10 @@ The MCP server exposes 25+ tools across Gmail, Calendar, and Fathom:
 
 ## Installation
 
+> **👋 Never coded before?** Check out the **[Complete Beginner's Setup Guide](BEGINNER_SETUP.md)** - it explains EVERY step from scratch, even if you've never used Terminal or Python!
+
+### Quick Start (For Developers)
+
 ### 1. Clone or Download This Repository
 
 ```bash
