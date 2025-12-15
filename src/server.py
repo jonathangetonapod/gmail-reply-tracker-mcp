@@ -1190,7 +1190,24 @@ async def reply_to_email(
 
         # Get the thread to extract reply information
         thread = gmail_client.get_thread(thread_id)
-        last_message = thread['messages'][-1]
+
+        # Find the last real message (skip automated messages like reminders, no-reply, etc.)
+        last_message = None
+        automated_domains = ['superhuman.com', 'noreply', 'no-reply', 'donotreply', 'do-not-reply']
+
+        for msg in reversed(thread['messages']):
+            msg_headers = email_analyzer.parse_headers(msg.get('payload', {}).get('headers', []))
+            from_addr_check = msg_headers.get('From', '').lower()
+
+            # Skip automated messages
+            is_automated = any(domain in from_addr_check for domain in automated_domains)
+            if not is_automated:
+                last_message = msg
+                break
+
+        if not last_message:
+            # Fallback to last message if all are automated
+            last_message = thread['messages'][-1]
 
         # Parse headers
         from email_analyzer import EmailAnalyzer
@@ -1199,9 +1216,35 @@ async def reply_to_email(
 
         # Extract reply info
         from_addr = headers.get('From', '')
+        to_addr = headers.get('To', '')
+        cc_addr = headers.get('Cc', '')
         subject = headers.get('Subject', '')
         message_id = headers.get('Message-ID', '')
         references = headers.get('References', '')
+
+        # Get user email to exclude from CC
+        user_email = gmail_client.get_user_email()
+
+        # Build CC list with other participants
+        all_recipients = []
+        if to_addr:
+            all_recipients.extend([addr.strip() for addr in to_addr.split(',')])
+        if cc_addr:
+            all_recipients.extend([addr.strip() for addr in cc_addr.split(',')])
+
+        # Filter out user's own email and the sender (they're in To field)
+        cc_list = []
+        for recipient in all_recipients:
+            # Extract just the email from "Name <email>" format
+            email_part = recipient
+            if '<' in recipient and '>' in recipient:
+                email_part = recipient[recipient.index('<')+1:recipient.index('>')]
+
+            # Skip if it's the user or the person we're replying to
+            if user_email.lower() not in email_part.lower() and email_part.lower() not in from_addr.lower():
+                cc_list.append(recipient)
+
+        cc = ', '.join(cc_list) if cc_list else None
 
         # Add Re: if not already present
         if not subject.startswith('Re:'):
@@ -1224,6 +1267,9 @@ async def reply_to_email(
                 "message": "Reply NOT sent yet. Review the details above. To send, confirm with the user first."
             }
 
+            if cc:
+                preview["cc"] = cc
+
             return json.dumps({
                 "success": True,
                 "requires_confirmation": True,
@@ -1237,6 +1283,7 @@ async def reply_to_email(
             to=from_addr,
             subject=subject,
             body=body,
+            cc=cc,
             thread_id=thread_id,
             in_reply_to=message_id,
             references=new_references
@@ -1292,7 +1339,24 @@ async def reply_all_to_email(
 
         # Get the thread to extract reply information
         thread = gmail_client.get_thread(thread_id)
-        last_message = thread['messages'][-1]
+
+        # Find the last real message (skip automated messages like reminders, no-reply, etc.)
+        last_message = None
+        automated_domains = ['superhuman.com', 'noreply', 'no-reply', 'donotreply', 'do-not-reply']
+
+        for msg in reversed(thread['messages']):
+            msg_headers = email_analyzer.parse_headers(msg.get('payload', {}).get('headers', []))
+            from_addr_check = msg_headers.get('From', '').lower()
+
+            # Skip automated messages
+            is_automated = any(domain in from_addr_check for domain in automated_domains)
+            if not is_automated:
+                last_message = msg
+                break
+
+        if not last_message:
+            # Fallback to last message if all are automated
+            last_message = thread['messages'][-1]
 
         # Parse headers
         from email_analyzer import EmailAnalyzer
