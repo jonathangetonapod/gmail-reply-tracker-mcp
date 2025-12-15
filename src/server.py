@@ -717,6 +717,37 @@ async def create_calendar_event(
 
         logger.info("Created event: %s (ID: %s)", summary, event['id'])
 
+        # Send email notifications to all attendees
+        if attendee_list:
+            # Format the time nicely for the email
+            start_formatted = start_dt.strftime('%A, %B %d, %Y at %I:%M %p')
+
+            # Build email body
+            email_body = f"You've been invited to a meeting:\n\n"
+            email_body += f"Title: {summary}\n"
+            email_body += f"Time: {start_formatted}\n"
+
+            if location:
+                email_body += f"Location: {location}\n"
+
+            if description:
+                email_body += f"\nDetails:\n{description}\n"
+
+            email_body += f"\nCalendar Link: {event.get('htmlLink', '')}\n"
+            email_body += f"\nThis event has been added to your calendar."
+
+            # Send email to each attendee
+            for attendee_email in attendee_list:
+                try:
+                    gmail_client.send_message(
+                        to=attendee_email,
+                        subject=f"Calendar Invite: {summary}",
+                        body=email_body
+                    )
+                    logger.info("Sent email notification to: %s", attendee_email)
+                except Exception as e:
+                    logger.warning("Failed to send email notification to %s: %s", attendee_email, str(e))
+
         return json.dumps({
             "success": True,
             "event_id": event['id'],
