@@ -539,13 +539,32 @@ SETUP_LANDING_HTML = """
                     <h3 style="color: #9c27b0; margin: 0 0 10px 0; font-size: 18px;">🔌 Claude Desktop Not Connecting</h3>
                     <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> MCP server not appearing in Claude</p>
                     <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
-                        <strong style="color: #2e7d32;">✅ Fix:</strong>
+                        <strong style="color: #2e7d32;">✅ Fix 1 - Restart Claude:</strong>
                         <ol style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.6;">
                             <li>Completely quit Claude (⌘Q)</li>
                             <li>Reopen Claude Desktop</li>
                             <li>Wait 10 seconds for MCP to connect</li>
                         </ol>
-                        <p style="margin: 12px 0 0 0; font-size: 14px; color: #666;">💡 Check logs: <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">~/Library/Logs/Claude/mcp*.log</code></p>
+
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                        <strong style="color: #2e7d32;">✅ Fix 2 - Check Config File:</strong>
+                        <p style="margin: 10px 0 4px 0; font-size: 14px;">Open config in TextEdit:</p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0 0 10px 0; white-space: pre-wrap; word-wrap: break-word;">open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+
+                        <p style="margin: 10px 0 4px 0; font-size: 14px;">Or view in terminal:</p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0 0 10px 0; white-space: pre-wrap; word-wrap: break-word;">cat ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Make sure you see <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">"gmail-calendar-fathom"</code> in the config</p>
+
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                        <strong style="color: #2e7d32;">✅ Fix 3 - View Logs:</strong>
+                        <p style="margin: 10px 0 4px 0; font-size: 14px;">Watch logs in real-time:</p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0 0 10px 0; white-space: pre-wrap; word-wrap: break-word;">tail -f ~/Library/Logs/Claude/mcp*.log</pre>
+
+                        <p style="margin: 10px 0 4px 0; font-size: 14px;">Open logs folder in Finder:</p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">open ~/Library/Logs/Claude/</pre>
                     </div>
                 </div>
 
@@ -554,11 +573,17 @@ SETUP_LANDING_HTML = """
                     <h3 style="color: #3f51b5; margin: 0 0 10px 0; font-size: 18px;">🔍 No Tools Showing</h3>
                     <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> Connected but no tools available</p>
                     <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
-                        <strong style="color: #2e7d32;">✅ Fix - Re-authenticate:</strong>
-                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; margin: 10px 0; white-space: pre-wrap; word-wrap: break-word;">rm ~/gmail-calendar-mcp/credentials/token.json
-cd ~/gmail-calendar-mcp
-./venv/bin/python auto_oauth.py</pre>
-                        <p style="margin: 10px 0 0 0;">Then restart Claude Desktop</p>
+                        <strong style="color: #2e7d32;">✅ Fix - Delete token and re-authenticate:</strong>
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; margin: 10px 0; white-space: pre-wrap; word-wrap: break-word;">rm ~/gmail-calendar-mcp/credentials/token.json && cd ~/gmail-calendar-mcp && ./venv/bin/python auto_oauth.py</pre>
+                        <p style="margin: 10px 0 0 0; font-size: 14px;">Then restart Claude Desktop (⌘Q and reopen)</p>
+
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                        <p style="margin: 10px 0 4px 0; font-size: 14px;"><strong>Check if token exists:</strong></p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">ls -la ~/gmail-calendar-mcp/credentials/token.json</pre>
+
+                        <p style="margin: 12px 0 4px 0; font-size: 14px;"><strong>View token contents (check scopes):</strong></p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">cat ~/gmail-calendar-mcp/credentials/token.json | python3 -m json.tool</pre>
                     </div>
                 </div>
 
@@ -595,15 +620,56 @@ cd ~/gmail-calendar-mcp
                     </div>
                 </div>
 
+                <!-- Claude Desktop Settings -->
+                <div style="background: #e1f5fe; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 16px;">⚙️ Finding Claude Desktop Settings</h3>
+
+                    <p style="margin: 0 0 10px 0; font-weight: 600; font-size: 14px;">Option 1 - In Claude Desktop app:</p>
+                    <ol style="margin: 0 0 15px 0; padding-left: 20px; line-height: 1.8;">
+                        <li>Open Claude Desktop</li>
+                        <li>Click <strong>Claude</strong> in menu bar → <strong>Settings</strong> (or press ⌘,)</li>
+                        <li>Go to <strong>Developer</strong> tab</li>
+                        <li>Click <strong>Edit Config</strong> button</li>
+                    </ol>
+
+                    <p style="margin: 15px 0 10px 0; font-weight: 600; font-size: 14px;">Option 2 - Direct file access:</p>
+                    <p style="margin: 0 0 5px 0; font-size: 14px;">Click this command to open config in TextEdit:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+                </div>
+
                 <!-- Quick Commands -->
                 <div style="background: #f5f5f5; padding: 20px; border-radius: 8px;">
-                    <h3 style="margin: 0 0 15px 0; font-size: 16px;">💡 Quick Commands</h3>
+                    <h3 style="margin: 0 0 15px 0; font-size: 16px;">💡 Useful Terminal Commands</h3>
 
-                    <p style="margin: 12px 0 4px 0; font-weight: 600; font-size: 14px;">Test OAuth:</p>
+                    <p style="margin: 12px 0 4px 0; font-weight: 600; font-size: 14px;">📝 Open Claude config in editor:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">open -a TextEdit ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">👁️ View Claude config:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">cat ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">📂 Open Claude config folder in Finder:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">open ~/Library/Application\ Support/Claude/</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">📋 Watch MCP logs live:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">tail -f ~/Library/Logs/Claude/mcp*.log</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">📁 Open logs folder in Finder:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">open ~/Library/Logs/Claude/</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">✅ Check if MCP is configured:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | grep gmail-calendar-fathom</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">🔐 Test OAuth manually:</p>
                     <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">cd ~/gmail-calendar-mcp && ./venv/bin/python auto_oauth.py</pre>
 
-                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">Clean reinstall:</p>
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">📂 Open MCP install folder in Finder:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">open ~/gmail-calendar-mcp</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">🧹 Clean reinstall (deletes everything):</p>
                     <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">rm -rf ~/gmail-calendar-mcp && curl -fsSL https://raw.githubusercontent.com/jonathangetonapod/gmail-reply-tracker-mcp/main/local_install.sh | bash -s "your@email.com"</pre>
+
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">🚀 Force quit Claude Desktop:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">pkill -9 Claude && open -a "Claude"</pre>
                 </div>
 
                 <!-- Still Need Help -->
