@@ -14,6 +14,8 @@ from gmail_client import GmailClient
 from calendar_client import CalendarClient
 from fathom_client import FathomClient
 from email_analyzer import EmailAnalyzer
+from config import Config
+import leads
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +159,7 @@ class MCPHandler:
         """Handle MCP tools/list request."""
         # Define all available tools
         tools = [
+            # Gmail Tools
             {
                 "name": "get_unreplied_emails",
                 "description": "Get emails that haven't been replied to within a specified time period",
@@ -164,7 +167,8 @@ class MCPHandler:
                     "type": "object",
                     "properties": {
                         "days_back": {"type": "number", "description": "Number of days to look back"},
-                        "max_results": {"type": "number", "description": "Maximum number of results"}
+                        "max_results": {"type": "number", "description": "Maximum number of results"},
+                        "exclude_automated": {"type": "boolean", "description": "Filter out automated emails"}
                     }
                 }
             },
@@ -189,6 +193,25 @@ class MCPHandler:
                         "max_results": {"type": "number", "description": "Maximum results"}
                     },
                     "required": ["query"]
+                }
+            },
+            {
+                "name": "get_inbox_summary",
+                "description": "Get statistics on unreplied emails including top senders and domains",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "get_unreplied_by_sender",
+                "description": "Get unreplied emails from a specific sender or domain",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "email_or_domain": {"type": "string", "description": "Email address or @domain.com"}
+                    },
+                    "required": ["email_or_domain"]
                 }
             },
             {
@@ -219,13 +242,51 @@ class MCPHandler:
                 }
             },
             {
+                "name": "reply_all_to_email",
+                "description": "Reply to all recipients in an email thread",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "thread_id": {"type": "string"},
+                        "body": {"type": "string"}
+                    },
+                    "required": ["thread_id", "body"]
+                }
+            },
+            {
+                "name": "create_email_draft",
+                "description": "Create an email draft without sending",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "to": {"type": "string"},
+                        "subject": {"type": "string"},
+                        "body": {"type": "string"},
+                        "cc": {"type": "string"},
+                        "bcc": {"type": "string"}
+                    },
+                    "required": ["to", "subject", "body"]
+                }
+            },
+            # Calendar Tools
+            {
+                "name": "list_calendars",
+                "description": "List all calendars accessible to the user",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
                 "name": "list_calendar_events",
                 "description": "List upcoming calendar events",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "calendar_id": {"type": "string"},
-                        "days_ahead": {"type": "number"}
+                        "days_ahead": {"type": "number"},
+                        "max_results": {"type": "number"},
+                        "query": {"type": "string"}
                     }
                 }
             },
@@ -238,13 +299,71 @@ class MCPHandler:
                         "summary": {"type": "string"},
                         "start_time": {"type": "string"},
                         "end_time": {"type": "string"},
+                        "calendar_id": {"type": "string"},
                         "description": {"type": "string"},
                         "location": {"type": "string"},
-                        "attendees": {"type": "string"}
+                        "attendees": {"type": "string"},
+                        "time_zone": {"type": "string"}
                     },
                     "required": ["summary", "start_time"]
                 }
             },
+            {
+                "name": "update_calendar_event",
+                "description": "Update an existing calendar event",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string"},
+                        "calendar_id": {"type": "string"},
+                        "summary": {"type": "string"},
+                        "start_time": {"type": "string"},
+                        "end_time": {"type": "string"},
+                        "description": {"type": "string"},
+                        "location": {"type": "string"},
+                        "time_zone": {"type": "string"}
+                    },
+                    "required": ["event_id"]
+                }
+            },
+            {
+                "name": "delete_calendar_event",
+                "description": "Delete a calendar event",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string"},
+                        "calendar_id": {"type": "string"}
+                    },
+                    "required": ["event_id"]
+                }
+            },
+            {
+                "name": "list_past_calendar_events",
+                "description": "List past calendar events",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "calendar_id": {"type": "string"},
+                        "days_back": {"type": "number"},
+                        "max_results": {"type": "number"},
+                        "query": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "name": "quick_add_calendar_event",
+                "description": "Create a calendar event using natural language",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Natural language description"},
+                        "calendar_id": {"type": "string"}
+                    },
+                    "required": ["text"]
+                }
+            },
+            # Fathom Tools
             {
                 "name": "list_fathom_meetings",
                 "description": "List recent Fathom meeting recordings with details",
@@ -279,6 +398,17 @@ class MCPHandler:
                 }
             },
             {
+                "name": "get_fathom_action_items",
+                "description": "Get action items from a Fathom meeting recording",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "recording_id": {"type": "number", "description": "Fathom recording ID"}
+                    },
+                    "required": ["recording_id"]
+                }
+            },
+            {
                 "name": "search_fathom_meetings_by_title",
                 "description": "Search Fathom meetings by title/topic",
                 "inputSchema": {
@@ -300,6 +430,142 @@ class MCPHandler:
                         "limit": {"type": "number", "description": "Maximum results"}
                     },
                     "required": ["attendee"]
+                }
+            },
+            # Lead Management Tools - Instantly.ai
+            {
+                "name": "get_instantly_clients",
+                "description": "Get list of all Instantly.ai clients/workspaces",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "get_instantly_leads",
+                "description": "Get lead responses for a specific Instantly.ai workspace",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "workspace_id": {"type": "string"},
+                        "days": {"type": "number"},
+                        "start_date": {"type": "string"},
+                        "end_date": {"type": "string"}
+                    },
+                    "required": ["workspace_id"]
+                }
+            },
+            {
+                "name": "get_instantly_stats",
+                "description": "Get campaign statistics for a specific Instantly.ai workspace",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "workspace_id": {"type": "string"},
+                        "days": {"type": "number"},
+                        "start_date": {"type": "string"},
+                        "end_date": {"type": "string"}
+                    },
+                    "required": ["workspace_id"]
+                }
+            },
+            {
+                "name": "get_instantly_workspace",
+                "description": "Get detailed information about a specific Instantly.ai workspace",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "workspace_id": {"type": "string"}
+                    },
+                    "required": ["workspace_id"]
+                }
+            },
+            # Lead Management Tools - Bison
+            {
+                "name": "get_bison_clients",
+                "description": "Get list of all Bison clients",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "get_bison_leads",
+                "description": "Get lead responses for a specific Bison client",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "client_name": {"type": "string"},
+                        "days": {"type": "number"},
+                        "start_date": {"type": "string"},
+                        "end_date": {"type": "string"}
+                    },
+                    "required": ["client_name"]
+                }
+            },
+            {
+                "name": "get_bison_stats",
+                "description": "Get campaign statistics for a specific Bison client",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "client_name": {"type": "string"},
+                        "days": {"type": "number"},
+                        "start_date": {"type": "string"},
+                        "end_date": {"type": "string"}
+                    },
+                    "required": ["client_name"]
+                }
+            },
+            # Lead Management Tools - Combined
+            {
+                "name": "get_all_lead_clients",
+                "description": "Get list of all clients from both Instantly.ai and Bison platforms",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "get_lead_platform_stats",
+                "description": "Get aggregated statistics across both Instantly.ai and Bison platforms",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "days": {"type": "number"}
+                    }
+                }
+            },
+            {
+                "name": "get_top_clients",
+                "description": "Get the top performing clients based on a specific metric",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {"type": "number"},
+                        "metric": {"type": "string"},
+                        "days": {"type": "number"}
+                    }
+                }
+            },
+            {
+                "name": "get_underperforming_clients_list",
+                "description": "Get list of underperforming clients based on a specific metric threshold",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "threshold": {"type": "number"},
+                        "metric": {"type": "string"},
+                        "days": {"type": "number"}
+                    }
+                }
+            },
+            {
+                "name": "get_lead_weekly_summary",
+                "description": "Get a comprehensive weekly summary of lead generation activities",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
                 }
             }
         ]
@@ -327,7 +593,7 @@ class MCPHandler:
         arguments = params.get('arguments', {})
 
         try:
-            # Call the appropriate tool
+            # Call the appropriate tool - Gmail tools
             if tool_name == 'get_unreplied_emails':
                 result = await self._get_unreplied_emails(
                     gmail_client, email_analyzer, **arguments
@@ -336,24 +602,73 @@ class MCPHandler:
                 result = await self._get_email_thread(gmail_client, **arguments)
             elif tool_name == 'search_emails':
                 result = await self._search_emails(gmail_client, **arguments)
+            elif tool_name == 'get_inbox_summary':
+                result = await self._get_inbox_summary(gmail_client, email_analyzer, **arguments)
+            elif tool_name == 'get_unreplied_by_sender':
+                result = await self._get_unreplied_by_sender(gmail_client, email_analyzer, **arguments)
             elif tool_name == 'send_email':
                 result = await self._send_email(gmail_client, **arguments)
             elif tool_name == 'reply_to_email':
                 result = await self._reply_to_email(gmail_client, **arguments)
+            elif tool_name == 'reply_all_to_email':
+                result = await self._reply_all_to_email(gmail_client, email_analyzer, **arguments)
+            elif tool_name == 'create_email_draft':
+                result = await self._create_email_draft(gmail_client, **arguments)
+            # Calendar tools
+            elif tool_name == 'list_calendars':
+                result = await self._list_calendars(calendar_client, **arguments)
             elif tool_name == 'list_calendar_events':
                 result = await self._list_calendar_events(calendar_client, **arguments)
             elif tool_name == 'create_calendar_event':
-                result = await self._create_calendar_event(calendar_client, **arguments)
+                result = await self._create_calendar_event(calendar_client, gmail_client, **arguments)
+            elif tool_name == 'update_calendar_event':
+                result = await self._update_calendar_event(calendar_client, **arguments)
+            elif tool_name == 'delete_calendar_event':
+                result = await self._delete_calendar_event(calendar_client, **arguments)
+            elif tool_name == 'list_past_calendar_events':
+                result = await self._list_past_calendar_events(calendar_client, **arguments)
+            elif tool_name == 'quick_add_calendar_event':
+                result = await self._quick_add_calendar_event(calendar_client, **arguments)
+            # Fathom tools
             elif tool_name == 'list_fathom_meetings':
                 result = await self._list_fathom_meetings(fathom_client, **arguments)
             elif tool_name == 'get_fathom_transcript':
                 result = await self._get_fathom_transcript(fathom_client, **arguments)
             elif tool_name == 'get_fathom_summary':
                 result = await self._get_fathom_summary(fathom_client, **arguments)
+            elif tool_name == 'get_fathom_action_items':
+                result = await self._get_fathom_action_items(fathom_client, **arguments)
             elif tool_name == 'search_fathom_meetings_by_title':
                 result = await self._search_fathom_meetings_by_title(fathom_client, **arguments)
             elif tool_name == 'search_fathom_meetings_by_attendee':
                 result = await self._search_fathom_meetings_by_attendee(fathom_client, **arguments)
+            # Lead Management tools - Instantly.ai
+            elif tool_name == 'get_instantly_clients':
+                result = await self._get_instantly_clients(**arguments)
+            elif tool_name == 'get_instantly_leads':
+                result = await self._get_instantly_leads(**arguments)
+            elif tool_name == 'get_instantly_stats':
+                result = await self._get_instantly_stats(**arguments)
+            elif tool_name == 'get_instantly_workspace':
+                result = await self._get_instantly_workspace(**arguments)
+            # Lead Management tools - Bison
+            elif tool_name == 'get_bison_clients':
+                result = await self._get_bison_clients(**arguments)
+            elif tool_name == 'get_bison_leads':
+                result = await self._get_bison_leads(**arguments)
+            elif tool_name == 'get_bison_stats':
+                result = await self._get_bison_stats(**arguments)
+            # Lead Management tools - Combined
+            elif tool_name == 'get_all_lead_clients':
+                result = await self._get_all_lead_clients(**arguments)
+            elif tool_name == 'get_lead_platform_stats':
+                result = await self._get_lead_platform_stats(**arguments)
+            elif tool_name == 'get_top_clients':
+                result = await self._get_top_clients(**arguments)
+            elif tool_name == 'get_underperforming_clients_list':
+                result = await self._get_underperforming_clients_list(**arguments)
+            elif tool_name == 'get_lead_weekly_summary':
+                result = await self._get_lead_weekly_summary(**arguments)
             else:
                 request_id = request_data.get('id', 1)
                 return {
@@ -464,10 +779,44 @@ class MCPHandler:
         )
         return json.dumps(events, indent=2)
 
-    async def _create_calendar_event(self, calendar: CalendarClient, **kwargs) -> str:
-        """Create calendar event."""
-        event = await asyncio.to_thread(calendar.create_event, **kwargs)
-        return f"Event created successfully. Event ID: {event['id']}"
+    async def _create_calendar_event(self, calendar: CalendarClient, gmail: GmailClient, **kwargs) -> str:
+        """Create calendar event with email notifications."""
+        from datetime import datetime
+
+        start_time = kwargs.get('start_time')
+        end_time = kwargs.get('end_time', start_time)
+
+        # Parse dates
+        start_dt = datetime.fromisoformat(start_time) if isinstance(start_time, str) else start_time
+        end_dt = datetime.fromisoformat(end_time) if isinstance(end_time, str) and end_time else start_dt
+
+        # Parse attendees
+        attendee_list = None
+        attendees_str = kwargs.get('attendees')
+        if attendees_str:
+            attendee_list = [email.strip() for email in attendees_str.split(',')]
+
+        # Create event
+        event = await asyncio.to_thread(
+            calendar.create_event,
+            summary=kwargs['summary'],
+            start_time=start_dt,
+            end_time=end_dt,
+            calendar_id=kwargs.get('calendar_id', 'primary'),
+            description=kwargs.get('description'),
+            location=kwargs.get('location'),
+            attendees=attendee_list,
+            time_zone=kwargs.get('time_zone', 'America/Bogota')
+        )
+
+        return json.dumps({
+            "success": True,
+            "event_id": event['id'],
+            "summary": event.get('summary'),
+            "start": event.get('start', {}).get('dateTime'),
+            "end": event.get('end', {}).get('dateTime'),
+            "html_link": event.get('htmlLink', '')
+        }, indent=2)
 
     async def _list_fathom_meetings(self, fathom: Optional[FathomClient], **kwargs) -> str:
         """List Fathom meetings."""
@@ -692,3 +1041,539 @@ class MCPHandler:
                 "success": False,
                 "error": str(e)
             }, indent=2)
+
+
+    # ========================================================================
+    # ADDITIONAL GMAIL METHODS
+    # ========================================================================
+
+    async def _get_inbox_summary(
+        self, gmail: GmailClient, analyzer: EmailAnalyzer, **kwargs
+    ) -> str:
+        """Get inbox summary statistics."""
+        from datetime import datetime, timedelta
+        
+        # Get unreplied emails from last 30 days
+        since_date = (datetime.now() - timedelta(days=30)).strftime('%Y/%m/%d')
+        query = f"-in:sent -in:draft after:{since_date}"
+        
+        thread_infos = await asyncio.to_thread(gmail.list_threads, query, 100)
+        user_email = await asyncio.to_thread(gmail.get_user_email)
+        
+        unreplied = []
+        by_sender = {}
+        by_domain = {}
+        dates = []
+        
+        for thread_info in thread_infos:
+            thread = await asyncio.to_thread(gmail.get_thread, thread_info['id'])
+            
+            if analyzer.is_unreplied(thread, user_email):
+                last_message = thread['messages'][-1]
+                if not analyzer.is_automated_email(last_message):
+                    headers = analyzer.parse_headers(last_message.get('payload', {}).get('headers', []))
+                    from_header = headers.get('From', '')
+                    
+                    # Parse sender email
+                    email = from_header
+                    if '<' in from_header and '>' in from_header:
+                        email = from_header[from_header.index('<')+1:from_header.index('>')]
+                    
+                    domain = email.split('@')[1] if '@' in email else 'unknown'
+                    
+                    by_sender[email] = by_sender.get(email, 0) + 1
+                    by_domain[domain] = by_domain.get(domain, 0) + 1
+                    
+                    timestamp = analyzer.extract_received_timestamp(last_message)
+                    if timestamp:
+                        try:
+                            dt = datetime.fromtimestamp(int(timestamp) / 1000.0)
+                            dates.append(dt)
+                        except (ValueError, OSError):
+                            pass
+                    
+                    unreplied.append(analyzer.format_unreplied_email(thread, last_message))
+        
+        top_senders = sorted(by_sender.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_domains = sorted(by_domain.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        oldest_date = min(dates).isoformat() if dates else None
+        newest_date = max(dates).isoformat() if dates else None
+        
+        return json.dumps({
+            "success": True,
+            "total_unreplied": len(unreplied),
+            "top_senders": [{"email": k, "count": v} for k, v in top_senders],
+            "top_domains": [{"domain": k, "count": v} for k, v in top_domains],
+            "oldest_unreplied": oldest_date,
+            "newest_unreplied": newest_date,
+            "date_range_days": 30
+        }, indent=2)
+
+    async def _get_unreplied_by_sender(
+        self, gmail: GmailClient, analyzer: EmailAnalyzer, **kwargs
+    ) -> str:
+        """Get unreplied emails from specific sender/domain."""
+        email_or_domain = kwargs['email_or_domain']
+        
+        query = f"from:{email_or_domain} -in:sent -in:draft"
+        message_infos = await asyncio.to_thread(gmail.list_messages, query, 50)
+        user_email = await asyncio.to_thread(gmail.get_user_email)
+        
+        unreplied = []
+        for msg_info in message_infos:
+            thread = await asyncio.to_thread(gmail.get_thread, msg_info['threadId'])
+            
+            if analyzer.is_unreplied(thread, user_email):
+                last_message = thread['messages'][-1]
+                unreplied.append(analyzer.format_unreplied_email(thread, last_message))
+        
+        return json.dumps({
+            "success": True,
+            "filter": email_or_domain,
+            "count": len(unreplied),
+            "emails": unreplied
+        }, indent=2)
+
+    async def _reply_all_to_email(
+        self, gmail: GmailClient, analyzer: EmailAnalyzer, **kwargs
+    ) -> str:
+        """Reply to all recipients in email thread."""
+        thread_id = kwargs['thread_id']
+        body = kwargs['body']
+        
+        thread = await asyncio.to_thread(gmail.get_thread, thread_id)
+        last_message = thread['messages'][-1]
+        headers = analyzer.parse_headers(last_message.get('payload', {}).get('headers', []))
+        
+        from_addr = headers.get('From', '')
+        to_addr = headers.get('To', '')
+        cc_addr = headers.get('Cc', '')
+        subject = headers.get('Subject', '')
+        message_id = headers.get('Message-ID', '')
+        references = headers.get('References', '')
+        
+        user_email = await asyncio.to_thread(gmail.get_user_email)
+        
+        # Build recipient lists
+        all_recipients = []
+        if to_addr:
+            all_recipients.extend([addr.strip() for addr in to_addr.split(',')])
+        if cc_addr:
+            all_recipients.extend([addr.strip() for addr in cc_addr.split(',')])
+        
+        all_recipients = [r for r in all_recipients if user_email.lower() not in r.lower()]
+        
+        to = from_addr
+        cc = ', '.join(all_recipients) if all_recipients else None
+        
+        if not subject.startswith('Re:'):
+            subject = f"Re: {subject}"
+        
+        new_references = f"{references} {message_id}" if references else message_id
+        
+        sent_message = await asyncio.to_thread(
+            gmail.send_message,
+            to=to,
+            subject=subject,
+            body=body,
+            cc=cc,
+            thread_id=thread_id,
+            in_reply_to=message_id,
+            references=new_references
+        )
+        
+        return json.dumps({
+            "success": True,
+            "message_id": sent_message['id'],
+            "thread_id": thread_id,
+            "message": "Reply-all sent successfully"
+        }, indent=2)
+
+    async def _create_email_draft(self, gmail: GmailClient, **kwargs) -> str:
+        """Create an email draft."""
+        draft = await asyncio.to_thread(
+            gmail.create_draft,
+            to=kwargs['to'],
+            subject=kwargs['subject'],
+            body=kwargs['body'],
+            cc=kwargs.get('cc'),
+            bcc=kwargs.get('bcc')
+        )
+        
+        return json.dumps({
+            "success": True,
+            "draft_id": draft['id'],
+            "message": "Draft created successfully",
+            "to": kwargs['to'],
+            "subject": kwargs['subject']
+        }, indent=2)
+
+    # ========================================================================
+    # ADDITIONAL CALENDAR METHODS
+    # ========================================================================
+
+    async def _list_calendars(self, calendar: CalendarClient, **kwargs) -> str:
+        """List all calendars."""
+        calendars = await asyncio.to_thread(calendar.list_calendars)
+        
+        calendar_list = []
+        for cal in calendars:
+            calendar_list.append({
+                "id": cal.get('id'),
+                "summary": cal.get('summary'),
+                "description": cal.get('description', ''),
+                "primary": cal.get('primary', False),
+                "time_zone": cal.get('timeZone', ''),
+                "access_role": cal.get('accessRole', '')
+            })
+        
+        return json.dumps({
+            "success": True,
+            "count": len(calendar_list),
+            "calendars": calendar_list
+        }, indent=2)
+
+    async def _update_calendar_event(self, calendar: CalendarClient, **kwargs) -> str:
+        """Update a calendar event."""
+        from datetime import datetime
+        
+        event_id = kwargs['event_id']
+        calendar_id = kwargs.get('calendar_id', 'primary')
+        
+        start_dt = datetime.fromisoformat(kwargs['start_time']) if kwargs.get('start_time') else None
+        end_dt = datetime.fromisoformat(kwargs['end_time']) if kwargs.get('end_time') else None
+        
+        event = await asyncio.to_thread(
+            calendar.update_event,
+            event_id=event_id,
+            calendar_id=calendar_id,
+            summary=kwargs.get('summary'),
+            start_time=start_dt,
+            end_time=end_dt,
+            description=kwargs.get('description'),
+            location=kwargs.get('location'),
+            time_zone=kwargs.get('time_zone')
+        )
+        
+        return json.dumps({
+            "success": True,
+            "event_id": event['id'],
+            "summary": event.get('summary'),
+            "start": event.get('start', {}).get('dateTime'),
+            "end": event.get('end', {}).get('dateTime'),
+            "html_link": event.get('htmlLink', '')
+        }, indent=2)
+
+    async def _delete_calendar_event(self, calendar: CalendarClient, **kwargs) -> str:
+        """Delete a calendar event."""
+        event_id = kwargs['event_id']
+        calendar_id = kwargs.get('calendar_id', 'primary')
+        
+        await asyncio.to_thread(calendar.delete_event, event_id, calendar_id)
+        
+        return json.dumps({
+            "success": True,
+            "event_id": event_id,
+            "message": "Event deleted successfully"
+        }, indent=2)
+
+    async def _list_past_calendar_events(self, calendar: CalendarClient, **kwargs) -> str:
+        """List past calendar events."""
+        from datetime import datetime, timedelta
+        
+        calendar_id = kwargs.get('calendar_id', 'primary')
+        days_back = kwargs.get('days_back', 7)
+        max_results = kwargs.get('max_results', 50)
+        
+        time_max = datetime.now()
+        time_min = time_max - timedelta(days=days_back)
+        
+        events = await asyncio.to_thread(
+            calendar.list_events,
+            calendar_id=calendar_id,
+            time_min=time_min,
+            time_max=time_max,
+            max_results=max_results,
+            query=kwargs.get('query')
+        )
+        
+        event_list = []
+        for event in events:
+            start = event.get('start', {})
+            event_list.append({
+                "id": event.get('id'),
+                "summary": event.get('summary', 'No title'),
+                "description": event.get('description', ''),
+                "location": event.get('location', ''),
+                "start": start.get('dateTime', start.get('date')),
+                "end": event.get('end', {}).get('dateTime', event.get('end', {}).get('date')),
+                "html_link": event.get('htmlLink', '')
+            })
+        
+        return json.dumps({
+            "success": True,
+            "calendar_id": calendar_id,
+            "days_back": days_back,
+            "count": len(event_list),
+            "events": event_list
+        }, indent=2)
+
+    async def _quick_add_calendar_event(self, calendar: CalendarClient, **kwargs) -> str:
+        """Quick add calendar event using natural language."""
+        text = kwargs['text']
+        calendar_id = kwargs.get('calendar_id', 'primary')
+        
+        event = await asyncio.to_thread(calendar.quick_add_event, text, calendar_id)
+        
+        return json.dumps({
+            "success": True,
+            "event_id": event['id'],
+            "summary": event.get('summary'),
+            "start": event.get('start', {}).get('dateTime', event.get('start', {}).get('date')),
+            "end": event.get('end', {}).get('dateTime', event.get('end', {}).get('date')),
+            "html_link": event.get('htmlLink', '')
+        }, indent=2)
+
+    # ========================================================================
+    # ADDITIONAL FATHOM METHODS
+    # ========================================================================
+
+    async def _get_fathom_action_items(self, fathom: Optional[FathomClient], **kwargs) -> str:
+        """Get action items from Fathom meeting."""
+        if not fathom:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured"
+            }, indent=2)
+        
+        try:
+            recording_id = kwargs['recording_id']
+            
+            response = await asyncio.to_thread(fathom.list_meetings, limit=100)
+            meetings = response.get('items', [])
+            
+            target_meeting = None
+            for meeting in meetings:
+                if meeting.get('recording_id') == recording_id:
+                    target_meeting = meeting
+                    break
+            
+            if not target_meeting:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Meeting with recording_id {recording_id} not found"
+                }, indent=2)
+            
+            action_items = target_meeting.get('action_items', [])
+            
+            action_list = []
+            for item in action_items:
+                assignee = item.get('assignee', {})
+                action_list.append({
+                    "description": item.get('description'),
+                    "completed": item.get('completed'),
+                    "timestamp": item.get('recording_timestamp'),
+                    "assignee_name": assignee.get('name'),
+                    "assignee_email": assignee.get('email')
+                })
+            
+            return json.dumps({
+                "success": True,
+                "recording_id": recording_id,
+                "count": len(action_list),
+                "action_items": action_list
+            }, indent=2)
+        
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2)
+
+    # ========================================================================
+    # LEAD MANAGEMENT METHODS
+    # ========================================================================
+
+    async def _get_instantly_clients(self, **kwargs) -> str:
+        """Get list of Instantly.ai clients."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_client_list,
+                sheet_url=config.lead_sheets_url
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_instantly_leads(self, **kwargs) -> str:
+        """Get leads for Instantly.ai workspace."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_lead_responses,
+                sheet_url=config.lead_sheets_url,
+                gid=config.lead_sheets_gid_instantly,
+                workspace_id=kwargs['workspace_id'],
+                days=kwargs.get('days', 7),
+                start_date=kwargs.get('start_date'),
+                end_date=kwargs.get('end_date')
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_instantly_stats(self, **kwargs) -> str:
+        """Get stats for Instantly.ai workspace."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_campaign_stats,
+                sheet_url=config.lead_sheets_url,
+                gid=config.lead_sheets_gid_instantly,
+                workspace_id=kwargs['workspace_id'],
+                days=kwargs.get('days', 7),
+                start_date=kwargs.get('start_date'),
+                end_date=kwargs.get('end_date')
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_instantly_workspace(self, **kwargs) -> str:
+        """Get Instantly.ai workspace info."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_workspace_info,
+                sheet_url=config.lead_sheets_url,
+                workspace_id=kwargs['workspace_id']
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_bison_clients(self, **kwargs) -> str:
+        """Get list of Bison clients."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_bison_client_list,
+                sheet_url=config.lead_sheets_url,
+                gid=config.lead_sheets_gid_bison
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_bison_leads(self, **kwargs) -> str:
+        """Get leads for Bison client."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_bison_lead_responses,
+                sheet_url=config.lead_sheets_url,
+                gid=config.lead_sheets_gid_bison,
+                client_name=kwargs['client_name'],
+                days=kwargs.get('days', 7),
+                start_date=kwargs.get('start_date'),
+                end_date=kwargs.get('end_date')
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_bison_stats(self, **kwargs) -> str:
+        """Get stats for Bison client."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_bison_campaign_stats,
+                sheet_url=config.lead_sheets_url,
+                gid=config.lead_sheets_gid_bison,
+                client_name=kwargs['client_name'],
+                days=kwargs.get('days', 7),
+                start_date=kwargs.get('start_date'),
+                end_date=kwargs.get('end_date')
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_all_lead_clients(self, **kwargs) -> str:
+        """Get all clients from both platforms."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_all_clients,
+                sheet_url=config.lead_sheets_url,
+                instantly_gid=config.lead_sheets_gid_instantly,
+                bison_gid=config.lead_sheets_gid_bison
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_lead_platform_stats(self, **kwargs) -> str:
+        """Get aggregated platform stats."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_all_platform_stats,
+                sheet_url=config.lead_sheets_url,
+                instantly_gid=config.lead_sheets_gid_instantly,
+                bison_gid=config.lead_sheets_gid_bison,
+                days=kwargs.get('days', 7)
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_top_clients(self, **kwargs) -> str:
+        """Get top performing clients."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_top_performing_clients,
+                sheet_url=config.lead_sheets_url,
+                instantly_gid=config.lead_sheets_gid_instantly,
+                bison_gid=config.lead_sheets_gid_bison,
+                limit=kwargs.get('limit', 10),
+                metric=kwargs.get('metric', 'interested_leads'),
+                days=kwargs.get('days', 7)
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_underperforming_clients_list(self, **kwargs) -> str:
+        """Get underperforming clients."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_underperforming_clients,
+                sheet_url=config.lead_sheets_url,
+                instantly_gid=config.lead_sheets_gid_instantly,
+                bison_gid=config.lead_sheets_gid_bison,
+                threshold=kwargs.get('threshold', 5),
+                metric=kwargs.get('metric', 'interested_leads'),
+                days=kwargs.get('days', 7)
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _get_lead_weekly_summary(self, **kwargs) -> str:
+        """Get weekly lead summary."""
+        try:
+            config = Config.from_env()
+            result = await asyncio.to_thread(
+                leads.get_weekly_summary,
+                sheet_url=config.lead_sheets_url,
+                instantly_gid=config.lead_sheets_gid_instantly,
+                bison_gid=config.lead_sheets_gid_bison
+            )
+            return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
