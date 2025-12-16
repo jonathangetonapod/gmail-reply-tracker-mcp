@@ -528,6 +528,7 @@ def get_all_clients(
     Returns:
         Dictionary with all clients from both platforms
     """
+    # Force Python recompile - 2025-12-16
     try:
         # Get Instantly clients
         instantly_result = get_client_list(sheet_url)
