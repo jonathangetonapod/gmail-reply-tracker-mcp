@@ -1281,6 +1281,34 @@ class WebServer:
     </div>
 
     <div class="card">
+        <h2>📊 Usage Analytics (Last 7 Days)</h2>
+        <div id="analytics-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 32px; font-weight: bold; color: #2196f3;">-</div>
+                <div style="color: #666; font-size: 14px;">Total Requests</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 32px; font-weight: bold; color: #28a745;">-</div>
+                <div style="color: #666; font-size: 14px;">Success Rate</div>
+            </div>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 32px; font-weight: bold; color: #6c757d;">-</div>
+                <div style="color: #666; font-size: 14px;">Active Users</div>
+            </div>
+        </div>
+
+        <h3>Top Tools</h3>
+        <div id="top-tools" style="margin: 20px 0;">
+            <p style="color: #999;">Loading...</p>
+        </div>
+
+        <h3>Recent Activity (Real-time)</h3>
+        <div id="recent-activity" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+            <p style="color: #999;">Loading...</p>
+        </div>
+    </div>
+
+    <div class="card">
         <h2>Users</h2>
         <table id="users-table">
             <thead>
@@ -1414,11 +1442,123 @@ class WebServer:
             }
         }
 
+        async function loadAnalytics() {
+            try {
+                // Load overall analytics
+                const analyticsResponse = await fetch('/admin/analytics?days=7', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const analytics = await analyticsResponse.json();
+
+                // Update summary cards
+                const summaryDiv = document.querySelector('#analytics-summary');
+                const totalRequests = analytics.total_requests || 0;
+
+                // Calculate success rate
+                let successRate = 0;
+                if (totalRequests > 0) {
+                    const successCount = analytics.user_stats ?
+                        analytics.user_stats.reduce((sum, user) => sum + (user.requests || 0), 0) : 0;
+                    successRate = totalRequests > 0 ? Math.round((successCount / totalRequests) * 100) : 0;
+                }
+
+                const activeUsers = analytics.user_stats ?
+                    analytics.user_stats.filter(u => u.requests > 0).length : 0;
+
+                summaryDiv.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: bold; color: #2196f3;">${totalRequests}</div>
+                        <div style="color: #666; font-size: 14px;">Total Requests</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: bold; color: #28a745;">${successRate}%</div>
+                        <div style="color: #666; font-size: 14px;">Success Rate</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 32px; font-weight: bold; color: #6c757d;">${activeUsers}</div>
+                        <div style="color: #666; font-size: 14px;">Active Users</div>
+                    </div>
+                `;
+
+                // Update top tools
+                const topToolsDiv = document.querySelector('#top-tools');
+                if (analytics.top_tools && Object.keys(analytics.top_tools).length > 0) {
+                    const toolsHtml = Object.entries(analytics.top_tools)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5)
+                        .map(([tool, count]) => {
+                            const percentage = Math.round((count / totalRequests) * 100);
+                            return `
+                                <div style="margin-bottom: 10px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                        <span><strong>${tool}</strong></span>
+                                        <span style="color: #666;">${count} uses (${percentage}%)</span>
+                                    </div>
+                                    <div style="background: #e9ecef; border-radius: 4px; height: 8px;">
+                                        <div style="background: #2196f3; border-radius: 4px; height: 8px; width: ${percentage}%;"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    topToolsDiv.innerHTML = toolsHtml;
+                } else {
+                    topToolsDiv.innerHTML = '<p style="color: #999;">No tool usage data yet</p>';
+                }
+
+                // Load recent activity
+                const activityResponse = await fetch('/admin/analytics/activity?limit=20', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const activityData = await activityResponse.json();
+
+                const activityDiv = document.querySelector('#recent-activity');
+                if (activityData.activities && activityData.activities.length > 0) {
+                    const activityHtml = activityData.activities.map(activity => {
+                        const timestamp = new Date(activity.timestamp).toLocaleString();
+                        const statusColor = activity.success ? '#28a745' : '#dc3545';
+                        const statusIcon = activity.success ? '✓' : '✗';
+
+                        return `
+                            <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div>
+                                        <strong>${activity.email}</strong>
+                                        <span style="color: #666;">→ ${activity.tool_name}</span>
+                                    </div>
+                                    <div style="font-size: 12px; color: #999;">
+                                        ${timestamp}
+                                        ${activity.error ? `<br><span style="color: #dc3545;">Error: ${activity.error}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span style="color: ${statusColor}; font-weight: bold;">${statusIcon}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    activityDiv.innerHTML = activityHtml;
+                } else {
+                    activityDiv.innerHTML = '<p style="color: #999; padding: 20px; text-align: center;">No activity yet</p>';
+                }
+
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
         // Load users on page load
         loadUsers();
+        loadAnalytics();
 
         // Refresh every 30 seconds
-        setInterval(loadUsers, 30000);
+        setInterval(() => {
+            loadUsers();
+            loadAnalytics();
+        }, 30000);
     </script>
 </body>
 </html>
