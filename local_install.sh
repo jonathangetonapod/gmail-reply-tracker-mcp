@@ -486,11 +486,41 @@ fi
 
 # Success!
 echo
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}${BOLD}           ✓  Installation Complete!  ✓${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}${BOLD}               🎉  Installation Complete!  🎉${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo
-echo -e "${CYAN}${BOLD}What to do next:${NC}"
+echo -e "${GREEN}${BOLD}Congratulations! You now have access to 34 powerful tools:${NC}"
+echo
+echo -e "${BOLD}📧 Gmail (13 tools)${NC}"
+echo "   • Find unreplied emails"
+echo "   • Search & read threads"
+echo "   • Send emails & replies"
+echo "   • Manage drafts & labels"
+echo
+echo -e "${BOLD}📅 Google Calendar (7 tools)${NC}"
+echo "   • List & search events"
+echo "   • Create & update meetings"
+echo "   • Auto-send invitations"
+echo "   • Natural language scheduling"
+echo
+if [ -n "$FATHOM_KEY" ]; then
+echo -e "${BOLD}🎙️  Fathom AI (6 tools)${NC}"
+echo "   • Meeting transcripts"
+echo "   • AI summaries"
+echo "   • Action item extraction"
+echo "   • Meeting search"
+echo
+fi
+echo -e "${BOLD}🎯 Lead Management (8 tools)${NC}"
+echo "   • Track 88 clients (64 Instantly + 24 Bison)"
+echo "   • Campaign analytics"
+echo "   • Interested lead tracking"
+echo "   • Performance reports"
+echo
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo
+echo -e "${CYAN}${BOLD}Next Steps:${NC}"
 echo
 echo -e "${BOLD}1. Restart Claude Desktop${NC}"
 if [[ "$OS" == "mac" ]]; then
@@ -502,11 +532,15 @@ else
     echo "   • Then reopen it"
 fi
 echo
-echo -e "${BOLD}2. Start using Gmail Calendar MCP${NC}"
-echo "   Start a new conversation and try:"
-echo -e "   ${CYAN}• 'Show me my unreplied emails from the last 3 days'${NC}"
-echo -e "   ${CYAN}• 'List my calendar events for next week'${NC}"
-echo -e "   ${CYAN}• 'What meetings do I have tomorrow?'${NC}"
+echo -e "${BOLD}2. Verify Connection${NC}"
+echo "   • Look for 'gmail-calendar-fathom' in Claude's MCP status"
+echo "   • Should show as connected with 34 tools"
+echo
+echo -e "${BOLD}3. Try These Commands:${NC}"
+echo -e "   ${CYAN}📧 'Show me my unreplied emails from the last 3 days'${NC}"
+echo -e "   ${CYAN}📅 'What meetings do I have tomorrow?'${NC}"
+echo -e "   ${CYAN}🎙️  'What were the action items from yesterday's client call?'${NC}"
+echo -e "   ${CYAN}🎯 'Show me interested leads from this week'${NC}"
 echo
 echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}${BOLD}Installation Details:${NC}"
