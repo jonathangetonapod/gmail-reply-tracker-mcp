@@ -1,6 +1,7 @@
 # Credentials and tokens - NEVER commit these!
 credentials/credentials.json
 credentials/token.json
+credentials/web_credentials.json
 
 # Environment variables
 .env
