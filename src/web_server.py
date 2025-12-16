@@ -292,37 +292,69 @@ SUCCESS_HTML = """
             <strong>Fathom:</strong> {{ '✓ Connected' if has_fathom else '✗ Not added' }}
         </div>
 
-        <h2>📋 3-Step Setup (5 minutes)</h2>
+        <h2>🚀 Automated Installation (Recommended)</h2>
+        <p style="color: #666; margin-bottom: 15px;">Copy and run ONE command - everything is done automatically!</p>
 
-        <div class="step">
-            <span class="step-number">1</span>
-            <strong>Download the connector file</strong><br>
-            <a href="{{ server_url }}/download/http-mcp-client.js" class="download-btn" download>Download http-mcp-client.js</a>
-            <p style="margin: 10px 0 0 38px; color: #666; font-size: 14px;">
-                Save this file somewhere permanent (e.g., your Documents folder). Don't delete it!
+        <div class="step" style="border-left-color: #28a745;">
+            <strong>Mac / Linux:</strong>
+            <button class="copy-btn" onclick="copyCommand('mac-command')">📋 Copy Command</button>
+            <pre id="mac-command" style="margin-top: 10px;">curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }}</pre>
+            <p style="margin: 10px 0 0 0; color: #666; font-size: 13px;">
+                Open Terminal and paste the command above. It will:<br>
+                • Download the MCP client<br>
+                • Find your Claude config automatically<br>
+                • Back up your existing config<br>
+                • Add the Gmail/Calendar server<br>
+                • Done! Just restart Claude Desktop
             </p>
         </div>
 
-        <div class="step">
-            <span class="step-number">2</span>
-            <strong>Open your Claude Desktop config file</strong><br>
-            <p style="margin: 10px 0 0 38px; color: #666;">The config file is located at:</p>
-            <div class="config-location" style="margin-left: 38px;">
-                <strong>Mac:</strong> ~/Library/Application Support/Claude/claude_desktop_config.json<br>
-                <strong>Windows:</strong> %APPDATA%\\Claude\\claude_desktop_config.json
+        <div class="step" style="border-left-color: #28a745;">
+            <strong>Windows:</strong>
+            <button class="copy-btn" onclick="copyCommand('windows-command')">📋 Copy Command</button>
+            <pre id="windows-command" style="margin-top: 10px;">$env:MCP_SESSION_TOKEN = "{{ token }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression</pre>
+            <p style="margin: 10px 0 0 0; color: #666; font-size: 13px;">
+                Open PowerShell and paste the command above. Same magic happens!
+            </p>
+        </div>
+
+        <details style="margin-top: 30px;">
+            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">
+                📝 Manual Installation (if you prefer)
+            </summary>
+
+            <div style="margin-top: 20px;">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <strong>Download the connector file</strong><br>
+                    <a href="{{ server_url }}/download/http-mcp-client.js" class="download-btn" download>Download http-mcp-client.js</a>
+                    <p style="margin: 10px 0 0 38px; color: #666; font-size: 14px;">
+                        Save this file somewhere permanent (e.g., your Documents folder). Don't delete it!
+                    </p>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <strong>Open your Claude Desktop config file</strong><br>
+                    <p style="margin: 10px 0 0 38px; color: #666;">The config file is located at:</p>
+                    <div class="config-location" style="margin-left: 38px;">
+                        <strong>Mac:</strong> ~/Library/Application Support/Claude/claude_desktop_config.json<br>
+                        <strong>Windows:</strong> %APPDATA%\\Claude\\claude_desktop_config.json
+                    </div>
+                </div>
+
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <strong>Add this configuration</strong><br>
+                    <p style="margin: 10px 0 0 38px; color: #666;">
+                        Copy the code below and add it to your config file.
+                        <strong>Replace</strong> <code>/path/to/http-mcp-client.js</code> with the actual path where you saved the file in Step 1.
+                    </p>
+                    <button class="copy-btn" onclick="copyConfig()" style="margin-left: 38px;">📋 Copy Configuration</button>
+                    <pre id="config">{{ config_json }}</pre>
+                </div>
             </div>
-        </div>
-
-        <div class="step">
-            <span class="step-number">3</span>
-            <strong>Add this configuration</strong><br>
-            <p style="margin: 10px 0 0 38px; color: #666;">
-                Copy the code below and add it to your config file.
-                <strong>Replace</strong> <code>/path/to/http-mcp-client.js</code> with the actual path where you saved the file in Step 1.
-            </p>
-            <button class="copy-btn" onclick="copyConfig()" style="margin-left: 38px;">📋 Copy Configuration</button>
-            <pre id="config">{{ config_json }}</pre>
-        </div>
+        </details>
 
         <div class="note">
             <strong>💡 After setup:</strong> Restart Claude Desktop. Then you can ask Claude to:
@@ -344,7 +376,21 @@ SUCCESS_HTML = """
         function copyConfig() {
             const config = document.getElementById('config').textContent;
             navigator.clipboard.writeText(config).then(() => {
-                const btn = document.querySelector('.copy-btn');
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#007bff';
+                }, 2000);
+            });
+        }
+
+        function copyCommand(elementId) {
+            const command = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(command).then(() => {
+                const btn = event.target;
                 const originalText = btn.textContent;
                 btn.textContent = '✓ Copied!';
                 btn.style.background = '#28a745';
@@ -725,6 +771,36 @@ class WebServer:
                 as_attachment=True,
                 download_name='http-mcp-client.js',
                 mimetype='application/javascript'
+            )
+
+        @self.app.route('/install.sh')
+        def download_install_sh():
+            """Download the automated setup script for Mac/Linux."""
+            import os
+            script_path = os.path.join(os.path.dirname(__file__), '..', 'install.sh')
+            if not os.path.exists(script_path):
+                return "Install script not found", 404
+
+            return send_file(
+                script_path,
+                as_attachment=False,
+                download_name='install.sh',
+                mimetype='text/x-shellscript'
+            )
+
+        @self.app.route('/install.ps1')
+        def download_install_ps1():
+            """Download the automated setup script for Windows."""
+            import os
+            script_path = os.path.join(os.path.dirname(__file__), '..', 'install.ps1')
+            if not os.path.exists(script_path):
+                return "Install script not found", 404
+
+            return send_file(
+                script_path,
+                as_attachment=False,
+                download_name='install.ps1',
+                mimetype='text/plain'
             )
 
         @self.app.route('/admin/users')
