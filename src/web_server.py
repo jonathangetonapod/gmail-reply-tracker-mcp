@@ -102,6 +102,22 @@ SETUP_LANDING_HTML = """
             font-size: 16px;
             margin-bottom: 30px;
         }
+        .info-button {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            cursor: pointer;
+            border: none;
+        }
+        .info-button:hover {
+            background: #45a049;
+        }
         .step {
             margin: 20px 0;
             padding: 20px;
@@ -170,12 +186,147 @@ SETUP_LANDING_HTML = """
         .download-link:hover {
             background: #f57c00;
         }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px 12px 0 0;
+        }
+        .modal-header h2 {
+            margin: 0 0 10px 0;
+            font-size: 26px;
+        }
+        .modal-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 15px;
+        }
+        .modal-body {
+            padding: 30px;
+        }
+        .close {
+            color: white;
+            float: right;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+            opacity: 0.8;
+        }
+        .close:hover {
+            opacity: 1;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h3 {
+            color: #2196f3;
+            margin-bottom: 15px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .section h3:before {
+            content: "→";
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .section p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        .section ul {
+            margin-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+        .section li {
+            margin-bottom: 8px;
+        }
+        .highlight-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .security-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .example-prompt {
+            background: #f5f5f5;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin: 8px 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #333;
+        }
+        .tool-count {
+            background: #2196f3;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-block;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Gmail & Calendar Setup</h1>
         <p class="subtitle">Connect Claude to your Gmail and Google Calendar</p>
+
+        <button class="info-button" onclick="openModal()">
+            ℹ️ How This Works & Example Prompts
+        </button>
 
         <div class="requirement">
             <div class="requirement-title">⚠️ Claude Desktop Required</div>
@@ -209,6 +360,160 @@ SETUP_LANDING_HTML = """
         <a href="{{ server_url }}/setup/start" class="start-button">Start Setup</a>
         <p class="note">Takes 2 minutes</p>
     </div>
+
+    <!-- Information Modal -->
+    <div id="infoModal" class="modal" onclick="closeModalOnClickOutside(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>📬 How This MCP Server Works</h2>
+                <p>34 powerful tools to supercharge your productivity with Claude</p>
+            </div>
+            <div class="modal-body">
+
+                <div class="section">
+                    <h3>🚀 What You Get</h3>
+                    <p><strong>34 production-ready tools</strong> that connect Claude to your entire productivity stack:</p>
+                    <div class="highlight-box">
+                        <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">Smart email management, unreplied email tracking, send/reply, search, drafts</p>
+
+                        <strong>📅 Google Calendar</strong><span class="tool-count">7 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">Natural language scheduling, auto-timezone detection, event management, invitations</p>
+
+                        <strong>🎙️ Fathom AI</strong><span class="tool-count">6 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">Meeting transcripts, AI summaries, action items, search recordings</p>
+
+                        <strong>🎯 Lead Management</strong><span class="tool-count">8 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">Track 88 clients (Instantly.ai + Bison), campaign analytics, interested leads</p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>🔐 Should Your Team Worry? (Security & Privacy)</h3>
+                    <div class="security-box">
+                        <p><strong>✅ Completely Safe:</strong></p>
+                        <ul>
+                            <li><strong>Runs locally</strong> - MCP server runs on your machine, not on our servers</li>
+                            <li><strong>No data stored</strong> - We don't store, cache, or see your emails/calendar</li>
+                            <li><strong>Google OAuth</strong> - You authorize directly with Google (revoke anytime)</li>
+                            <li><strong>Open source</strong> - Full code visibility on GitHub</li>
+                            <li><strong>Encrypted tokens</strong> - OAuth tokens stored securely with 600 permissions</li>
+                        </ul>
+                        <p style="margin-top: 12px;"><strong>What We Access:</strong></p>
+                        <ul>
+                            <li>Gmail: Read, send, and modify (gmail.modify scope)</li>
+                            <li>Calendar: Full access to create/edit events</li>
+                            <li>Fathom: Read-only via your API key (optional)</li>
+                        </ul>
+                        <p style="margin-top: 12px; font-size: 13px; color: #666;">
+                            <strong>Revoke access anytime:</strong> Visit <a href="https://myaccount.google.com/permissions" target="_blank" style="color: #2196f3;">Google Account Permissions</a>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>🔄 How It All Comes Together</h3>
+                    <p><strong>The Architecture:</strong></p>
+                    <ol style="line-height: 1.8; margin-left: 20px;">
+                        <li><strong>You authorize</strong> → Google gives us an OAuth token</li>
+                        <li><strong>Token stored locally</strong> → Encrypted on your machine</li>
+                        <li><strong>Claude asks questions</strong> → "Show me unreplied emails"</li>
+                        <li><strong>MCP server fetches</strong> → Calls Gmail/Calendar APIs with your token</li>
+                        <li><strong>Claude responds</strong> → Shows you the results in natural language</li>
+                    </ol>
+                    <p style="margin-top: 12px;">All processing happens <strong>locally</strong> on your machine. No third-party servers involved.</p>
+                </div>
+
+                <div class="section">
+                    <h3>💬 Example Prompts You Can Use</h3>
+
+                    <p><strong>📧 Email Management:</strong></p>
+                    <div class="example-prompt">"Show me emails I haven't replied to from the last 3 days"</div>
+                    <div class="example-prompt">"Search for emails about the Q4 budget proposal"</div>
+                    <div class="example-prompt">"Draft a reply thanking them for the update"</div>
+                    <div class="example-prompt">"Send an email to team@company.com about tomorrow's meeting"</div>
+
+                    <p style="margin-top: 15px;"><strong>📅 Calendar & Scheduling:</strong></p>
+                    <div class="example-prompt">"What's on my calendar this week?"</div>
+                    <div class="example-prompt">"Schedule a meeting with sarah@company.com tomorrow at 2pm"</div>
+                    <div class="example-prompt">"Create a team standup every Monday at 9am and invite everyone"</div>
+                    <div class="example-prompt">"Cancel my 3pm meeting today"</div>
+
+                    <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence:</strong></p>
+                    <div class="example-prompt">"Get the transcript from yesterday's client call"</div>
+                    <div class="example-prompt">"What action items came out of the engineering sync?"</div>
+                    <div class="example-prompt">"Summarize the Project Phoenix kickoff meeting"</div>
+                    <div class="example-prompt">"Find all meetings where we discussed the new feature"</div>
+
+                    <p style="margin-top: 15px;"><strong>🎯 Lead Management:</strong></p>
+                    <div class="example-prompt">"Show me all clients from Instantly and Bison"</div>
+                    <div class="example-prompt">"Get interested leads from ABC Corp in the last 7 days"</div>
+                    <div class="example-prompt">"Which clients are underperforming this week?"</div>
+                    <div class="example-prompt">"Show me the top 5 clients by reply rate"</div>
+                    <div class="example-prompt">"Generate a weekly summary of all lead activity"</div>
+
+                    <p style="margin-top: 15px;"><strong>🔀 Cross-Platform:</strong></p>
+                    <div class="example-prompt">"What's the status of the marketing campaign? Check emails, calendar, and meetings"</div>
+                    <div class="example-prompt">"Find all action items from this week across meetings and emails"</div>
+                    <div class="example-prompt">"Who have I been meeting with most this month?"</div>
+                </div>
+
+                <div class="section">
+                    <h3>🎯 Why This Is Powerful</h3>
+                    <ul>
+                        <li><strong>Natural language</strong> - No more clicking through interfaces</li>
+                        <li><strong>Context-aware</strong> - Claude understands your full work context</li>
+                        <li><strong>Time-saving</strong> - Automate repetitive email/calendar tasks</li>
+                        <li><strong>Smart filtering</strong> - Automatically filters automated emails, newsletters</li>
+                        <li><strong>Multi-app queries</strong> - Ask about emails, calendar, meetings in one go</li>
+                        <li><strong>Action items tracking</strong> - Never miss a follow-up</li>
+                    </ul>
+                </div>
+
+                <div class="section">
+                    <h3>📈 Production Features</h3>
+                    <div class="highlight-box">
+                        <strong>For Your Team:</strong>
+                        <ul style="margin-top: 8px;">
+                            <li>41 unit tests - Full test coverage</li>
+                            <li>Type hints - Complete type safety</li>
+                            <li>Rate limiting - API quota management</li>
+                            <li>Error handling - Friendly error messages</li>
+                            <li>Auto timezone detection - No more UTC confusion</li>
+                            <li>One-command setup - 5-10 minute installation</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('infoModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function closeModalOnClickOutside(event) {
+            if (event.target.id === 'infoModal') {
+                closeModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
 </body>
 </html>
 """
