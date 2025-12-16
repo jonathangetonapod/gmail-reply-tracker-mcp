@@ -366,7 +366,12 @@ SUCCESS_HTML = """
         </div>
 
         <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-            <p style="color: #888; font-size: 14px;">
+            <p style="color: #666; font-size: 14px;">
+                <a href="{{ server_url }}/settings?token={{ token }}" style="color: #2196f3; text-decoration: none;">
+                    ⚙️ Update Settings (Fathom API Key)
+                </a>
+            </p>
+            <p style="color: #888; font-size: 14px; margin-top: 10px;">
                 Need help? Contact your team admin.
             </p>
         </div>
@@ -752,6 +757,206 @@ class WebServer:
             }
 
             return jsonify(response)
+
+        @self.app.route('/settings')
+        def settings_page():
+            """Show settings page for updating Fathom API key."""
+            # Get session token from query parameter
+            session_token = request.args.get('token')
+            if not session_token:
+                return """
+                    <h1>Settings</h1>
+                    <p>Please provide your session token as a query parameter:</p>
+                    <code>?token=YOUR_SESSION_TOKEN</code>
+                """, 400
+
+            # Get user from database
+            user = self.database.get_user_by_session(session_token)
+            if not user:
+                return "<h1>Error</h1><p>Invalid or expired token</p>", 401
+
+            # Show settings page
+            settings_html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings - Gmail MCP Server</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        label {
+            display: block;
+            margin-top: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            width: 100%;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .remove-btn {
+            background: #f44336;
+        }
+        .remove-btn:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚙️ Settings</h1>
+
+        <div class="info">
+            <strong>Email:</strong> {{ email }}<br>
+            <strong>Gmail & Calendar:</strong> ✓ Connected<br>
+            <strong>Fathom:</strong> {{ '✓ Connected' if has_fathom else '✗ Not configured' }}
+        </div>
+
+        <h2>Update Fathom API Key</h2>
+        <form method="POST" action="/settings/update-fathom">
+            <input type="hidden" name="token" value="{{ token }}">
+
+            <label for="fathom_key">Fathom API Key</label>
+            <input
+                type="text"
+                id="fathom_key"
+                name="fathom_key"
+                placeholder="Enter your Fathom API key"
+                value="{{ current_fathom_key if current_fathom_key else '' }}"
+            >
+            <small style="color: #666; display: block; margin-top: 5px;">
+                Leave blank to remove Fathom integration
+            </small>
+
+            <button type="submit">Update Fathom Key</button>
+        </form>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+            <p style="color: #666; font-size: 14px;">
+                <strong>Note:</strong> Changes take effect immediately. No need to restart Claude Desktop.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            return render_template_string(
+                settings_html,
+                email=user['email'],
+                token=session_token,
+                has_fathom=bool(user.get('fathom_key')),
+                current_fathom_key=user.get('fathom_key', '')
+            )
+
+        @self.app.route('/settings/update-fathom', methods=['POST'])
+        def update_fathom():
+            """Update Fathom API key."""
+            session_token = request.form.get('token')
+            fathom_key = request.form.get('fathom_key', '').strip()
+
+            if not session_token:
+                return "<h1>Error</h1><p>Missing session token</p>", 400
+
+            # Get user from database
+            user = self.database.get_user_by_session(session_token)
+            if not user:
+                return "<h1>Error</h1><p>Invalid or expired token</p>", 401
+
+            try:
+                # Update Fathom key in database
+                self.database.update_fathom_key(
+                    user['id'],
+                    fathom_key if fathom_key else None
+                )
+
+                # Show success message
+                success_html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings Updated</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #28a745; }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            color: #2196f3;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>✓ Settings Updated!</h1>
+        <p>Your Fathom API key has been {{ 'updated' if fathom_key else 'removed' }}.</p>
+        <p>Changes are active immediately - no restart needed.</p>
+        <a href="/settings?token={{ token }}">← Back to Settings</a>
+    </div>
+</body>
+</html>
+                """
+
+                return render_template_string(
+                    success_html,
+                    fathom_key=fathom_key,
+                    token=session_token
+                )
+
+            except Exception as e:
+                logger.error("Failed to update Fathom key: %s", str(e))
+                return f"<h1>Error</h1><p>Failed to update: {str(e)}</p>", 500
 
         @self.app.route('/download/http-mcp-client.js')
         def download_http_client():
