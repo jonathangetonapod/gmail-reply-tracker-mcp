@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """Gmail Reply Tracker MCP Server."""
 
+import sys
+from pathlib import Path
+
+# Add the src directory to Python path so imports work when launched from Claude Desktop
+# This ensures module resolution works regardless of the current working directory
+sys.path.insert(0, str(Path(__file__).parent))
+
 import json
 import logging
 import asyncio
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 from googleapiclient.errors import HttpError

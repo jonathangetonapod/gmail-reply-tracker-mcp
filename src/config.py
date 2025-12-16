@@ -56,15 +56,27 @@ class Config:
             load_dotenv(env_file)
 
         # Parse configuration from environment variables
-        credentials_path = Path(os.getenv(
-            "GMAIL_CREDENTIALS_PATH",
-            "./credentials/credentials.json"
-        ))
+        # Get project root directory (parent of src/) to resolve paths correctly
+        # regardless of current working directory
+        project_root = Path(__file__).parent.parent
 
-        token_path = Path(os.getenv(
+        # Resolve credentials path - support both absolute and relative paths
+        credentials_path_str = os.getenv(
+            "GMAIL_CREDENTIALS_PATH",
+            "credentials/credentials.json"  # Relative to project root
+        )
+        credentials_path = Path(credentials_path_str)
+        if not credentials_path.is_absolute():
+            credentials_path = project_root / credentials_path
+
+        # Resolve token path - support both absolute and relative paths
+        token_path_str = os.getenv(
             "GMAIL_TOKEN_PATH",
-            "./credentials/token.json"
-        ))
+            "credentials/token.json"  # Relative to project root
+        )
+        token_path = Path(token_path_str)
+        if not token_path.is_absolute():
+            token_path = project_root / token_path
 
         oauth_scopes_str = os.getenv(
             "GMAIL_OAUTH_SCOPES",
