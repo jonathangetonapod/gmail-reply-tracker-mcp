@@ -437,12 +437,21 @@ SERVER_PATH="$INSTALL_DIR/src/server.py"
 
 # Update configuration using Python (use any available python3 for this simple JSON manipulation)
 print_substep "Adding MCP server to config..."
-if python3 -c "
+if python3 << EOF
 import json
+import sys
+
+config_file = "$CONFIG_FILE"
+python_path = "$PYTHON_PATH"
+server_path = "$SERVER_PATH"
 
 # Read existing config
-with open('$CONFIG_FILE', 'r') as f:
-    config = json.load(f)
+try:
+    with open(config_file, 'r') as f:
+        config = json.load(f)
+except Exception as e:
+    print(f"Error reading config: {e}", file=sys.stderr)
+    sys.exit(1)
 
 # Ensure mcpServers exists
 if 'mcpServers' not in config:
@@ -454,16 +463,22 @@ for server_name in old_servers:
     if server_name in config['mcpServers']:
         del config['mcpServers'][server_name]
 
-# Add the correct local server configuration
+# Add the correct local server configuration with full paths
 config['mcpServers']['gmail-calendar-fathom'] = {
-    'command': '$PYTHON_PATH',
-    'args': ['$SERVER_PATH']
+    'command': python_path,
+    'args': [server_path]
 }
 
 # Write updated config
-with open('$CONFIG_FILE', 'w') as f:
-    json.dump(config, f, indent=2)
-" 2>&1; then
+try:
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=2)
+    print(f"Successfully wrote config with command: {python_path}")
+except Exception as e:
+    print(f"Error writing config: {e}", file=sys.stderr)
+    sys.exit(1)
+EOF
+then
     print_success "Claude Desktop configured!"
 else
     print_friendly_error "Failed to update Claude Desktop configuration.\n\nPlease try manually adding to:\n  $CONFIG_FILE\n\nOr contact support with a screenshot of this error."
