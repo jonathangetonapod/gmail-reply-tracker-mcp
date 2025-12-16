@@ -98,18 +98,42 @@ if [ "$PYTHON_VERSION_OK" = false ]; then
     print_warning "Python 3.10+ not found (MCP requires Python 3.10 or higher). Installing now..."
 
     if [[ "$OS" == "mac" ]]; then
-        # Try Homebrew first
-        if command -v brew &> /dev/null; then
-            print_step "Installing Python 3.11 via Homebrew..."
-            brew install python@3.11
-            # Update path to use newly installed Python
-            export PATH="/opt/homebrew/opt/python@3.11/bin:/usr/local/opt/python@3.11/bin:$PATH"
-        else
-            print_error "Homebrew not found. Please install Python 3.10+ manually:"
-            echo "  Visit: https://www.python.org/downloads/"
-            echo "  Or install Homebrew first: https://brew.sh"
-            exit 1
+        # Check if Homebrew is installed, if not install it automatically
+        if ! command -v brew &> /dev/null; then
+            print_warning "Homebrew not found. Installing Homebrew automatically..."
+            echo "This will take a few minutes and may require your password."
+            echo
+
+            # Install Homebrew non-interactively
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+            # Add Homebrew to PATH for this session
+            if [ -f "/opt/homebrew/bin/brew" ]; then
+                # Apple Silicon
+                eval "$(/opt/homebrew/bin/brew shellenv)"
+                export PATH="/opt/homebrew/bin:$PATH"
+            elif [ -f "/usr/local/bin/brew" ]; then
+                # Intel Mac
+                eval "$(/usr/local/bin/brew shellenv)"
+                export PATH="/usr/local/bin:$PATH"
+            fi
+
+            # Verify Homebrew installation
+            if command -v brew &> /dev/null; then
+                print_success "Homebrew installed successfully!"
+            else
+                print_error "Homebrew installation failed. Please install manually:"
+                echo "  Visit: https://brew.sh"
+                echo "  Then re-run this script"
+                exit 1
+            fi
         fi
+
+        # Now install Python via Homebrew
+        print_step "Installing Python 3.11 via Homebrew..."
+        brew install python@3.11
+        # Update path to use newly installed Python
+        export PATH="/opt/homebrew/opt/python@3.11/bin:/usr/local/opt/python@3.11/bin:$PATH"
     else
         # Linux - use apt-get, yum, or dnf
         if command -v apt-get &> /dev/null; then
