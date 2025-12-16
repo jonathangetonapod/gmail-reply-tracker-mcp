@@ -132,77 +132,73 @@ if ! command -v node &> /dev/null; then
                 exit 1
             fi
         else
-            print_warning "Homebrew is not installed. Installing now..."
+            print_warning "Homebrew is not installed. Installing Node.js directly..."
             echo
-            print_step "Installing Homebrew (this may take a few minutes)..."
 
-            # Install Homebrew non-interactively
-            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            # Detect architecture
+            ARCH=$(uname -m)
+            if [[ "$ARCH" == "arm64" ]]; then
+                NODE_ARCH="arm64"
+                print_step "Detected Apple Silicon (M1/M2/M3)"
+            else
+                NODE_ARCH="x64"
+                print_step "Detected Intel Mac"
+            fi
+
+            # Download and install Node.js directly
+            print_step "Downloading Node.js (this may take a minute)..."
+            NODE_VERSION="v20.11.0"
+            NODE_PKG="node-${NODE_VERSION}.pkg"
+
+            cd /tmp
+            curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-${NODE_ARCH}.tar.gz" -o node.tar.gz
 
             if [ $? -eq 0 ]; then
-                print_success "Homebrew installed successfully!"
+                print_step "Extracting Node.js..."
+                tar -xzf node.tar.gz
 
-                # Add Homebrew to PATH for this session
-                # Check for Apple Silicon vs Intel Mac
-                if [ -d "/opt/homebrew" ]; then
-                    eval "$(/opt/homebrew/bin/brew shellenv)"
-                    export PATH="/opt/homebrew/bin:$PATH"
-                elif [ -d "/usr/local/Homebrew" ]; then
-                    eval "$(/usr/local/bin/brew shellenv)"
-                    export PATH="/usr/local/bin:$PATH"
-                fi
+                # Create local bin directory
+                mkdir -p "$HOME/.local/bin"
 
-                # Verify brew is available
-                if ! command -v brew &> /dev/null; then
-                    print_error "Homebrew installed but not found in PATH"
+                # Copy node and npm to local bin
+                cp "node-${NODE_VERSION}-darwin-${NODE_ARCH}/bin/node" "$HOME/.local/bin/"
+                cp "node-${NODE_VERSION}-darwin-${NODE_ARCH}/bin/npm" "$HOME/.local/bin/"
+
+                # Make executable
+                chmod +x "$HOME/.local/bin/node"
+                chmod +x "$HOME/.local/bin/npm"
+
+                # Add to PATH for this session
+                export PATH="$HOME/.local/bin:$PATH"
+
+                # Clean up
+                rm -rf node.tar.gz "node-${NODE_VERSION}-darwin-${NODE_ARCH}"
+
+                # Verify installation
+                if command -v node &> /dev/null; then
+                    print_success "Node.js installed successfully!"
+                    NODE_VERSION_INSTALLED=$(node --version)
+                    print_success "Node.js $NODE_VERSION_INSTALLED is ready"
+                else
+                    print_error "Node.js installed but not found in PATH"
                     echo
-                    echo "Please close this terminal and open a new one, then re-run:"
+                    echo "Please add the following to your ~/.zshrc or ~/.bash_profile:"
+                    echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+                    echo
+                    echo "Then close this terminal, open a new one, and re-run:"
                     echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s $SESSION_TOKEN $USER_EMAIL"
                     echo
                     exit 1
                 fi
-
-                # Now install Node.js
-                print_step "Installing Node.js via Homebrew..."
-                brew install node
-
-                if [ $? -eq 0 ]; then
-                    print_success "Node.js installed successfully!"
-
-                    # Update PATH to include Homebrew's node
-                    export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-
-                    # Verify node is available
-                    if ! command -v node &> /dev/null; then
-                        print_warning "Node.js installed but not found in PATH. Trying to locate..."
-                        if [ -f "/opt/homebrew/bin/node" ]; then
-                            export PATH="/opt/homebrew/bin:$PATH"
-                        elif [ -f "/usr/local/bin/node" ]; then
-                            export PATH="/usr/local/bin:$PATH"
-                        else
-                            print_error "Node.js installed but could not be located"
-                            echo
-                            echo "Please close this terminal and open a new one, then re-run:"
-                            echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s $SESSION_TOKEN $USER_EMAIL"
-                            echo
-                            exit 1
-                        fi
-                    fi
-                else
-                    print_error "Failed to install Node.js via Homebrew"
-                    echo
-                    echo "Please install Node.js manually:"
-                    echo "  Visit: https://nodejs.org/"
-                    echo
-                    exit 1
-                fi
             else
-                print_error "Failed to install Homebrew"
+                print_error "Failed to download Node.js"
                 echo
-                echo "Please install Homebrew manually, then re-run this script:"
+                echo "Please install Node.js manually:"
+                echo "  Visit: https://nodejs.org/"
+                echo
+                echo "Or install Homebrew first (requires admin password):"
                 echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-                echo
-                echo "Or install Node.js directly: https://nodejs.org/"
+                echo "  Then re-run this script"
                 echo
                 exit 1
             fi
