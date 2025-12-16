@@ -1607,11 +1607,36 @@ class MCPHandler:
         """Get all clients from both platforms."""
         try:
             config = Config.from_env()
-            result = await asyncio.to_thread(
-                leads.get_all_clients_combined,
-                sheet_url=config.lead_sheets_url,
-                bison_gid=config.lead_sheets_gid_bison
+
+            # Inline logic to bypass module caching issues
+            instantly_result = await asyncio.to_thread(
+                leads.get_client_list,
+                sheet_url=config.lead_sheets_url
             )
+            instantly_clients = [
+                {**client, 'platform': 'instantly'}
+                for client in instantly_result.get('clients', [])
+            ]
+
+            bison_result = await asyncio.to_thread(
+                leads.get_bison_client_list,
+                sheet_url=config.lead_sheets_url,
+                gid=config.lead_sheets_gid_bison
+            )
+            bison_clients = [
+                {**client, 'platform': 'bison'}
+                for client in bison_result.get('clients', [])
+            ]
+
+            all_clients = instantly_clients + bison_clients
+
+            result = {
+                'total_clients': len(all_clients),
+                'instantly_count': len(instantly_clients),
+                'bison_count': len(bison_clients),
+                'clients': all_clients
+            }
+
             return json.dumps({"success": True, **result}, indent=2)
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)}, indent=2)
