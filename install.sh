@@ -97,8 +97,14 @@ if ! command -v node &> /dev/null; then
     if [[ "$OS" == "mac" ]]; then
         # Check if Homebrew is installed
         if command -v brew &> /dev/null; then
-            print_step "Installing Node.js via Homebrew..."
-            brew install node
+            # Check if Node.js is already installed via Homebrew but not in PATH
+            if brew list node &> /dev/null; then
+                print_warning "Node.js is already installed via Homebrew"
+                export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+            else
+                print_step "Installing Node.js via Homebrew..."
+                brew install node
+            fi
             if [ $? -eq 0 ]; then
                 print_success "Node.js installed successfully!"
 
@@ -239,8 +245,17 @@ if ! command -v node &> /dev/null; then
         fi
     fi
 fi
+
+# Verify Node.js version
 NODE_VERSION=$(node --version)
-print_success "Node.js $NODE_VERSION found"
+NODE_MAJOR_VERSION=$(echo $NODE_VERSION | cut -d'.' -f1 | sed 's/v//')
+
+if [ "$NODE_MAJOR_VERSION" -lt 18 ]; then
+    print_warning "Node.js version $NODE_VERSION is below recommended v18.0"
+    print_warning "MCP may not work correctly. Consider upgrading Node.js"
+else
+    print_success "Node.js $NODE_VERSION found (already installed)"
+fi
 
 # Create installation directory
 print_step "Creating installation directory..."
@@ -248,8 +263,14 @@ mkdir -p "$INSTALL_DIR"
 print_success "Directory created: $INSTALL_DIR"
 
 # Download http-mcp-client.js
-print_step "Downloading MCP client..."
 CLIENT_PATH="$INSTALL_DIR/http-mcp-client.js"
+
+if [ -f "$CLIENT_PATH" ]; then
+    print_warning "MCP client already exists at: $CLIENT_PATH"
+    print_step "Re-downloading to ensure latest version..."
+fi
+
+print_step "Downloading MCP client..."
 curl -fsSL "${SERVER_URL}/download/http-mcp-client.js" -o "$CLIENT_PATH"
 chmod +x "$CLIENT_PATH"
 print_success "Downloaded to: $CLIENT_PATH"
