@@ -270,6 +270,10 @@ BACKUP_FILE="${CONFIG_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
 cp "$CONFIG_FILE" "$BACKUP_FILE"
 print_success "Backup saved: $BACKUP_FILE"
 
+# Get full path to node for config
+NODE_PATH=$(which node)
+print_success "Node path: $NODE_PATH"
+
 # Update configuration using Python
 print_step "Updating Claude Desktop configuration..."
 
@@ -313,7 +317,7 @@ if server_name in config['mcpServers']:
 
 # Add our server (or update if exists)
 config['mcpServers'][server_name] = {
-    'command': 'node',
+    'command': '$NODE_PATH',
     'args': [
         '$CLIENT_PATH',
         '${SERVER_URL}/mcp',
