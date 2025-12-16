@@ -496,6 +496,49 @@ class WebServer:
                 logger.error("Failed to save user: %s", str(e))
                 return f"<h1>Error</h1><p>Failed to save configuration: {str(e)}</p>", 500
 
+        @self.app.route('/mcp', methods=['POST'])
+        def mcp_endpoint():
+            """Handle MCP protocol requests over HTTP."""
+            import asyncio
+
+            # Get Authorization header
+            auth_header = request.headers.get('Authorization', '')
+            if not auth_header.startswith('Bearer '):
+                return jsonify({"error": "Missing or invalid Authorization header"}), 401
+
+            session_token = auth_header[7:]  # Remove 'Bearer ' prefix
+
+            # Get user from database
+            user = self.database.get_user_by_session(session_token)
+            if not user:
+                return jsonify({"error": "Invalid or expired token"}), 401
+
+            # Get MCP request
+            try:
+                request_data = request.get_json()
+            except Exception:
+                return jsonify({"error": "Invalid JSON"}), 400
+
+            # Handle MCP request
+            from mcp_handler import MCPHandler
+            handler = MCPHandler()
+
+            # Run async handler in event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                response = loop.run_until_complete(
+                    handler.handle_request(
+                        request_data,
+                        user['google_token'],
+                        user.get('fathom_key')
+                    )
+                )
+            finally:
+                loop.close()
+
+            return jsonify(response)
+
         @self.app.route('/admin/users')
         def admin_users():
             """List all users (admin endpoint)."""
