@@ -620,6 +620,30 @@ SETUP_LANDING_HTML = """
                     </div>
                 </div>
 
+                <!-- Issue 7: Bison/Instantly Tools Failing -->
+                <div style="background: #fce4ec; border-left: 4px solid #e91e63; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #e91e63; margin: 0 0 10px 0; font-size: 18px;">🔧 Bison/Instantly Tools Failing</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> Claude tries to use Bison/Instantly tools but they fail repeatedly</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #e91e63;">❌ Why it's failing:</strong>
+                        <p style="margin: 10px 0 0 0; font-size: 14px;">Bison/Instantly tools need access to a specific Google Sheet that tracks lead data. You likely don't have access to it.</p>
+
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                        <strong style="color: #2e7d32;">✅ Solution - Tell Claude to skip these tools:</strong>
+                        <p style="margin: 10px 0 0 0; font-size: 14px;">Simply tell Claude in your conversation:</p>
+                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 13px; margin: 10px 0; white-space: pre-wrap; word-wrap: break-word;">"Don't use Bison or Instantly tools - I don't have access to them"</pre>
+
+                        <p style="margin: 10px 0 0 0; font-size: 14px;">Then ask your question again. Claude will use other available tools instead!</p>
+
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #e0e0e0;">
+
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;"><strong>💡 Good news:</strong> You still have 31 other tools working (Gmail, Calendar, Fathom) that don't need any special access!</p>
+
+                        <p style="margin: 10px 0 0 0; font-size: 13px; color: #999;"><strong>For admins:</strong> To enable these tools, grant the user access to the lead tracking Google Sheet</p>
+                    </div>
+                </div>
+
                 <!-- Claude Desktop Settings -->
                 <div style="background: #e1f5fe; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                     <h3 style="margin: 0 0 15px 0; font-size: 16px;">⚙️ Finding Claude Desktop Settings</h3>
