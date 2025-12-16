@@ -132,14 +132,80 @@ if ! command -v node &> /dev/null; then
                 exit 1
             fi
         else
-            print_error "Homebrew is not installed!"
+            print_warning "Homebrew is not installed. Installing now..."
             echo
-            echo "Installing Node.js automatically requires Homebrew."
-            echo "Please either:"
-            echo "  1. Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-            echo "  2. Or install Node.js directly: https://nodejs.org/"
-            echo
-            exit 1
+            print_step "Installing Homebrew (this may take a few minutes)..."
+
+            # Install Homebrew non-interactively
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+            if [ $? -eq 0 ]; then
+                print_success "Homebrew installed successfully!"
+
+                # Add Homebrew to PATH for this session
+                # Check for Apple Silicon vs Intel Mac
+                if [ -d "/opt/homebrew" ]; then
+                    eval "$(/opt/homebrew/bin/brew shellenv)"
+                    export PATH="/opt/homebrew/bin:$PATH"
+                elif [ -d "/usr/local/Homebrew" ]; then
+                    eval "$(/usr/local/bin/brew shellenv)"
+                    export PATH="/usr/local/bin:$PATH"
+                fi
+
+                # Verify brew is available
+                if ! command -v brew &> /dev/null; then
+                    print_error "Homebrew installed but not found in PATH"
+                    echo
+                    echo "Please close this terminal and open a new one, then re-run:"
+                    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s $SESSION_TOKEN $USER_EMAIL"
+                    echo
+                    exit 1
+                fi
+
+                # Now install Node.js
+                print_step "Installing Node.js via Homebrew..."
+                brew install node
+
+                if [ $? -eq 0 ]; then
+                    print_success "Node.js installed successfully!"
+
+                    # Update PATH to include Homebrew's node
+                    export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+                    # Verify node is available
+                    if ! command -v node &> /dev/null; then
+                        print_warning "Node.js installed but not found in PATH. Trying to locate..."
+                        if [ -f "/opt/homebrew/bin/node" ]; then
+                            export PATH="/opt/homebrew/bin:$PATH"
+                        elif [ -f "/usr/local/bin/node" ]; then
+                            export PATH="/usr/local/bin:$PATH"
+                        else
+                            print_error "Node.js installed but could not be located"
+                            echo
+                            echo "Please close this terminal and open a new one, then re-run:"
+                            echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s $SESSION_TOKEN $USER_EMAIL"
+                            echo
+                            exit 1
+                        fi
+                    fi
+                else
+                    print_error "Failed to install Node.js via Homebrew"
+                    echo
+                    echo "Please install Node.js manually:"
+                    echo "  Visit: https://nodejs.org/"
+                    echo
+                    exit 1
+                fi
+            else
+                print_error "Failed to install Homebrew"
+                echo
+                echo "Please install Homebrew manually, then re-run this script:"
+                echo "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                echo
+                echo "Or install Node.js directly: https://nodejs.org/"
+                echo
+                exit 1
+            fi
         fi
     elif [[ "$OS" == "linux" ]]; then
         # Try to detect Linux package manager and install
