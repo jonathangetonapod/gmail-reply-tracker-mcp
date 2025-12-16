@@ -33,6 +33,12 @@ from gmail_client import GmailClient
 from email_analyzer import EmailAnalyzer
 from calendar_client import CalendarClient
 from fathom_client import FathomClient
+from leads import (
+    get_client_list, get_lead_responses, get_campaign_stats, get_workspace_info,
+    get_bison_client_list, get_bison_lead_responses, get_bison_campaign_stats,
+    get_all_clients, get_all_platform_stats, get_top_performing_clients,
+    get_underperforming_clients, get_weekly_summary
+)
 
 
 # Initialize logging
@@ -1954,6 +1960,607 @@ async def get_fathom_action_items(recording_id: int) -> str:
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in get_fathom_action_items: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+# ============================================================================
+# LEAD MANAGEMENT TOOLS
+# ============================================================================
+
+@mcp.tool()
+async def get_instantly_clients() -> str:
+    """
+    Get list of all Instantly.ai clients/workspaces.
+
+    Returns all 56 Instantly clients with their workspace IDs and client names.
+
+    Returns:
+        JSON string with client list
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Instantly client list...")
+
+        result = get_client_list(
+            sheet_url=config.lead_sheets_url
+        )
+
+        logger.info("Found %d Instantly clients", result.get('total_clients', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_instantly_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_instantly_leads(
+    workspace_id: str,
+    days: int = 7,
+    start_date: str = None,
+    end_date: str = None
+) -> str:
+    """
+    Get lead responses for a specific Instantly.ai workspace.
+
+    This tool retrieves all lead responses (interested/replied leads) for a given
+    workspace within the specified time period.
+
+    Args:
+        workspace_id: Instantly.ai workspace ID
+        days: Number of days to look back (default: 7)
+        start_date: Start date in YYYY-MM-DD format (optional, overrides days)
+        end_date: End date in YYYY-MM-DD format (optional, overrides days)
+
+    Returns:
+        JSON string with lead responses
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Instantly leads for workspace %s (days=%d)...", workspace_id, days)
+
+        result = get_lead_responses(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_instantly,
+            workspace_id=workspace_id,
+            days=days,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        logger.info("Found %d leads for workspace %s", result.get('total_leads', 0), workspace_id)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_instantly_leads: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_instantly_stats(
+    workspace_id: str,
+    days: int = 7,
+    start_date: str = None,
+    end_date: str = None
+) -> str:
+    """
+    Get campaign statistics for a specific Instantly.ai workspace.
+
+    This tool retrieves comprehensive campaign statistics including sent emails,
+    opens, replies, interested leads, and more for a given workspace.
+
+    Args:
+        workspace_id: Instantly.ai workspace ID
+        days: Number of days to look back (default: 7)
+        start_date: Start date in YYYY-MM-DD format (optional, overrides days)
+        end_date: End date in YYYY-MM-DD format (optional, overrides days)
+
+    Returns:
+        JSON string with campaign statistics
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Instantly stats for workspace %s (days=%d)...", workspace_id, days)
+
+        result = get_campaign_stats(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_instantly,
+            workspace_id=workspace_id,
+            days=days,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        logger.info("Retrieved stats for workspace %s: %d interested leads",
+                   workspace_id, result.get('interested_leads', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_instantly_stats: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_instantly_workspace(workspace_id: str) -> str:
+    """
+    Get detailed information about a specific Instantly.ai workspace.
+
+    This tool retrieves workspace details including client name, workspace ID,
+    and other metadata.
+
+    Args:
+        workspace_id: Instantly.ai workspace ID
+
+    Returns:
+        JSON string with workspace information
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Instantly workspace info for %s...", workspace_id)
+
+        result = get_workspace_info(
+            sheet_url=config.lead_sheets_url,
+            workspace_id=workspace_id
+        )
+
+        logger.info("Retrieved workspace info for %s", workspace_id)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_instantly_workspace: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_bison_clients() -> str:
+    """
+    Get list of all Bison clients.
+
+    Returns all Bison clients with their client names.
+
+    Returns:
+        JSON string with client list
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Bison client list...")
+
+        result = get_bison_client_list(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_bison
+        )
+
+        logger.info("Found %d Bison clients", result.get('total_clients', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_bison_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_bison_leads(
+    client_name: str,
+    days: int = 7,
+    start_date: str = None,
+    end_date: str = None
+) -> str:
+    """
+    Get lead responses for a specific Bison client.
+
+    This tool retrieves all lead responses (interested/replied leads) for a given
+    Bison client within the specified time period.
+
+    Args:
+        client_name: Bison client name
+        days: Number of days to look back (default: 7)
+        start_date: Start date in YYYY-MM-DD format (optional, overrides days)
+        end_date: End date in YYYY-MM-DD format (optional, overrides days)
+
+    Returns:
+        JSON string with lead responses
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Bison leads for client %s (days=%d)...", client_name, days)
+
+        result = get_bison_lead_responses(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_bison,
+            client_name=client_name,
+            days=days,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        logger.info("Found %d leads for client %s", result.get('total_leads', 0), client_name)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_bison_leads: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_bison_stats(
+    client_name: str,
+    days: int = 7,
+    start_date: str = None,
+    end_date: str = None
+) -> str:
+    """
+    Get campaign statistics for a specific Bison client.
+
+    This tool retrieves comprehensive campaign statistics including sent emails,
+    opens, replies, interested leads, and more for a given Bison client.
+
+    Args:
+        client_name: Bison client name
+        days: Number of days to look back (default: 7)
+        start_date: Start date in YYYY-MM-DD format (optional, overrides days)
+        end_date: End date in YYYY-MM-DD format (optional, overrides days)
+
+    Returns:
+        JSON string with campaign statistics
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching Bison stats for client %s (days=%d)...", client_name, days)
+
+        result = get_bison_campaign_stats(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_bison,
+            client_name=client_name,
+            days=days,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        logger.info("Retrieved stats for client %s: %d interested leads",
+                   client_name, result.get('interested_leads', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_bison_stats: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_all_lead_clients() -> str:
+    """
+    Get list of all clients from both Instantly.ai and Bison platforms.
+
+    Returns a comprehensive list of all clients across both lead generation
+    platforms with their platform identifiers and client names.
+
+    Returns:
+        JSON string with all clients from both platforms
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching all clients from both platforms...")
+
+        result = get_all_clients(
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison
+        )
+
+        logger.info("Found %d total clients (%d Instantly, %d Bison)",
+                   result.get('total_clients', 0),
+                   result.get('instantly_count', 0),
+                   result.get('bison_count', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_all_lead_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_lead_platform_stats(days: int = 7) -> str:
+    """
+    Get aggregated statistics across both Instantly.ai and Bison platforms.
+
+    This tool provides a high-level overview of lead generation performance
+    across all clients and both platforms, including total leads, conversion
+    rates, and platform comparisons.
+
+    Args:
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        JSON string with aggregated platform statistics
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching platform stats for last %d days...", days)
+
+        result = get_all_platform_stats(
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison,
+            days=days
+        )
+
+        logger.info("Retrieved platform stats: %d total interested leads",
+                   result.get('total_interested_leads', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_lead_platform_stats: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_top_clients(
+    limit: int = 10,
+    metric: str = "interested_leads",
+    days: int = 7
+) -> str:
+    """
+    Get the top performing clients based on a specific metric.
+
+    This tool ranks clients by performance metrics such as interested leads,
+    reply rates, or open rates, helping identify the most successful campaigns.
+
+    Args:
+        limit: Maximum number of clients to return (default: 10)
+        metric: Metric to rank by - "interested_leads", "replies", "opens",
+                "sent", or "reply_rate" (default: "interested_leads")
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        JSON string with top performing clients
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching top %d clients by %s (last %d days)...", limit, metric, days)
+
+        result = get_top_performing_clients(
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison,
+            limit=limit,
+            metric=metric,
+            days=days
+        )
+
+        logger.info("Found top %d clients by %s", len(result.get('clients', [])), metric)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_top_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_underperforming_clients_list(
+    threshold: int = 5,
+    metric: str = "interested_leads",
+    days: int = 7
+) -> str:
+    """
+    Get list of underperforming clients based on a specific metric threshold.
+
+    This tool identifies clients that are performing below a specified threshold,
+    helping to flag campaigns that may need attention or optimization.
+
+    Args:
+        threshold: Minimum acceptable value for the metric (default: 5)
+        metric: Metric to evaluate - "interested_leads", "replies", "opens",
+                or "sent" (default: "interested_leads")
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        JSON string with underperforming clients
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching underperforming clients (threshold=%d %s, last %d days)...",
+                   threshold, metric, days)
+
+        result = get_underperforming_clients(
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison,
+            threshold=threshold,
+            metric=metric,
+            days=days
+        )
+
+        logger.info("Found %d underperforming clients", len(result.get('clients', [])))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_underperforming_clients_list: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_lead_weekly_summary() -> str:
+    """
+    Get a comprehensive weekly summary of lead generation activities.
+
+    This tool provides a high-level weekly report including total leads generated,
+    top performing clients, platform comparisons, and key metrics across all
+    campaigns for the past 7 days.
+
+    Returns:
+        JSON string with weekly summary
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Generating weekly lead summary...")
+
+        result = get_weekly_summary(
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison
+        )
+
+        logger.info("Generated weekly summary: %d total leads",
+                   result.get('total_leads', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_lead_weekly_summary: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg

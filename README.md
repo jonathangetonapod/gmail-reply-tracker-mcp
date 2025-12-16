@@ -1,10 +1,10 @@
 <div align="center">
 
-# 📬 Gmail + Calendar + Fathom MCP Server
+# 📬 Gmail + Calendar + Fathom + Leads MCP Server
 
-### Your AI-Powered Productivity Command Center
+### Your AI-Powered Productivity & Lead Management Command Center
 
-*Connect Claude to your entire productivity stack with natural language*
+*Connect Claude to your entire productivity stack and lead generation platforms with natural language*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -23,14 +23,20 @@ Transform Claude into your personal productivity assistant with **one-click acce
 - 📧 **Gmail** - Smart email management, automated filtering, and intelligent replies
 - 📅 **Google Calendar** - Natural language scheduling with automatic timezone detection
 - 🎙️ **Fathom AI** - Meeting transcripts, summaries, and action item extraction
+- 🎯 **Lead Management** - Track 80 clients across Instantly.ai & Bison platforms with campaign analytics
 
 **Ask Claude things like:**
 > "What emails need my attention today?"
 > "Schedule a meeting with Sarah tomorrow at 2pm and send her a calendar invite"
 > "What were the action items from yesterday's client call?"
+> "Show me interested leads from our top performing clients this week"
+> "Which clients are underperforming and need attention?"
 
 ## ✨ What's New
 
+- 🎯 **NEW: Lead Management Integration** - Track 80 clients across Instantly.ai (56) & Bison (24)
+- 🎯 **NEW: Campaign Analytics** - Get performance stats, top clients, and weekly summaries
+- 🎯 **NEW: Interested Lead Tracking** - Auto-fetch responses with conversation threads
 - ✅ **Automatic timezone detection** - No more UTC confusion
 - ✅ **Calendar invitations sent automatically** - Attendees actually receive emails now
 - ✅ **Full Fathom AI integration** - Access transcripts, summaries, and action items
@@ -75,7 +81,7 @@ chmod +x QUICKSTART.sh
 
 <table>
 <tr>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
 ### 📧 Gmail
 
@@ -88,7 +94,7 @@ chmod +x QUICKSTART.sh
 - Draft creation
 
 </td>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
 ### 📅 Calendar
 
@@ -101,7 +107,9 @@ chmod +x QUICKSTART.sh
 - Meeting coordination
 
 </td>
-<td width="33%" valign="top">
+</tr>
+<tr>
+<td width="50%" valign="top">
 
 ### 🎙️ Fathom AI
 
@@ -112,6 +120,19 @@ chmod +x QUICKSTART.sh
 - Search by title/attendee
 - Calendar cross-reference
 - Meeting analytics
+
+</td>
+<td width="50%" valign="top">
+
+### 🎯 Lead Management
+
+- Track 80 clients (Instantly.ai + Bison)
+- Interested lead responses
+- Campaign performance analytics
+- Top/underperforming client reports
+- Weekly summary dashboards
+- Conversation thread tracking
+- Date validation & fuzzy search
 
 </td>
 </tr>
@@ -128,6 +149,15 @@ chmod +x QUICKSTART.sh
 "Search for emails about the Q4 budget"
 "Draft a reply thanking them for the update"
 "Send an email to team@company.com about the project"
+```
+
+### Lead Management
+```
+"Show me all our Instantly clients"
+"Get interested leads from ABC Corp for the last 7 days"
+"Which clients are underperforming this week?"
+"Show me top 5 clients by reply rate"
+"Generate a weekly summary of all lead generation activity"
 ```
 
 ### Calendar & Scheduling

@@ -22,6 +22,11 @@ class Config:
     # API Keys
     fathom_api_key: str
 
+    # Lead Management
+    lead_sheets_url: str
+    lead_sheets_gid_instantly: str
+    lead_sheets_gid_bison: str
+
     # Server
     server_name: str
     log_level: str
@@ -86,6 +91,14 @@ class Config:
 
         fathom_api_key = os.getenv("FATHOM_API_KEY", "")
 
+        # Lead Management Configuration
+        lead_sheets_url = os.getenv(
+            "LEAD_SHEETS_URL",
+            "https://docs.google.com/spreadsheets/d/1CNejGg-egkp28ItSRfW7F_CkBXgYevjzstJ1QlrAyAY/edit"
+        )
+        lead_sheets_gid_instantly = os.getenv("LEAD_SHEETS_GID_INSTANTLY", "928115249")
+        lead_sheets_gid_bison = os.getenv("LEAD_SHEETS_GID_BISON", "1631680229")
+
         server_name = os.getenv("MCP_SERVER_NAME", "gmail-reply-tracker")
         log_level = os.getenv("LOG_LEVEL", "INFO")
 
@@ -99,6 +112,9 @@ class Config:
             token_path=token_path,
             oauth_scopes=oauth_scopes,
             fathom_api_key=fathom_api_key,
+            lead_sheets_url=lead_sheets_url,
+            lead_sheets_gid_instantly=lead_sheets_gid_instantly,
+            lead_sheets_gid_bison=lead_sheets_gid_bison,
             server_name=server_name,
             log_level=log_level,
             max_requests_per_minute=max_requests_per_minute
@@ -158,6 +174,13 @@ class Config:
             logger = logging.getLogger(__name__)
             logger.warning(
                 "FATHOM_API_KEY not set. Fathom meeting tools will not be available."
+            )
+
+        # Warn if Lead Management sheets URL is not set (optional feature)
+        if not self.lead_sheets_url or self.lead_sheets_url == "":
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "LEAD_SHEETS_URL not set. Lead management tools will not be available."
             )
 
         return errors

@@ -8,7 +8,7 @@ google-auth-httplib2>=0.2.0
 google-api-python-client>=2.149.0
 
 # Configuration
-python-dotenv>=1.0.0
+python-dotenv>=1.0.1
 
 # Utilities
 pytz>=2024.1
