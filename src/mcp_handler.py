@@ -380,10 +380,21 @@ class MCPHandler:
 
     async def _list_calendar_events(self, calendar: CalendarClient, **kwargs) -> str:
         """List calendar events."""
+        from datetime import datetime, timedelta
+
         calendar_id = kwargs.get('calendar_id', 'primary')
         days_ahead = kwargs.get('days_ahead', 7)
+
+        # Start from beginning of today (midnight) to include past events
+        time_min = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        time_max = time_min + timedelta(days=days_ahead + 1)
+
         events = await asyncio.to_thread(
-            calendar.list_upcoming_events, calendar_id, days_ahead
+            calendar.list_events,
+            calendar_id=calendar_id,
+            time_min=time_min,
+            time_max=time_max,
+            max_results=kwargs.get('max_results', 50)
         )
         return json.dumps(events, indent=2)
 

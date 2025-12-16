@@ -562,8 +562,9 @@ async def list_calendar_events(
         logger.info("Fetching calendar events for next %d days...", days_ahead)
 
         # Calculate time range
-        time_min = datetime.now()
-        time_max = time_min + timedelta(days=days_ahead)
+        # Start from beginning of today (midnight) to include past events
+        time_min = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        time_max = time_min + timedelta(days=days_ahead + 1)  # Add 1 to include the full last day
 
         # Fetch events
         events = calendar_client.list_events(
