@@ -187,18 +187,23 @@ SETUP_LANDING_HTML = """
         </div>
 
         <div class="step">
-            <div class="step-title">Step 1: Connect Google Account</div>
-            <div class="step-desc">Sign in with Google to authorize Gmail and Calendar access</div>
+            <div class="step-title">Step 1: Enter Your Info</div>
+            <div class="step-desc">Provide your email and optional Fathom API key</div>
         </div>
 
         <div class="step">
-            <div class="step-title">Step 2: Fathom (Optional)</div>
-            <div class="step-desc">Add your Fathom API key if you use it, or skip this step</div>
+            <div class="step-title">Step 2: Run Install Command</div>
+            <div class="step-desc">Copy and paste one command in your terminal - it handles everything</div>
         </div>
 
         <div class="step">
-            <div class="step-title">Step 3: Install & Restart</div>
-            <div class="step-desc">Run one command in your terminal to configure Claude Desktop, then restart the app</div>
+            <div class="step-title">Step 3: Authorize Google</div>
+            <div class="step-desc">Browser opens for Gmail/Calendar authorization (happens during install)</div>
+        </div>
+
+        <div class="step">
+            <div class="step-title">Step 4: Restart Claude</div>
+            <div class="step-desc">Restart Claude Desktop and start using your new tools!</div>
         </div>
 
         <a href="{{ server_url }}/setup/start" class="start-button">Start Setup</a>
@@ -510,7 +515,8 @@ SUCCESS_HTML = """
                 1. Copy the command above<br>
                 2. Open Terminal<br>
                 3. Paste and press Enter<br>
-                4. Restart Claude Desktop
+                4. Browser will open for Google authorization<br>
+                5. Restart Claude Desktop
             </div>
         </div>
 
@@ -626,202 +632,142 @@ class WebServer:
 
         @self.app.route('/setup/start')
         def setup_start():
-            """Start setup flow - redirect to Google OAuth."""
-            # Create OAuth flow
-            flow = Flow.from_client_config(
-                {
-                    "web": {
-                        "client_id": self.client_id,
-                        "client_secret": self.client_secret,
-                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                        "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": [self.redirect_uri]
-                    }
-                },
-                scopes=self.scopes
-            )
-            flow.redirect_uri = self.redirect_uri
+            """Show simple form to collect email and Fathom key."""
+            form_html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup - Gmail Calendar MCP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .card {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input[type="email"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: -15px;
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .button:hover {
+            background: #1976d2;
+        }
+        .note {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Gmail + Calendar + Fathom MCP</h1>
+        <p class="subtitle">Set up Gmail and Calendar tools for Claude Desktop</p>
 
-            # Generate authorization URL
-            authorization_url, state = flow.authorization_url(
-                access_type='offline',
-                prompt='consent'  # Force consent to get refresh token
-            )
+        <div class="note">
+            <strong>How it works:</strong><br>
+            1. Enter your email and optional Fathom key<br>
+            2. Get a custom install command<br>
+            3. Run it in your terminal<br>
+            4. Authorize Google (one time)<br>
+            5. Done!
+        </div>
 
-            # Store flow state temporarily
-            self.oauth_states[state] = {
-                "flow": flow,
-                "timestamp": datetime.now()
-            }
+        <form method="POST" action="/setup/generate">
+            <label for="email">Your Email:</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+            <div class="help-text">Used to identify your setup</div>
 
-            # Redirect to Google
-            return redirect(authorization_url)
+            <label for="fathom_key">Fathom API Key (Optional):</label>
+            <input type="text" id="fathom_key" name="fathom_key" placeholder="Leave blank to skip">
+            <div class="help-text">
+                Get your key at <a href="https://fathom.video/settings/integrations" target="_blank">fathom.video/settings/integrations</a>
+            </div>
 
-        @self.app.route('/auth/callback')
-        def oauth_callback():
-            """Handle OAuth callback from Google."""
-            state = request.args.get('state')
-            code = request.args.get('code')
-            error = request.args.get('error')
+            <button type="submit" class="button">Generate Install Command</button>
+        </form>
+    </div>
+</body>
+</html>
+            """
+            return form_html
 
-            if error:
-                return f"<h1>Authentication Error</h1><p>{error}</p>", 400
-
-            if not state or state not in self.oauth_states:
-                return "<h1>Error</h1><p>Invalid state parameter</p>", 400
-
-            # Retrieve flow
-            flow_data = self.oauth_states[state]
-            flow = flow_data['flow']
-
-            # Exchange code for token
-            try:
-                flow.fetch_token(code=code)
-                credentials = flow.credentials
-
-                # Get user email
-                from googleapiclient.discovery import build
-                service = build('oauth2', 'v2', credentials=credentials)
-                user_info = service.userinfo().get().execute()
-                email = user_info.get('email')
-
-                # Store credentials token temporarily for Fathom setup
-                token_dict = {
-                    'token': credentials.token,
-                    'refresh_token': credentials.refresh_token,
-                    'token_uri': credentials.token_uri,
-                    'client_id': credentials.client_id,
-                    'client_secret': credentials.client_secret,
-                    'scopes': credentials.scopes,
-                    'expiry': credentials.expiry.isoformat() if credentials.expiry else None
-                }
-
-                # Store temporarily in oauth_states with email as key
-                self.oauth_states[email] = {
-                    'credentials': token_dict,
-                    'timestamp': datetime.now()
-                }
-
-                # Clean up state
-                del self.oauth_states[state]
-
-                # Show Fathom form
-                return render_template_string(FATHOM_FORM_HTML, email=email)
-
-            except Exception as e:
-                logger.error("OAuth callback error: %s", str(e))
-                return f"<h1>Error</h1><p>Failed to complete authentication: {str(e)}</p>", 500
-
-        @self.app.route('/setup/fathom', methods=['POST'])
-        def setup_fathom():
-            """Save Fathom API key and complete setup."""
-            email = request.form.get('email')
+        @self.app.route('/setup/generate', methods=['POST'])
+        def setup_generate():
+            """Generate install command with email and Fathom key."""
+            email = request.form.get('email', '').strip()
             fathom_key = request.form.get('fathom_key', '').strip()
 
             if not email:
-                return "<h1>Error</h1><p>Email missing</p>", 400
+                return "<h1>Error</h1><p>Email is required</p>", 400
 
-            # Retrieve stored credentials
-            if email not in self.oauth_states:
-                return "<h1>Error</h1><p>Session expired. Please start setup again.</p>", 400
-
-            creds_data = self.oauth_states[email]
-            token_dict = creds_data['credentials']
-
-            try:
-                # Save to database
-                user_data = self.database.create_user(
-                    email=email,
-                    google_token=token_dict,
-                    fathom_key=fathom_key if fathom_key else None
-                )
-
-                # Clean up temporary storage
-                del self.oauth_states[email]
-
-                # Show success with token
-                session_token = user_data['session_token']
-                config_json = json.dumps({
-                    "mcpServers": {
-                        "gmail-calendar-fathom": {
-                            "command": "node",
-                            "args": [
-                                "/path/to/http-mcp-client.js",
-                                f"{self.redirect_uri.rsplit('/', 2)[0]}/mcp",
-                                session_token
-                            ]
-                        }
-                    }
-                }, indent=2)
-
-                return render_template_string(
-                    SUCCESS_HTML,
-                    email=email,
-                    token=session_token,
-                    server_url=self.redirect_uri.rsplit('/', 2)[0],
-                    has_fathom=bool(fathom_key),
-                    fathom_key=fathom_key,
-                    config_json=config_json
-                )
-
-            except Exception as e:
-                logger.error("Failed to save user: %s", str(e))
-                return f"<h1>Error</h1><p>Failed to save configuration: {str(e)}</p>", 500
-
-        @self.app.route('/setup/skip', methods=['POST'])
-        def setup_skip():
-            """Skip Fathom setup and complete."""
-            email = request.form.get('email')
-
-            if not email:
-                return "<h1>Error</h1><p>Email missing</p>", 400
-
-            # Retrieve stored credentials
-            if email not in self.oauth_states:
-                return "<h1>Error</h1><p>Session expired. Please start setup again.</p>", 400
-
-            creds_data = self.oauth_states[email]
-            token_dict = creds_data['credentials']
-
-            try:
-                # Save to database without Fathom key
-                user_data = self.database.create_user(
-                    email=email,
-                    google_token=token_dict,
-                    fathom_key=None
-                )
-
-                # Clean up temporary storage
-                del self.oauth_states[email]
-
-                # Show success with token
-                session_token = user_data['session_token']
-                config_json = json.dumps({
-                    "mcpServers": {
-                        "gmail-calendar-fathom": {
-                            "command": "node",
-                            "args": [
-                                "/path/to/http-mcp-client.js",
-                                f"{self.redirect_uri.rsplit('/', 2)[0]}/mcp",
-                                session_token
-                            ]
-                        }
-                    }
-                }, indent=2)
-
-                return render_template_string(
-                    SUCCESS_HTML,
-                    email=email,
-                    token=session_token,
-                    server_url=self.redirect_uri.rsplit('/', 2)[0],
-                    has_fathom=False,  # Skip endpoint means no Fathom
-                    fathom_key=None,
-                    config_json=config_json
-                )
-
-            except Exception as e:
-                logger.error("Failed to save user: %s", str(e))
-                return f"<h1>Error</h1><p>Failed to save configuration: {str(e)}</p>", 500
+            # Show success page with install command
+            return render_template_string(
+                SUCCESS_HTML,
+                email=email,
+                token='',  # Not needed for local install
+                server_url='',  # Not needed
+                has_fathom=bool(fathom_key),
+                fathom_key=fathom_key,
+                config_json=''  # Not needed
+            )
 
         @self.app.route('/mcp', methods=['POST'])
         def mcp_endpoint():
