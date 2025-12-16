@@ -16,6 +16,7 @@ NC='\033[0m' # No Color
 # Configuration
 SERVER_URL="https://mcp-gmail-multi-tenant-production.up.railway.app"
 SESSION_TOKEN="$1"
+USER_EMAIL="$2"
 
 # Functions
 print_header() {
@@ -47,12 +48,22 @@ if [ -z "$SESSION_TOKEN" ]; then
     print_error "No session token provided!"
     echo
     echo "Usage:"
-    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s YOUR_SESSION_TOKEN"
+    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s YOUR_SESSION_TOKEN YOUR_EMAIL"
     echo
     echo "To get your session token:"
     echo "  1. Visit: ${SERVER_URL}/setup"
     echo "  2. Authorize with Google"
-    echo "  3. Copy your session token from the page"
+    echo "  3. Copy the install command from the page"
+    echo
+    exit 1
+fi
+
+if [ -z "$USER_EMAIL" ]; then
+    print_header
+    print_error "No email provided!"
+    echo
+    echo "Usage:"
+    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s YOUR_SESSION_TOKEN YOUR_EMAIL"
     echo
     exit 1
 fi
@@ -125,6 +136,18 @@ print_step "Updating Claude Desktop configuration..."
 python3 -c "
 import json
 import sys
+import re
+
+# Extract domain from email
+email = '$USER_EMAIL'
+domain_match = re.search(r'@([^@]+)$', email)
+if domain_match:
+    domain = domain_match.group(1)
+    # Remove TLD and use first part as identifier
+    # e.g., leadgenjay.com -> leadgenjay
+    domain_name = domain.split('.')[0]
+else:
+    domain_name = 'default'
 
 # Read existing config
 with open('$CONFIG_FILE', 'r') as f:
@@ -134,8 +157,22 @@ with open('$CONFIG_FILE', 'r') as f:
 if 'mcpServers' not in config:
     config['mcpServers'] = {}
 
+# Generate server name
+# If gmail-calendar-fathom doesn't exist, use it
+# Otherwise use gmail-calendar-fathom-DOMAIN
+server_name = 'gmail-calendar-fathom'
+if server_name in config['mcpServers']:
+    # Check if it's pointing to our server
+    existing_args = config['mcpServers'][server_name].get('args', [])
+    if len(existing_args) > 1 and '${SERVER_URL}' in existing_args[1]:
+        # It's already our server, use domain-based name
+        server_name = f'gmail-calendar-fathom-{domain_name}'
+    else:
+        # Different server, use domain-based name
+        server_name = f'gmail-calendar-fathom-{domain_name}'
+
 # Add our server (or update if exists)
-config['mcpServers']['gmail-calendar-fathom'] = {
+config['mcpServers'][server_name] = {
     'command': 'node',
     'args': [
         '$CLIENT_PATH',
@@ -148,7 +185,8 @@ config['mcpServers']['gmail-calendar-fathom'] = {
 with open('$CONFIG_FILE', 'w') as f:
     json.dump(config, f, indent=2)
 
-print('Configuration updated successfully!')
+print(f'Configuration updated successfully!')
+print(f'Server name: {server_name}')
 "
 
 if [ $? -eq 0 ]; then

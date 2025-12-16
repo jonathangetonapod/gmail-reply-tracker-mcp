@@ -5,7 +5,10 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$SessionToken
+    [string]$SessionToken,
+
+    [Parameter(Mandatory=$false)]
+    [string]$UserEmail
 )
 
 # Configuration
@@ -48,13 +51,29 @@ if (-not $SessionToken) {
         Write-Error-Message "No session token provided!"
         Write-Host ""
         Write-Host "Usage:"
-        Write-Host '  $env:MCP_SESSION_TOKEN = "YOUR_SESSION_TOKEN"'
+        Write-Host '  $env:MCP_SESSION_TOKEN = "YOUR_SESSION_TOKEN"; $env:MCP_USER_EMAIL = "YOUR_EMAIL"'
         Write-Host '  Invoke-WebRequest -Uri "' + $SERVER_URL + '/install.ps1" -UseBasicParsing | Invoke-Expression'
         Write-Host ""
-        Write-Host "To get your session token:"
+        Write-Host "To get your install command:"
         Write-Host "  1. Visit: $SERVER_URL/setup"
         Write-Host "  2. Authorize with Google"
-        Write-Host "  3. Copy your session token from the page"
+        Write-Host "  3. Copy the install command from the page"
+        Write-Host ""
+        exit 1
+    }
+}
+
+# Check if user email provided
+if (-not $UserEmail) {
+    if ($env:MCP_USER_EMAIL) {
+        $UserEmail = $env:MCP_USER_EMAIL
+    } else {
+        Write-Header
+        Write-Error-Message "No email provided!"
+        Write-Host ""
+        Write-Host "Usage:"
+        Write-Host '  $env:MCP_SESSION_TOKEN = "YOUR_SESSION_TOKEN"; $env:MCP_USER_EMAIL = "YOUR_EMAIL"'
+        Write-Host '  Invoke-WebRequest -Uri "' + $SERVER_URL + '/install.ps1" -UseBasicParsing | Invoke-Expression'
         Write-Host ""
         exit 1
     }
@@ -118,6 +137,15 @@ Write-Success "Backup saved: $BACKUP_FILE"
 # Update configuration
 Write-Step "Updating Claude Desktop configuration..."
 try {
+    # Extract domain from email
+    if ($UserEmail -match '@([^@]+)$') {
+        $domain = $matches[1]
+        # Remove TLD and use first part as identifier
+        $domainName = $domain.Split('.')[0]
+    } else {
+        $domainName = "default"
+    }
+
     $config = Get-Content $CONFIG_FILE -Raw | ConvertFrom-Json
 
     # Ensure mcpServers exists
@@ -125,8 +153,24 @@ try {
         $config | Add-Member -NotePropertyName mcpServers -NotePropertyValue @{} -Force
     }
 
+    # Generate server name
+    # If gmail-calendar-fathom doesn't exist, use it
+    # Otherwise use gmail-calendar-fathom-DOMAIN
+    $serverName = "gmail-calendar-fathom"
+    if ($config.mcpServers.PSObject.Properties.Name -contains $serverName) {
+        # Check if it's pointing to our server
+        $existingArgs = $config.mcpServers.$serverName.args
+        if ($existingArgs -and $existingArgs[1] -match [regex]::Escape($SERVER_URL)) {
+            # It's already our server, use domain-based name
+            $serverName = "gmail-calendar-fathom-$domainName"
+        } else {
+            # Different server, use domain-based name
+            $serverName = "gmail-calendar-fathom-$domainName"
+        }
+    }
+
     # Add our server (or update if exists)
-    $config.mcpServers | Add-Member -NotePropertyName "gmail-calendar-fathom" -NotePropertyValue @{
+    $config.mcpServers | Add-Member -NotePropertyName $serverName -NotePropertyValue @{
         command = "node"
         args = @(
             $CLIENT_PATH,
@@ -138,6 +182,7 @@ try {
     # Write updated config
     $config | ConvertTo-Json -Depth 10 | Out-File -FilePath $CONFIG_FILE -Encoding UTF8
     Write-Success "Configuration updated successfully!"
+    Write-Host "  Server name: $serverName" -ForegroundColor Cyan
 } catch {
     Write-Error-Message "Failed to update configuration: $_"
     Write-Warning-Message "Restoring backup..."

@@ -462,7 +462,7 @@ SUCCESS_HTML = """
 
         <div id="mac-command" class="command-container">
             <div class="command-box">
-                <pre>curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }}</pre>
+                <pre>curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }} {{ email }}</pre>
             </div>
             <button class="copy-btn" onclick="copyToClipboard('mac')">Copy Command</button>
             <div class="instructions">
@@ -475,7 +475,7 @@ SUCCESS_HTML = """
 
         <div id="windows-command" class="command-container" style="display:none;">
             <div class="command-box">
-                <pre>$env:MCP_SESSION_TOKEN = "{{ token }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression</pre>
+                <pre>$env:MCP_SESSION_TOKEN = "{{ token }}"; $env:MCP_USER_EMAIL = "{{ email }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression</pre>
             </div>
             <button class="copy-btn" onclick="copyToClipboard('windows')">Copy Command</button>
             <div class="instructions">
@@ -509,8 +509,8 @@ SUCCESS_HTML = """
 
         function copyToClipboard(os) {
             const commands = {
-                'mac': 'curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }}',
-                'windows': '$env:MCP_SESSION_TOKEN = "{{ token }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression'
+                'mac': 'curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }} {{ email }}',
+                'windows': '$env:MCP_SESSION_TOKEN = "{{ token }}"; $env:MCP_USER_EMAIL = "{{ email }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression'
             };
 
             navigator.clipboard.writeText(commands[os]).then(() => {
