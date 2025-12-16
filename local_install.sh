@@ -231,11 +231,11 @@ cd "$INSTALL_DIR"
 $PYTHON_CMD -m venv venv
 print_success "Virtual environment created"
 
-# Activate virtual environment and install dependencies
+# Install dependencies using venv's python explicitly
 print_step "Installing Python dependencies (this may take a minute)..."
-source venv/bin/activate
-pip install --quiet --upgrade pip
-pip install --quiet -r requirements.txt
+# Use venv's python directly instead of relying on activation
+./venv/bin/python -m pip install --quiet --upgrade pip
+./venv/bin/python -m pip install --quiet -r requirements.txt
 print_success "Dependencies installed"
 
 # Copy public credentials to credentials directory
@@ -256,15 +256,14 @@ echo
 echo "Press Enter to continue..."
 read
 
-$PYTHON_CMD setup_oauth.py
+./venv/bin/python setup_oauth.py
 
 if [ ! -f "data/token.json" ]; then
     print_error "OAuth setup failed - token.json not found"
     echo
     echo "Please try running the setup manually:"
     echo "  cd $INSTALL_DIR"
-    echo "  source venv/bin/activate"
-    echo "  $PYTHON_CMD setup_oauth.py"
+    echo "  ./venv/bin/python setup_oauth.py"
     echo
     exit 1
 fi
@@ -302,8 +301,8 @@ fi
 PYTHON_PATH="$INSTALL_DIR/venv/bin/python"
 SERVER_PATH="$INSTALL_DIR/src/server.py"
 
-# Update configuration using Python
-$PYTHON_CMD -c "
+# Update configuration using Python (use any available python3 for this simple JSON manipulation)
+python3 -c "
 import json
 
 # Read existing config
