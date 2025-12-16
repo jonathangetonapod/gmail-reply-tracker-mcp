@@ -26,7 +26,7 @@ USER_EMAIL="$1"
 FATHOM_API_KEY="$2"
 
 # Progress tracking
-TOTAL_STEPS=9
+TOTAL_STEPS=11
 CURRENT_STEP=0
 
 # Functions
@@ -381,7 +381,7 @@ sleep 3
 # Check if browser opened
 if ! ps -p $OAUTH_PID > /dev/null 2>&1; then
     # Process already finished, check if successful
-    if [ ! -f "data/token.json" ]; then
+    if [ ! -f "credentials/token.json" ]; then
         print_warning "Browser may not have opened automatically"
         echo
         echo -e "${YELLOW}${BOLD}Manual Steps:${NC}"
@@ -398,7 +398,7 @@ else
 fi
 
 # Verify OAuth completed
-if [ ! -f "data/token.json" ]; then
+if [ ! -f "credentials/token.json" ]; then
     print_friendly_error "Google authorization was not completed.\n\nPlease try again:\n  1. Make sure you clicked 'Allow' in the browser\n  2. Check that you're signed into the correct Google account\n  3. Run this command again:\n\n     cd $INSTALL_DIR && ./venv/bin/python setup_oauth.py\n\n  4. Then update Claude config manually"
 fi
 
