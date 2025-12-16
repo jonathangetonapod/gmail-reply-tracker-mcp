@@ -1194,15 +1194,7 @@ class WebServer:
         def admin_dashboard():
             """Admin dashboard for managing users."""
             import os
-            admin_token = request.args.get('token')
             expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
-
-            if admin_token != expected_token:
-                return """
-                    <h1>Admin Dashboard</h1>
-                    <p>Please provide admin token as query parameter:</p>
-                    <code>?token=YOUR_ADMIN_TOKEN</code>
-                """, 401
 
             admin_html = """
 <!DOCTYPE html>
@@ -1564,7 +1556,7 @@ class WebServer:
 </html>
             """
 
-            return render_template_string(admin_html, admin_token=admin_token)
+            return render_template_string(admin_html, admin_token=expected_token)
 
         @self.app.route('/admin/update-fathom', methods=['POST'])
         def admin_update_fathom():
