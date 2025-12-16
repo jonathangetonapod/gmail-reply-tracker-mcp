@@ -1610,7 +1610,6 @@ class MCPHandler:
             result = await asyncio.to_thread(
                 leads.get_all_clients,
                 sheet_url=config.lead_sheets_url,
-                instantly_gid=config.lead_sheets_gid_instantly,
                 bison_gid=config.lead_sheets_gid_bison
             )
             return json.dumps({"success": True, **result}, indent=2)

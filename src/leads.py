@@ -516,7 +516,6 @@ def get_bison_campaign_stats(
 
 def get_all_clients(
     sheet_url: str,
-    instantly_gid: str,
     bison_gid: str
 ) -> Dict[str, Any]:
     """
@@ -524,7 +523,6 @@ def get_all_clients(
 
     Args:
         sheet_url: Google Sheets URL
-        instantly_gid: Instantly sheet GID
         bison_gid: Bison sheet GID
 
     Returns:
@@ -570,7 +568,7 @@ def get_all_platform_stats(
 
     Args:
         sheet_url: Google Sheets URL
-        instantly_gid: Instantly sheet GID
+        instantly_gid: Instantly sheet GID (not used, kept for compatibility)
         bison_gid: Bison sheet GID
         days: Number of days to look back
 
@@ -578,8 +576,8 @@ def get_all_platform_stats(
         Dictionary with aggregated platform statistics
     """
     try:
-        # Get all clients
-        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+        # Get all clients (instantly_gid not needed)
+        all_clients = get_all_clients(sheet_url, bison_gid)
 
         # Aggregate stats
         total_stats = {
@@ -656,7 +654,7 @@ def get_top_performing_clients(
 
     Args:
         sheet_url: Google Sheets URL
-        instantly_gid: Instantly sheet GID
+        instantly_gid: Instantly sheet GID (not used, kept for compatibility)
         bison_gid: Bison sheet GID
         limit: Maximum number of clients to return
         metric: Metric to rank by
@@ -666,8 +664,8 @@ def get_top_performing_clients(
         Dictionary with top performing clients
     """
     try:
-        # Get all clients
-        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+        # Get all clients (instantly_gid not needed)
+        all_clients = get_all_clients(sheet_url, bison_gid)
 
         # Get stats for each client
         client_stats = []
@@ -727,7 +725,7 @@ def get_underperforming_clients(
 
     Args:
         sheet_url: Google Sheets URL
-        instantly_gid: Instantly sheet GID
+        instantly_gid: Instantly sheet GID (not used, kept for compatibility)
         bison_gid: Bison sheet GID
         threshold: Minimum acceptable value for the metric
         metric: Metric to evaluate
@@ -737,8 +735,8 @@ def get_underperforming_clients(
         Dictionary with underperforming clients
     """
     try:
-        # Get all clients
-        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+        # Get all clients (instantly_gid not needed)
+        all_clients = get_all_clients(sheet_url, bison_gid)
 
         # Get stats for each client
         underperforming = []
