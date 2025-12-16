@@ -372,7 +372,7 @@ echo
 
 # Try to open OAuth in browser
 print_substep "Opening browser..."
-./venv/bin/python setup_oauth.py &
+./venv/bin/python auto_oauth.py &
 OAUTH_PID=$!
 
 # Wait a few seconds to see if it succeeds
@@ -399,7 +399,7 @@ fi
 
 # Verify OAuth completed
 if [ ! -f "credentials/token.json" ]; then
-    print_friendly_error "Google authorization was not completed.\n\nPlease try again:\n  1. Make sure you clicked 'Allow' in the browser\n  2. Check that you're signed into the correct Google account\n  3. Run this command again:\n\n     cd $INSTALL_DIR && ./venv/bin/python setup_oauth.py\n\n  4. Then update Claude config manually"
+    print_friendly_error "Google authorization was not completed.\n\nPlease try again:\n  1. Make sure you clicked 'Allow' in the browser\n  2. Check that you're signed into the correct Google account\n  3. Run this command again:\n\n     cd $INSTALL_DIR && ./venv/bin/python auto_oauth.py\n\n  4. Then update Claude config manually"
 fi
 
 print_success "Google account connected!"
