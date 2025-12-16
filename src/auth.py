@@ -121,9 +121,10 @@ class GmailAuthManager:
             )
 
             # Run local server for OAuth callback
-            # port=0 means use any available port
+            # Use port 8080 to match Google Cloud Console redirect URI
+            # Make sure http://localhost:8080 is in your OAuth client's redirect URIs
             credentials = flow.run_local_server(
-                port=0,
+                port=8080,
                 authorization_prompt_message='Please visit this URL to authorize: {url}',
                 success_message='Authorization successful! You can close this window.',
                 open_browser=True

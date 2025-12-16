@@ -58,7 +58,14 @@ This directory contains your OAuth 2.0 credentials for accessing Gmail API.
 4. For "Application type", select: **Desktop app**
 5. Name: `Gmail Reply Tracker Client`
 6. Click **Create**
-7. A dialog appears showing your client ID and secret
+7. **IMPORTANT: Configure Redirect URIs**
+   - After creating, click on your OAuth client to edit it
+   - Under "Authorized redirect URIs", click **+ ADD URI**
+   - Add: `http://localhost:8080`
+   - Click **+ ADD URI** again
+   - Add: `http://localhost:8080/`
+   - Click **Save**
+   - **Note:** Both URIs (with and without trailing slash) are required for OAuth to work correctly
 8. Click **Download JSON** (or the download icon)
 9. The file will be named something like `client_secret_xxx.json`
 
@@ -95,6 +102,23 @@ This will:
 For security, token files are created with restricted permissions (600 - owner only).
 
 ## Troubleshooting
+
+### OAuth timeout or "Failed to authorize"
+
+If the OAuth flow times out or fails to complete:
+
+**Cause:** Missing or incorrect redirect URIs in Google Cloud Console
+
+**Fix:**
+1. Go to [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials)
+2. Click on your OAuth client ID
+3. Under "Authorized redirect URIs", ensure you have:
+   - `http://localhost:8080`
+   - `http://localhost:8080/`
+4. Click **Save**
+5. Download the updated `credentials.json` and replace your existing one
+6. Delete `token.json` if it exists
+7. Run `python setup_oauth.py` again
 
 ### "The app is not verified" warning
 
