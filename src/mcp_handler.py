@@ -244,8 +244,64 @@ class MCPHandler:
                     },
                     "required": ["summary", "start_time"]
                 }
+            },
+            {
+                "name": "list_fathom_meetings",
+                "description": "List recent Fathom meeting recordings with details",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {"type": "number", "description": "Maximum number of meetings to return"},
+                        "calendar_invitees_domains_type": {"type": "string", "description": "Filter: all, internal_only, or one_or_more_external"}
+                    }
+                }
+            },
+            {
+                "name": "get_fathom_transcript",
+                "description": "Get the full transcript of a Fathom meeting recording",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "recording_id": {"type": "number", "description": "Fathom recording ID"}
+                    },
+                    "required": ["recording_id"]
+                }
+            },
+            {
+                "name": "get_fathom_summary",
+                "description": "Get AI-generated summary and action items from a Fathom meeting",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "recording_id": {"type": "number", "description": "Fathom recording ID"}
+                    },
+                    "required": ["recording_id"]
+                }
+            },
+            {
+                "name": "search_fathom_meetings_by_title",
+                "description": "Search Fathom meetings by title/topic",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "search_term": {"type": "string", "description": "Search term for meeting title"},
+                        "limit": {"type": "number", "description": "Maximum results"}
+                    },
+                    "required": ["search_term"]
+                }
+            },
+            {
+                "name": "search_fathom_meetings_by_attendee",
+                "description": "Search Fathom meetings by attendee name or email",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "attendee": {"type": "string", "description": "Attendee name or email to search for"},
+                        "limit": {"type": "number", "description": "Maximum results"}
+                    },
+                    "required": ["attendee"]
+                }
             }
-            # Add more tools as needed
         ]
 
         request_id = request_data.get('id', 1)
@@ -288,6 +344,16 @@ class MCPHandler:
                 result = await self._list_calendar_events(calendar_client, **arguments)
             elif tool_name == 'create_calendar_event':
                 result = await self._create_calendar_event(calendar_client, **arguments)
+            elif tool_name == 'list_fathom_meetings':
+                result = await self._list_fathom_meetings(fathom_client, **arguments)
+            elif tool_name == 'get_fathom_transcript':
+                result = await self._get_fathom_transcript(fathom_client, **arguments)
+            elif tool_name == 'get_fathom_summary':
+                result = await self._get_fathom_summary(fathom_client, **arguments)
+            elif tool_name == 'search_fathom_meetings_by_title':
+                result = await self._search_fathom_meetings_by_title(fathom_client, **arguments)
+            elif tool_name == 'search_fathom_meetings_by_attendee':
+                result = await self._search_fathom_meetings_by_attendee(fathom_client, **arguments)
             else:
                 request_id = request_data.get('id', 1)
                 return {
@@ -402,3 +468,227 @@ class MCPHandler:
         """Create calendar event."""
         event = await asyncio.to_thread(calendar.create_event, **kwargs)
         return f"Event created successfully. Event ID: {event['id']}"
+
+    async def _list_fathom_meetings(self, fathom: Optional[FathomClient], **kwargs) -> str:
+        """List Fathom meetings."""
+        if not fathom:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please add your Fathom API key in settings."
+            }, indent=2)
+
+        try:
+            limit = kwargs.get('limit', 20)
+            calendar_invitees_domains_type = kwargs.get('calendar_invitees_domains_type', 'all')
+
+            response = await asyncio.to_thread(
+                fathom.list_meetings,
+                limit=limit,
+                calendar_invitees_domains_type=calendar_invitees_domains_type
+            )
+
+            meetings = response.get('items', [])
+
+            # Format meeting information
+            meeting_list = []
+            for meeting in meetings:
+                meeting_list.append({
+                    "recording_id": meeting.get('recording_id'),
+                    "title": meeting.get('title') or meeting.get('meeting_title'),
+                    "url": meeting.get('url'),
+                    "share_url": meeting.get('share_url'),
+                    "scheduled_start": meeting.get('scheduled_start_time'),
+                    "scheduled_end": meeting.get('scheduled_end_time'),
+                    "recording_start": meeting.get('recording_start_time'),
+                    "recording_end": meeting.get('recording_end_time'),
+                    "language": meeting.get('transcript_language'),
+                    "attendees": [
+                        {
+                            "name": att.get('name'),
+                            "email": att.get('email'),
+                            "is_external": att.get('is_external')
+                        }
+                        for att in meeting.get('calendar_invitees', [])
+                    ]
+                })
+
+            return json.dumps({
+                "success": True,
+                "count": len(meeting_list),
+                "meetings": meeting_list,
+                "next_cursor": response.get('next_cursor')
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2)
+
+    async def _get_fathom_transcript(self, fathom: Optional[FathomClient], **kwargs) -> str:
+        """Get Fathom meeting transcript."""
+        if not fathom:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please add your Fathom API key in settings."
+            }, indent=2)
+
+        try:
+            recording_id = kwargs['recording_id']
+            response = await asyncio.to_thread(
+                fathom.get_meeting_transcript,
+                recording_id
+            )
+
+            return json.dumps({
+                "success": True,
+                "recording_id": recording_id,
+                "transcript": response.get('transcript', [])
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2)
+
+    async def _get_fathom_summary(self, fathom: Optional[FathomClient], **kwargs) -> str:
+        """Get Fathom meeting summary."""
+        if not fathom:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please add your Fathom API key in settings."
+            }, indent=2)
+
+        try:
+            recording_id = kwargs['recording_id']
+            response = await asyncio.to_thread(
+                fathom.get_meeting_summary,
+                recording_id
+            )
+
+            return json.dumps({
+                "success": True,
+                "recording_id": recording_id,
+                "summary": response.get('summary', ''),
+                "action_items": response.get('action_items', []),
+                "keywords": response.get('keywords', [])
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2)
+
+    async def _search_fathom_meetings_by_title(self, fathom: Optional[FathomClient], **kwargs) -> str:
+        """Search Fathom meetings by title."""
+        if not fathom:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please add your Fathom API key in settings."
+            }, indent=2)
+
+        try:
+            search_term = kwargs['search_term']
+            limit = kwargs.get('limit', 20)
+
+            # Get meetings and search client-side
+            response = await asyncio.to_thread(
+                fathom.list_meetings,
+                limit=100  # Get more to search through
+            )
+
+            meetings = response.get('items', [])
+            search_term_lower = search_term.lower()
+
+            # Filter by title
+            matching_meetings = []
+            for meeting in meetings:
+                title = meeting.get('title') or meeting.get('meeting_title') or ''
+                if search_term_lower in title.lower():
+                    matching_meetings.append({
+                        "recording_id": meeting.get('recording_id'),
+                        "title": title,
+                        "url": meeting.get('url'),
+                        "scheduled_start": meeting.get('scheduled_start_time'),
+                        "scheduled_end": meeting.get('scheduled_end_time')
+                    })
+
+                if len(matching_meetings) >= limit:
+                    break
+
+            return json.dumps({
+                "success": True,
+                "count": len(matching_meetings),
+                "search_term": search_term,
+                "meetings": matching_meetings
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2)
+
+    async def _search_fathom_meetings_by_attendee(self, fathom: Optional[FathomClient], **kwargs) -> str:
+        """Search Fathom meetings by attendee."""
+        if not fathom:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please add your Fathom API key in settings."
+            }, indent=2)
+
+        try:
+            attendee = kwargs['attendee']
+            limit = kwargs.get('limit', 20)
+
+            # Get meetings and search client-side
+            response = await asyncio.to_thread(
+                fathom.list_meetings,
+                limit=100  # Get more to search through
+            )
+
+            meetings = response.get('items', [])
+            attendee_lower = attendee.lower()
+
+            # Filter by attendee
+            matching_meetings = []
+            for meeting in meetings:
+                attendees = meeting.get('calendar_invitees', [])
+                for att in attendees:
+                    name = att.get('name', '').lower()
+                    email = att.get('email', '').lower()
+
+                    if attendee_lower in name or attendee_lower in email:
+                        matching_meetings.append({
+                            "recording_id": meeting.get('recording_id'),
+                            "title": meeting.get('title') or meeting.get('meeting_title'),
+                            "url": meeting.get('url'),
+                            "scheduled_start": meeting.get('scheduled_start_time'),
+                            "scheduled_end": meeting.get('scheduled_end_time'),
+                            "attendees": [
+                                {
+                                    "name": a.get('name'),
+                                    "email": a.get('email')
+                                }
+                                for a in attendees
+                            ]
+                        })
+                        break
+
+                if len(matching_meetings) >= limit:
+                    break
+
+            return json.dumps({
+                "success": True,
+                "count": len(matching_meetings),
+                "search_term": attendee,
+                "meetings": matching_meetings
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "error": str(e)
+            }, indent=2)
