@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from flask import Flask, request, redirect, render_template_string, jsonify
+from flask import Flask, request, redirect, render_template_string, jsonify, send_file
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 import secrets
@@ -176,9 +176,10 @@ SUCCESS_HTML = """
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 600px;
-            margin: 100px auto;
+            max-width: 800px;
+            margin: 50px auto;
             padding: 20px;
+            background: #f5f5f5;
         }
         .card {
             background: white;
@@ -188,53 +189,172 @@ SUCCESS_HTML = """
         }
         h1 {
             color: #28a745;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #333;
+            font-size: 20px;
+            margin-top: 30px;
+            margin-bottom: 15px;
         }
         .info {
-            background: #f8f9fa;
+            background: #e8f5e9;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            text-align: left;
+            border-left: 4px solid #28a745;
         }
         .info strong {
-            color: #333;
+            color: #2e7d32;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        .step-number {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            margin-right: 10px;
+            font-weight: bold;
         }
         pre {
             background: #272822;
             color: #f8f8f2;
-            padding: 15px;
+            padding: 20px;
             border-radius: 6px;
             overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background: #0056b3;
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .download-btn:hover {
+            background: #218838;
         }
         .note {
-            color: #666;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
             font-size: 14px;
-            margin-top: 20px;
+        }
+        .config-location {
+            background: #e3f2fd;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 13px;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>✓ Setup Complete!</h1>
+        <h1>✓ You're All Set!</h1>
+        <p style="color: #666; font-size: 16px;">Your Gmail & Calendar are connected. Follow the steps below to finish setup.</p>
 
         <div class="info">
-            <strong>Your Email:</strong> {{ email }}<br>
-            <strong>Server:</strong> {{ server_url }}<br>
-            <strong>Gmail & Calendar:</strong> ✓ Enabled<br>
-            <strong>Fathom:</strong> {{ '✓ Enabled' if has_fathom else '✗ Not configured' }}
+            <strong>Your Account:</strong> {{ email }}<br>
+            <strong>Gmail & Calendar:</strong> ✓ Connected<br>
+            <strong>Fathom:</strong> {{ '✓ Connected' if has_fathom else '✗ Not added' }}
         </div>
 
-        <h3>Claude Desktop Configuration</h3>
-        <p>The setup script has automatically configured your Claude Desktop. Simply restart Claude Desktop to start using the tools!</p>
+        <h2>📋 3-Step Setup (5 minutes)</h2>
 
-        <p>If you need to manually configure, add this to your Claude config:</p>
-        <pre>{{ config_json }}</pre>
+        <div class="step">
+            <span class="step-number">1</span>
+            <strong>Download the connector file</strong><br>
+            <a href="{{ server_url }}/download/http-mcp-client.js" class="download-btn" download>Download http-mcp-client.js</a>
+            <p style="margin: 10px 0 0 38px; color: #666; font-size: 14px;">
+                Save this file somewhere permanent (e.g., your Documents folder). Don't delete it!
+            </p>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2</span>
+            <strong>Open your Claude Desktop config file</strong><br>
+            <p style="margin: 10px 0 0 38px; color: #666;">The config file is located at:</p>
+            <div class="config-location" style="margin-left: 38px;">
+                <strong>Mac:</strong> ~/Library/Application Support/Claude/claude_desktop_config.json<br>
+                <strong>Windows:</strong> %APPDATA%\\Claude\\claude_desktop_config.json
+            </div>
+        </div>
+
+        <div class="step">
+            <span class="step-number">3</span>
+            <strong>Add this configuration</strong><br>
+            <p style="margin: 10px 0 0 38px; color: #666;">
+                Copy the code below and add it to your config file.
+                <strong>Replace</strong> <code>/path/to/http-mcp-client.js</code> with the actual path where you saved the file in Step 1.
+            </p>
+            <button class="copy-btn" onclick="copyConfig()" style="margin-left: 38px;">📋 Copy Configuration</button>
+            <pre id="config">{{ config_json }}</pre>
+        </div>
 
         <div class="note">
-            You can close this window and return to your terminal.
+            <strong>💡 After setup:</strong> Restart Claude Desktop. Then you can ask Claude to:
+            <ul style="margin: 10px 0;">
+                <li>"Show me my unreplied emails from the last 3 days"</li>
+                <li>"List my calendar events for next week"</li>
+                <li>"Search my emails for messages about project proposal"</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+            <p style="color: #888; font-size: 14px;">
+                Need help? Contact your team admin.
+            </p>
         </div>
     </div>
+
+    <script>
+        function copyConfig() {
+            const config = document.getElementById('config').textContent;
+            navigator.clipboard.writeText(config).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#007bff';
+                }, 2000);
+            });
+        }
+    </script>
 </body>
 </html>
 """
@@ -414,14 +534,12 @@ class WebServer:
                 session_token = user_data['session_token']
                 config_json = json.dumps({
                     "mcpServers": {
-                        "gmail-railway": {
-                            "command": "npx",
+                        "gmail-calendar-fathom": {
+                            "command": "node",
                             "args": [
-                                "-y",
-                                "@modelcontextprotocol/server-fetch",
+                                "/path/to/http-mcp-client.js",
                                 f"{self.redirect_uri.rsplit('/', 2)[0]}/mcp",
-                                "--header",
-                                f"Authorization: Bearer {session_token}"
+                                session_token
                             ]
                         }
                     }
@@ -470,14 +588,12 @@ class WebServer:
                 session_token = user_data['session_token']
                 config_json = json.dumps({
                     "mcpServers": {
-                        "gmail-railway": {
-                            "command": "npx",
+                        "gmail-calendar-fathom": {
+                            "command": "node",
                             "args": [
-                                "-y",
-                                "@modelcontextprotocol/server-fetch",
+                                "/path/to/http-mcp-client.js",
                                 f"{self.redirect_uri.rsplit('/', 2)[0]}/mcp",
-                                "--header",
-                                f"Authorization: Bearer {session_token}"
+                                session_token
                             ]
                         }
                     }
@@ -538,6 +654,78 @@ class WebServer:
                 loop.close()
 
             return jsonify(response)
+
+        @self.app.route('/download/credentials')
+        def download_credentials():
+            """Download credentials for local MCP server setup."""
+            # Get session token from query parameter
+            session_token = request.args.get('token')
+            if not session_token:
+                return "Missing token parameter", 400
+
+            # Get user from database
+            user = self.database.get_user_by_session(session_token)
+            if not user:
+                return "Invalid or expired token", 401
+
+            # Create credentials file
+            google_token = user['google_token']
+            credentials_data = {
+                "installed": {
+                    "client_id": google_token['client_id'],
+                    "client_secret": google_token['client_secret'],
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": google_token['token_uri'],
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "redirect_uris": ["http://localhost"]
+                }
+            }
+
+            # Create token file
+            token_data = {
+                "token": google_token['token'],
+                "refresh_token": google_token['refresh_token'],
+                "token_uri": google_token['token_uri'],
+                "client_id": google_token['client_id'],
+                "client_secret": google_token['client_secret'],
+                "scopes": google_token['scopes'],
+                "expiry": google_token.get('expiry')
+            }
+
+            # Return as downloadable files
+            response = {
+                "credentials.json": json.dumps(credentials_data, indent=2),
+                "token.json": json.dumps(token_data, indent=2),
+                "fathom_key": user.get('fathom_key'),
+                "setup_instructions": """
+1. Save 'credentials.json' and 'token.json' to your MCP server's credentials/ folder
+2. Set FATHOM_API_KEY in your environment if you have one
+3. Configure Claude Desktop with the local server path
+4. Restart Claude Desktop
+"""
+            }
+
+            return jsonify(response)
+
+        @self.app.route('/download/http-mcp-client.js')
+        def download_http_client():
+            """Download the HTTP MCP client JavaScript file."""
+            import os
+            # Path to the http-mcp-client.js file
+            client_path = os.path.join(os.path.dirname(__file__), '..', 'public', 'http-mcp-client.js')
+            if not os.path.exists(client_path):
+                # Fallback to root directory
+                client_path = os.path.join(os.path.dirname(__file__), '..', 'http-mcp-client.js')
+
+            if not os.path.exists(client_path):
+                return "Client file not found", 404
+
+            return send_file(
+                client_path,
+                as_attachment=True,
+                download_name='http-mcp-client.js',
+                mimetype='application/javascript'
+            )
 
         @self.app.route('/admin/users')
         def admin_users():
