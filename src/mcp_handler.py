@@ -116,9 +116,10 @@ class MCPHandler:
 
         except Exception as e:
             logger.error(f"Error handling MCP request: {e}", exc_info=True)
+            request_id = request_data.get('id', 1)  # Default to 1 if no id
             return {
                 "jsonrpc": "2.0",
-                "id": request_data.get('id'),
+                "id": request_id if request_id is not None else 1,
                 "error": {
                     "code": -32603,
                     "message": f"Internal error: {str(e)}"
@@ -127,9 +128,10 @@ class MCPHandler:
 
     async def _handle_initialize(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP initialize request."""
+        request_id = request_data.get('id', 1)
         return {
             "jsonrpc": "2.0",
-            "id": request_data.get('id'),
+            "id": request_id if request_id is not None else 1,
             "result": {
                 "protocolVersion": "2024-11-05",
                 "serverInfo": {
@@ -237,9 +239,10 @@ class MCPHandler:
             # Add more tools as needed
         ]
 
+        request_id = request_data.get('id', 1)
         return {
             "jsonrpc": "2.0",
-            "id": request_data.get('id'),
+            "id": request_id if request_id is not None else 1,
             "result": {
                 "tools": tools
             }
@@ -277,18 +280,20 @@ class MCPHandler:
             elif tool_name == 'create_calendar_event':
                 result = await self._create_calendar_event(calendar_client, **arguments)
             else:
+                request_id = request_data.get('id', 1)
                 return {
                     "jsonrpc": "2.0",
-                    "id": request_data.get('id'),
+                    "id": request_id if request_id is not None else 1,
                     "error": {
                         "code": -32601,
                         "message": f"Tool not found: {tool_name}"
                     }
                 }
 
+            request_id = request_data.get('id', 1)
             return {
                 "jsonrpc": "2.0",
-                "id": request_data.get('id'),
+                "id": request_id if request_id is not None else 1,
                 "result": {
                     "content": [
                         {
@@ -301,9 +306,10 @@ class MCPHandler:
 
         except Exception as e:
             logger.error(f"Error calling tool {tool_name}: {e}", exc_info=True)
+            request_id = request_data.get('id', 1)
             return {
                 "jsonrpc": "2.0",
-                "id": request_data.get('id'),
+                "id": request_id if request_id is not None else 1,
                 "error": {
                     "code": -32603,
                     "message": f"Tool execution error: {str(e)}"
