@@ -93,12 +93,53 @@ try {
     $nodeVersion = & node --version 2>&1
     Write-Success "Node.js $nodeVersion found"
 } catch {
-    Write-Error-Message "Node.js is not installed!"
-    Write-Host ""
-    Write-Host "Please install Node.js first:"
-    Write-Host "  Visit: https://nodejs.org/"
-    Write-Host ""
-    exit 1
+    Write-Warning-Message "Node.js is not installed. Installing now..."
+
+    # Try winget first (Windows 10+)
+    try {
+        Write-Step "Installing Node.js via winget..."
+        winget install -e --id OpenJS.NodeJS --silent
+
+        # Refresh PATH
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+        # Check if installation succeeded
+        $nodeVersion = & node --version 2>&1
+        Write-Success "Node.js installed successfully!"
+    } catch {
+        # Try chocolatey as fallback
+        if (Get-Command choco -ErrorAction SilentlyContinue) {
+            Write-Step "Installing Node.js via Chocolatey..."
+            choco install nodejs -y
+
+            # Refresh PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+            # Check if installation succeeded
+            try {
+                $nodeVersion = & node --version 2>&1
+                Write-Success "Node.js installed successfully!"
+            } catch {
+                Write-Error-Message "Failed to install Node.js"
+                Write-Host ""
+                Write-Host "Please install Node.js manually:"
+                Write-Host "  Visit: https://nodejs.org/"
+                Write-Host ""
+                exit 1
+            }
+        } else {
+            Write-Error-Message "Could not install Node.js automatically"
+            Write-Host ""
+            Write-Host "Please install Node.js manually:"
+            Write-Host "  Visit: https://nodejs.org/"
+            Write-Host ""
+            Write-Host "Or install winget/chocolatey first:"
+            Write-Host "  Winget: Included in Windows 10+ (update Windows)"
+            Write-Host "  Chocolatey: https://chocolatey.org/install"
+            Write-Host ""
+            exit 1
+        }
+    }
 }
 
 # Create installation directory

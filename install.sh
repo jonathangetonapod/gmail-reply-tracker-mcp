@@ -92,12 +92,65 @@ fi
 # Check if Node.js is installed
 print_step "Checking for Node.js..."
 if ! command -v node &> /dev/null; then
-    print_error "Node.js is not installed!"
-    echo
-    echo "Please install Node.js first:"
-    echo "  Visit: https://nodejs.org/"
-    echo
-    exit 1
+    print_warning "Node.js is not installed. Installing now..."
+
+    if [[ "$OS" == "mac" ]]; then
+        # Check if Homebrew is installed
+        if command -v brew &> /dev/null; then
+            print_step "Installing Node.js via Homebrew..."
+            brew install node
+            if [ $? -eq 0 ]; then
+                print_success "Node.js installed successfully!"
+            else
+                print_error "Failed to install Node.js via Homebrew"
+                echo
+                echo "Please install Node.js manually:"
+                echo "  Visit: https://nodejs.org/"
+                echo
+                exit 1
+            fi
+        else
+            print_error "Homebrew is not installed!"
+            echo
+            echo "Installing Node.js automatically requires Homebrew."
+            echo "Please either:"
+            echo "  1. Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+            echo "  2. Or install Node.js directly: https://nodejs.org/"
+            echo
+            exit 1
+        fi
+    elif [[ "$OS" == "linux" ]]; then
+        # Try to detect Linux package manager and install
+        if command -v apt-get &> /dev/null; then
+            print_step "Installing Node.js via apt..."
+            sudo apt-get update
+            sudo apt-get install -y nodejs npm
+        elif command -v yum &> /dev/null; then
+            print_step "Installing Node.js via yum..."
+            sudo yum install -y nodejs npm
+        elif command -v dnf &> /dev/null; then
+            print_step "Installing Node.js via dnf..."
+            sudo dnf install -y nodejs npm
+        else
+            print_error "Could not detect package manager"
+            echo
+            echo "Please install Node.js manually:"
+            echo "  Visit: https://nodejs.org/"
+            echo
+            exit 1
+        fi
+
+        if command -v node &> /dev/null; then
+            print_success "Node.js installed successfully!"
+        else
+            print_error "Failed to install Node.js"
+            echo
+            echo "Please install Node.js manually:"
+            echo "  Visit: https://nodejs.org/"
+            echo
+            exit 1
+        fi
+    fi
 fi
 NODE_VERSION=$(node --version)
 print_success "Node.js $NODE_VERSION found"
