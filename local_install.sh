@@ -80,16 +80,43 @@ print_success "Claude Desktop found"
 # Check if Python 3 is installed
 print_step "Checking for Python 3..."
 if ! command -v python3 &> /dev/null; then
-    print_error "Python 3 is not installed"
-    echo
-    echo "Please install Python 3:"
+    print_warning "Python 3 not found. Installing now..."
+
     if [[ "$OS" == "mac" ]]; then
-        echo "  brew install python3"
+        # Try Homebrew first
+        if command -v brew &> /dev/null; then
+            print_step "Installing Python 3 via Homebrew..."
+            brew install python3
+        else
+            print_error "Homebrew not found. Please install Python 3 manually:"
+            echo "  Visit: https://www.python.org/downloads/"
+            echo "  Or install Homebrew first: https://brew.sh"
+            exit 1
+        fi
     else
-        echo "  sudo apt-get install python3 python3-pip python3-venv"
+        # Linux - use apt-get, yum, or dnf
+        if command -v apt-get &> /dev/null; then
+            print_step "Installing Python 3 via apt..."
+            sudo apt-get update
+            sudo apt-get install -y python3 python3-pip python3-venv
+        elif command -v yum &> /dev/null; then
+            print_step "Installing Python 3 via yum..."
+            sudo yum install -y python3 python3-pip
+        elif command -v dnf &> /dev/null; then
+            print_step "Installing Python 3 via dnf..."
+            sudo dnf install -y python3 python3-pip
+        else
+            print_error "Could not detect package manager. Please install Python 3 manually:"
+            echo "  Visit: https://www.python.org/downloads/"
+            exit 1
+        fi
     fi
-    echo
-    exit 1
+
+    # Verify installation
+    if ! command -v python3 &> /dev/null; then
+        print_error "Python 3 installation failed"
+        exit 1
+    fi
 fi
 PYTHON_VERSION=$(python3 --version)
 print_success "$PYTHON_VERSION found"
@@ -97,18 +124,46 @@ print_success "$PYTHON_VERSION found"
 # Check if git is installed
 print_step "Checking for git..."
 if ! command -v git &> /dev/null; then
-    print_error "Git is not installed"
-    echo
-    echo "Please install Git:"
+    print_warning "Git not found. Installing now..."
+
     if [[ "$OS" == "mac" ]]; then
-        echo "  brew install git"
+        # Try Homebrew first
+        if command -v brew &> /dev/null; then
+            print_step "Installing Git via Homebrew..."
+            brew install git
+        else
+            print_error "Homebrew not found. Please install Git manually:"
+            echo "  Visit: https://git-scm.com/downloads"
+            echo "  Or install Homebrew first: https://brew.sh"
+            exit 1
+        fi
     else
-        echo "  sudo apt-get install git"
+        # Linux - use apt-get, yum, or dnf
+        if command -v apt-get &> /dev/null; then
+            print_step "Installing Git via apt..."
+            sudo apt-get update
+            sudo apt-get install -y git
+        elif command -v yum &> /dev/null; then
+            print_step "Installing Git via yum..."
+            sudo yum install -y git
+        elif command -v dnf &> /dev/null; then
+            print_step "Installing Git via dnf..."
+            sudo dnf install -y git
+        else
+            print_error "Could not detect package manager. Please install Git manually:"
+            echo "  Visit: https://git-scm.com/downloads"
+            exit 1
+        fi
     fi
-    echo
-    exit 1
+
+    # Verify installation
+    if ! command -v git &> /dev/null; then
+        print_error "Git installation failed"
+        exit 1
+    fi
 fi
-print_success "Git found"
+GIT_VERSION=$(git --version)
+print_success "$GIT_VERSION found"
 
 # Remove existing installation if present
 if [ -d "$INSTALL_DIR" ]; then
