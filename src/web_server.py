@@ -809,7 +809,11 @@ class WebServer:
 
             # Handle MCP request
             from mcp_handler import MCPHandler
+            import time
             handler = MCPHandler()
+
+            # Track timing for analytics
+            start_time = time.time()
 
             # Run async handler in event loop
             loop = asyncio.new_event_loop()
@@ -824,6 +828,38 @@ class WebServer:
                 )
             finally:
                 loop.close()
+
+            # Calculate response time
+            response_time_ms = int((time.time() - start_time) * 1000)
+
+            # Log usage for analytics
+            try:
+                method = request_data.get('method', 'unknown')
+                tool_name = 'unknown'
+
+                # Extract tool name from tools/call requests
+                if method == 'tools/call':
+                    params = request_data.get('params', {})
+                    tool_name = params.get('name', 'unknown')
+
+                # Check if request was successful
+                success = 'result' in response
+                error_message = None
+                if not success and 'error' in response:
+                    error_message = response['error'].get('message', 'Unknown error')
+
+                # Log to database
+                self.database.log_usage(
+                    user_id=user['user_id'],
+                    tool_name=tool_name,
+                    method=method,
+                    success=success,
+                    error_message=error_message,
+                    response_time_ms=response_time_ms
+                )
+            except Exception as e:
+                # Don't fail the request if logging fails
+                self.logger.error(f"Failed to log usage: {e}")
 
             return jsonify(response)
 
@@ -1415,6 +1451,60 @@ class WebServer:
                 })
             except Exception as e:
                 logger.error("Failed to update Fathom key: %s", str(e))
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route('/admin/analytics')
+        def admin_analytics():
+            """Admin endpoint to view overall usage analytics."""
+            import os
+            admin_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
+
+            if admin_token != expected_token:
+                return jsonify({"error": "Unauthorized"}), 401
+
+            try:
+                days = int(request.args.get('days', 7))
+                stats = self.database.get_all_usage_stats(days=days)
+                return jsonify(stats)
+            except Exception as e:
+                logger.error("Failed to get analytics: %s", str(e))
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route('/admin/analytics/user/<user_id>')
+        def admin_user_analytics(user_id):
+            """Admin endpoint to view user-specific usage analytics."""
+            import os
+            admin_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
+
+            if admin_token != expected_token:
+                return jsonify({"error": "Unauthorized"}), 401
+
+            try:
+                days = int(request.args.get('days', 7))
+                stats = self.database.get_user_usage_stats(user_id=user_id, days=days)
+                return jsonify(stats)
+            except Exception as e:
+                logger.error("Failed to get user analytics: %s", str(e))
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route('/admin/analytics/activity')
+        def admin_activity_feed():
+            """Admin endpoint to view real-time activity feed."""
+            import os
+            admin_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
+
+            if admin_token != expected_token:
+                return jsonify({"error": "Unauthorized"}), 401
+
+            try:
+                limit = int(request.args.get('limit', 50))
+                activities = self.database.get_recent_activity(limit=limit)
+                return jsonify({"activities": activities})
+            except Exception as e:
+                logger.error("Failed to get activity feed: %s", str(e))
                 return jsonify({"error": str(e)}), 500
 
     def run(self, host='0.0.0.0', port=8080, debug=False):

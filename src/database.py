@@ -68,6 +68,37 @@ class Database:
             ON users(email)
         """)
 
+        # Create usage_logs table for analytics
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usage_logs (
+                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                method TEXT NOT NULL,
+                success BOOLEAN NOT NULL,
+                error_message TEXT,
+                response_time_ms INTEGER,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        """)
+
+        # Create indexes for analytics queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_usage_user_id
+            ON usage_logs(user_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_usage_timestamp
+            ON usage_logs(timestamp)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_usage_tool
+            ON usage_logs(tool_name)
+        """)
+
         conn.commit()
         conn.close()
 
@@ -395,3 +426,236 @@ class Database:
             logger.info("Cleaned up %d expired sessions", deleted_count)
 
         return deleted_count
+
+    def log_usage(
+        self,
+        user_id: str,
+        tool_name: str,
+        method: str,
+        success: bool,
+        error_message: Optional[str] = None,
+        response_time_ms: Optional[int] = None
+    ):
+        """
+        Log a tool usage event for analytics.
+
+        Args:
+            user_id: User ID
+            tool_name: Name of the tool called
+            method: MCP method (tools/call, tools/list, etc.)
+            success: Whether the call succeeded
+            error_message: Error message if failed
+            response_time_ms: Response time in milliseconds
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO usage_logs (
+                user_id, tool_name, method, success,
+                error_message, response_time_ms
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (user_id, tool_name, method, success, error_message, response_time_ms))
+
+        conn.commit()
+        conn.close()
+
+    def get_user_usage_stats(
+        self,
+        user_id: str,
+        days: int = 7
+    ) -> Dict[str, Any]:
+        """
+        Get usage statistics for a specific user.
+
+        Args:
+            user_id: User ID
+            days: Number of days to look back
+
+        Returns:
+            Dict with usage statistics
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Get cutoff date
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        # Total requests
+        cursor.execute("""
+            SELECT COUNT(*) FROM usage_logs
+            WHERE user_id = ? AND timestamp >= ?
+        """, (user_id, cutoff_date))
+        total_requests = cursor.fetchone()[0]
+
+        # Success rate
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successes,
+                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failures
+            FROM usage_logs
+            WHERE user_id = ? AND timestamp >= ?
+        """, (user_id, cutoff_date))
+        successes, failures = cursor.fetchone()
+        success_rate = (successes / total_requests * 100) if total_requests > 0 else 0
+
+        # Tool usage breakdown
+        cursor.execute("""
+            SELECT tool_name, COUNT(*) as count
+            FROM usage_logs
+            WHERE user_id = ? AND timestamp >= ?
+            GROUP BY tool_name
+            ORDER BY count DESC
+        """, (user_id, cutoff_date))
+        tool_breakdown = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Average response time
+        cursor.execute("""
+            SELECT AVG(response_time_ms) FROM usage_logs
+            WHERE user_id = ? AND timestamp >= ? AND response_time_ms IS NOT NULL
+        """, (user_id, cutoff_date))
+        avg_response_time = cursor.fetchone()[0] or 0
+
+        # Recent errors
+        cursor.execute("""
+            SELECT tool_name, error_message, timestamp
+            FROM usage_logs
+            WHERE user_id = ? AND success = 0 AND timestamp >= ?
+            ORDER BY timestamp DESC
+            LIMIT 10
+        """, (user_id, cutoff_date))
+        recent_errors = [
+            {
+                "tool": row[0],
+                "error": row[1],
+                "timestamp": row[2]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        conn.close()
+
+        return {
+            "user_id": user_id,
+            "period_days": days,
+            "total_requests": total_requests,
+            "successes": successes or 0,
+            "failures": failures or 0,
+            "success_rate": round(success_rate, 2),
+            "tool_breakdown": tool_breakdown,
+            "avg_response_time_ms": round(avg_response_time, 2),
+            "recent_errors": recent_errors
+        }
+
+    def get_all_usage_stats(self, days: int = 7) -> Dict[str, Any]:
+        """
+        Get aggregated usage statistics across all users.
+
+        Args:
+            days: Number of days to look back
+
+        Returns:
+            Dict with aggregated statistics
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        # Total requests across all users
+        cursor.execute("""
+            SELECT COUNT(*) FROM usage_logs
+            WHERE timestamp >= ?
+        """, (cutoff_date,))
+        total_requests = cursor.fetchone()[0]
+
+        # Requests per user
+        cursor.execute("""
+            SELECT u.email, COUNT(l.log_id) as request_count
+            FROM users u
+            LEFT JOIN usage_logs l ON u.user_id = l.user_id
+                AND l.timestamp >= ?
+            GROUP BY u.email
+            ORDER BY request_count DESC
+        """, (cutoff_date,))
+        user_stats = [
+            {"email": row[0], "requests": row[1]}
+            for row in cursor.fetchall()
+        ]
+
+        # Most used tools
+        cursor.execute("""
+            SELECT tool_name, COUNT(*) as count
+            FROM usage_logs
+            WHERE timestamp >= ?
+            GROUP BY tool_name
+            ORDER BY count DESC
+            LIMIT 10
+        """, (cutoff_date,))
+        top_tools = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Daily usage
+        cursor.execute("""
+            SELECT DATE(timestamp) as date, COUNT(*) as count
+            FROM usage_logs
+            WHERE timestamp >= ?
+            GROUP BY DATE(timestamp)
+            ORDER BY date DESC
+        """, (cutoff_date,))
+        daily_usage = {row[0]: row[1] for row in cursor.fetchall()}
+
+        conn.close()
+
+        return {
+            "period_days": days,
+            "total_requests": total_requests,
+            "user_stats": user_stats,
+            "top_tools": top_tools,
+            "daily_usage": daily_usage
+        }
+
+    def get_recent_activity(self, limit: int = 50) -> list[Dict[str, Any]]:
+        """
+        Get recent usage activity across all users (real-time feed).
+
+        Args:
+            limit: Maximum number of recent activities to return
+
+        Returns:
+            List of recent activity dicts
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                u.email,
+                l.tool_name,
+                l.method,
+                l.success,
+                l.error_message,
+                l.response_time_ms,
+                l.timestamp
+            FROM usage_logs l
+            JOIN users u ON l.user_id = u.user_id
+            ORDER BY l.timestamp DESC
+            LIMIT ?
+        """, (limit,))
+
+        activities = [
+            {
+                "email": row[0],
+                "tool": row[1],
+                "method": row[2],
+                "success": bool(row[3]),
+                "error": row[4],
+                "response_time_ms": row[5],
+                "timestamp": row[6]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        conn.close()
+
+        return activities
