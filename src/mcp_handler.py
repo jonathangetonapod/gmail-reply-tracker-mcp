@@ -15,7 +15,6 @@ from calendar_client import CalendarClient
 from fathom_client import FathomClient
 from email_analyzer import EmailAnalyzer
 from config import Config
-from leads import get_all_clients_combined
 import leads
 
 logger = logging.getLogger(__name__)
@@ -1609,7 +1608,7 @@ class MCPHandler:
         try:
             config = Config.from_env()
             result = await asyncio.to_thread(
-                get_all_clients_combined,
+                leads.get_all_clients_combined,
                 sheet_url=config.lead_sheets_url,
                 bison_gid=config.lead_sheets_gid_bison
             )
