@@ -77,18 +77,35 @@ if [ ! -d "$CONFIG_DIR" ]; then
 fi
 print_success "Claude Desktop found"
 
-# Check if Python 3 is installed
-print_step "Checking for Python 3..."
-if ! command -v python3 &> /dev/null; then
-    print_warning "Python 3 not found. Installing now..."
+# Check if Python 3.10+ is installed
+print_step "Checking for Python 3.10+..."
+PYTHON_CMD=""
+PYTHON_VERSION_OK=false
+
+# Check python3 command
+if command -v python3 &> /dev/null; then
+    PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+    PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+    PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+
+    if [ "$PYTHON_MAJOR" -ge 3 ] && [ "$PYTHON_MINOR" -ge 10 ]; then
+        PYTHON_CMD="python3"
+        PYTHON_VERSION_OK=true
+    fi
+fi
+
+if [ "$PYTHON_VERSION_OK" = false ]; then
+    print_warning "Python 3.10+ not found (MCP requires Python 3.10 or higher). Installing now..."
 
     if [[ "$OS" == "mac" ]]; then
         # Try Homebrew first
         if command -v brew &> /dev/null; then
-            print_step "Installing Python 3 via Homebrew..."
-            brew install python3
+            print_step "Installing Python 3.11 via Homebrew..."
+            brew install python@3.11
+            # Update path to use newly installed Python
+            export PATH="/opt/homebrew/opt/python@3.11/bin:/usr/local/opt/python@3.11/bin:$PATH"
         else
-            print_error "Homebrew not found. Please install Python 3 manually:"
+            print_error "Homebrew not found. Please install Python 3.10+ manually:"
             echo "  Visit: https://www.python.org/downloads/"
             echo "  Or install Homebrew first: https://brew.sh"
             exit 1
@@ -96,30 +113,60 @@ if ! command -v python3 &> /dev/null; then
     else
         # Linux - use apt-get, yum, or dnf
         if command -v apt-get &> /dev/null; then
-            print_step "Installing Python 3 via apt..."
+            print_step "Installing Python 3.11 via apt..."
             sudo apt-get update
-            sudo apt-get install -y python3 python3-pip python3-venv
+            sudo apt-get install -y python3.11 python3.11-pip python3.11-venv
+            # Use python3.11 specifically
+            PYTHON_CMD="python3.11"
         elif command -v yum &> /dev/null; then
-            print_step "Installing Python 3 via yum..."
-            sudo yum install -y python3 python3-pip
+            print_step "Installing Python 3.11 via yum..."
+            sudo yum install -y python3.11 python3.11-pip
+            PYTHON_CMD="python3.11"
         elif command -v dnf &> /dev/null; then
-            print_step "Installing Python 3 via dnf..."
-            sudo dnf install -y python3 python3-pip
+            print_step "Installing Python 3.11 via dnf..."
+            sudo dnf install -y python3.11 python3.11-pip
+            PYTHON_CMD="python3.11"
         else
-            print_error "Could not detect package manager. Please install Python 3 manually:"
+            print_error "Could not detect package manager. Please install Python 3.10+ manually:"
             echo "  Visit: https://www.python.org/downloads/"
             exit 1
         fi
     fi
 
-    # Verify installation
-    if ! command -v python3 &> /dev/null; then
-        print_error "Python 3 installation failed"
+    # Verify installation - check for python3.11 first, then python3
+    if command -v python3.11 &> /dev/null; then
+        PYTHON_VERSION=$(python3.11 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+        PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+        PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+
+        if [ "$PYTHON_MAJOR" -ge 3 ] && [ "$PYTHON_MINOR" -ge 10 ]; then
+            PYTHON_CMD="python3.11"
+            PYTHON_VERSION_OK=true
+        fi
+    elif command -v python3 &> /dev/null; then
+        PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+        PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+        PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+
+        if [ "$PYTHON_MAJOR" -ge 3 ] && [ "$PYTHON_MINOR" -ge 10 ]; then
+            PYTHON_CMD="python3"
+            PYTHON_VERSION_OK=true
+        fi
+    fi
+
+    if [ "$PYTHON_VERSION_OK" = false ]; then
+        print_error "Python 3.10+ installation failed or version is still too old"
+        echo "  Current version: $PYTHON_VERSION"
+        echo "  Required: Python 3.10 or higher"
+        echo
+        echo "Please install Python 3.10+ manually:"
+        echo "  Visit: https://www.python.org/downloads/"
         exit 1
     fi
 fi
-PYTHON_VERSION=$(python3 --version)
-print_success "$PYTHON_VERSION found"
+
+PYTHON_FULL_VERSION=$($PYTHON_CMD --version)
+print_success "$PYTHON_FULL_VERSION found"
 
 # Check if git is installed
 print_step "Checking for git..."
@@ -181,7 +228,7 @@ print_success "Repository cloned to: $INSTALL_DIR"
 # Create virtual environment
 print_step "Creating Python virtual environment..."
 cd "$INSTALL_DIR"
-python3 -m venv venv
+$PYTHON_CMD -m venv venv
 print_success "Virtual environment created"
 
 # Activate virtual environment and install dependencies
@@ -209,7 +256,7 @@ echo
 echo "Press Enter to continue..."
 read
 
-python3 setup_oauth.py
+$PYTHON_CMD setup_oauth.py
 
 if [ ! -f "data/token.json" ]; then
     print_error "OAuth setup failed - token.json not found"
@@ -217,7 +264,7 @@ if [ ! -f "data/token.json" ]; then
     echo "Please try running the setup manually:"
     echo "  cd $INSTALL_DIR"
     echo "  source venv/bin/activate"
-    echo "  python3 setup_oauth.py"
+    echo "  $PYTHON_CMD setup_oauth.py"
     echo
     exit 1
 fi
@@ -251,12 +298,12 @@ else
     echo '{"mcpServers":{}}' > "$CONFIG_FILE"
 fi
 
-# Get full path to Python in venv
-PYTHON_PATH="$INSTALL_DIR/venv/bin/python3"
+# Get full path to Python in venv (will use the venv's python, which inherits the version)
+PYTHON_PATH="$INSTALL_DIR/venv/bin/python"
 SERVER_PATH="$INSTALL_DIR/src/server.py"
 
 # Update configuration using Python
-python3 -c "
+$PYTHON_CMD -c "
 import json
 
 # Read existing config
