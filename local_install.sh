@@ -337,7 +337,14 @@ with open('$CONFIG_FILE', 'r') as f:
 if 'mcpServers' not in config:
     config['mcpServers'] = {}
 
-# Add local server
+# Remove old/duplicate entries to avoid conflicts
+old_servers = ['gmail-reply-tracker', 'gmail-calendar-fathom']
+for server_name in old_servers:
+    if server_name in config['mcpServers']:
+        del config['mcpServers'][server_name]
+        print(f'Removed old entry: {server_name}')
+
+# Add the correct local server configuration
 config['mcpServers']['gmail-calendar-fathom'] = {
     'command': '$PYTHON_PATH',
     'args': ['$SERVER_PATH']
