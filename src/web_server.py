@@ -138,12 +138,53 @@ SETUP_LANDING_HTML = """
             color: #999;
             font-size: 14px;
         }
+        .requirement {
+            background: #fff8e1;
+            border-left: 4px solid #ff9800;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .requirement-title {
+            font-weight: 600;
+            color: #e65100;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .requirement-text {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .download-link {
+            display: inline-block;
+            background: #ff9800;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .download-link:hover {
+            background: #f57c00;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Gmail & Calendar Setup</h1>
         <p class="subtitle">Connect Claude to your Gmail and Google Calendar</p>
+
+        <div class="requirement">
+            <div class="requirement-title">⚠️ Claude Desktop Required</div>
+            <div class="requirement-text">
+                This MCP server works with <strong>Claude Desktop</strong>, not the web version at claude.ai.
+                If you don't have it yet, download it first:
+            </div>
+            <a href="https://claude.ai/download" target="_blank" class="download-link">Download Claude Desktop</a>
+        </div>
 
         <div class="step">
             <div class="step-title">Step 1: Connect Google Account</div>
@@ -156,8 +197,8 @@ SETUP_LANDING_HTML = """
         </div>
 
         <div class="step">
-            <div class="step-title">Step 3: Install</div>
-            <div class="step-desc">Run one command in your terminal to connect Claude Desktop</div>
+            <div class="step-title">Step 3: Install & Restart</div>
+            <div class="step-desc">Run one command in your terminal to configure Claude Desktop, then restart the app</div>
         </div>
 
         <a href="{{ server_url }}/setup/start" class="start-button">Start Setup</a>
