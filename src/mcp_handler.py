@@ -87,6 +87,9 @@ class MCPHandler:
             MCP response JSON
         """
         try:
+            # Log incoming request
+            logger.info(f"Received MCP request: {json.dumps(request_data)}")
+
             # Create clients for this user
             gmail, calendar, fathom, analyzer = await self.create_user_clients(
                 google_token, fathom_key
@@ -96,23 +99,29 @@ class MCPHandler:
             method = request_data.get('method')
             params = request_data.get('params', {})
 
+            response = None
             if method == 'initialize':
-                return await self._handle_initialize(request_data)
+                response = await self._handle_initialize(request_data)
             elif method == 'tools/list':
-                return await self._handle_tools_list(request_data)
+                response = await self._handle_tools_list(request_data)
             elif method == 'tools/call':
-                return await self._handle_tool_call(
+                response = await self._handle_tool_call(
                     request_data, gmail, calendar, fathom, analyzer
                 )
             else:
-                return {
+                request_id = request_data.get('id', 1)
+                response = {
                     "jsonrpc": "2.0",
-                    "id": request_data.get('id'),
+                    "id": request_id if request_id is not None else 1,
                     "error": {
                         "code": -32601,
                         "message": f"Method not found: {method}"
                     }
                 }
+
+            # Log outgoing response
+            logger.info(f"Sending MCP response: {json.dumps(response)}")
+            return response
 
         except Exception as e:
             logger.error(f"Error handling MCP request: {e}", exc_info=True)
