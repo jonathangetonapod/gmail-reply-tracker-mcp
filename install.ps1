@@ -98,14 +98,34 @@ try {
     # Try winget first (Windows 10+)
     try {
         Write-Step "Installing Node.js via winget..."
-        winget install -e --id OpenJS.NodeJS --silent
+        $wingetResult = winget install -e --id OpenJS.NodeJS --silent 2>&1
 
-        # Refresh PATH
+        # Refresh PATH - multiple times to ensure it's loaded
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
+        # Add common Node.js installation paths
+        $env:Path = "C:\Program Files\nodejs;" + $env:Path
+        $env:Path = "$env:ProgramFiles\nodejs;" + $env:Path
+        $env:Path = "${env:ProgramFiles(x86)}\nodejs;" + $env:Path
+
+        # Wait a moment for installation to complete
+        Start-Sleep -Seconds 2
+
         # Check if installation succeeded
-        $nodeVersion = & node --version 2>&1
-        Write-Success "Node.js installed successfully!"
+        try {
+            $nodeVersion = & node --version 2>&1
+            Write-Success "Node.js installed successfully!"
+        } catch {
+            Write-Warning-Message "Node.js installed but not immediately available. Trying again..."
+            # Refresh PATH one more time
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            try {
+                $nodeVersion = & node --version 2>&1
+                Write-Success "Node.js is now available!"
+            } catch {
+                throw "Node.js installation verification failed"
+            }
+        }
     } catch {
         # Try chocolatey as fallback
         if (Get-Command choco -ErrorAction SilentlyContinue) {
@@ -115,17 +135,34 @@ try {
             # Refresh PATH
             $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
+            # Add common Node.js installation paths
+            $env:Path = "C:\Program Files\nodejs;" + $env:Path
+            $env:Path = "$env:ProgramFiles\nodejs;" + $env:Path
+            $env:Path = "${env:ProgramFiles(x86)}\nodejs;" + $env:Path
+
+            # Wait for installation to complete
+            Start-Sleep -Seconds 2
+
             # Check if installation succeeded
             try {
                 $nodeVersion = & node --version 2>&1
                 Write-Success "Node.js installed successfully!"
             } catch {
-                Write-Error-Message "Failed to install Node.js"
-                Write-Host ""
-                Write-Host "Please install Node.js manually:"
-                Write-Host "  Visit: https://nodejs.org/"
-                Write-Host ""
-                exit 1
+                Write-Warning-Message "Node.js installed but not immediately available. Trying again..."
+                # Refresh PATH one more time
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                try {
+                    $nodeVersion = & node --version 2>&1
+                    Write-Success "Node.js is now available!"
+                } catch {
+                    Write-Error-Message "Failed to install Node.js"
+                    Write-Host ""
+                    Write-Host "Please close this PowerShell window and open a new one, then re-run:"
+                    Write-Host '  $env:MCP_SESSION_TOKEN = "' + $SessionToken + '"; $env:MCP_USER_EMAIL = "' + $UserEmail + '"'
+                    Write-Host '  Invoke-WebRequest -Uri "https://mcp-gmail-multi-tenant-production.up.railway.app/install.ps1" -UseBasicParsing | Invoke-Expression'
+                    Write-Host ""
+                    exit 1
+                }
             }
         } else {
             Write-Error-Message "Could not install Node.js automatically"

@@ -101,6 +101,28 @@ if ! command -v node &> /dev/null; then
             brew install node
             if [ $? -eq 0 ]; then
                 print_success "Node.js installed successfully!"
+
+                # Update PATH to include Homebrew's node
+                # Homebrew installs to /opt/homebrew on Apple Silicon, /usr/local on Intel
+                export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+                # Verify node is now available
+                if ! command -v node &> /dev/null; then
+                    print_warning "Node.js installed but not found in PATH. Trying to locate..."
+                    # Try to find node in common Homebrew locations
+                    if [ -f "/opt/homebrew/bin/node" ]; then
+                        export PATH="/opt/homebrew/bin:$PATH"
+                    elif [ -f "/usr/local/bin/node" ]; then
+                        export PATH="/usr/local/bin:$PATH"
+                    else
+                        print_error "Node.js installed but could not be located"
+                        echo
+                        echo "Please close this terminal and open a new one, then re-run:"
+                        echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s $SESSION_TOKEN $USER_EMAIL"
+                        echo
+                        exit 1
+                    fi
+                fi
             else
                 print_error "Failed to install Node.js via Homebrew"
                 echo
@@ -139,6 +161,9 @@ if ! command -v node &> /dev/null; then
             echo
             exit 1
         fi
+
+        # Refresh PATH for newly installed node
+        export PATH="/usr/local/bin:/usr/bin:$PATH"
 
         if command -v node &> /dev/null; then
             print_success "Node.js installed successfully!"
