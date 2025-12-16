@@ -1608,7 +1608,7 @@ class MCPHandler:
         try:
             config = Config.from_env()
             result = await asyncio.to_thread(
-                leads.get_all_clients,
+                leads.get_all_clients_combined,
                 sheet_url=config.lead_sheets_url,
                 bison_gid=config.lead_sheets_gid_bison
             )

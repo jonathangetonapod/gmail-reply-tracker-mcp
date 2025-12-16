@@ -514,7 +514,7 @@ def get_bison_campaign_stats(
 # COMBINED PLATFORM FUNCTIONS
 # ============================================================================
 
-def get_all_clients(
+def get_all_clients_combined(
     sheet_url: str,
     bison_gid: str
 ) -> Dict[str, Any]:
@@ -528,7 +528,6 @@ def get_all_clients(
     Returns:
         Dictionary with all clients from both platforms
     """
-    # Force Python recompile - 2025-12-16
     try:
         # Get Instantly clients
         instantly_result = get_client_list(sheet_url)
@@ -578,7 +577,7 @@ def get_all_platform_stats(
     """
     try:
         # Get all clients (instantly_gid not needed)
-        all_clients = get_all_clients(sheet_url, bison_gid)
+        all_clients = get_all_clients_combined(sheet_url, bison_gid)
 
         # Aggregate stats
         total_stats = {
@@ -666,7 +665,7 @@ def get_top_performing_clients(
     """
     try:
         # Get all clients (instantly_gid not needed)
-        all_clients = get_all_clients(sheet_url, bison_gid)
+        all_clients = get_all_clients_combined(sheet_url, bison_gid)
 
         # Get stats for each client
         client_stats = []
@@ -737,7 +736,7 @@ def get_underperforming_clients(
     """
     try:
         # Get all clients (instantly_gid not needed)
-        all_clients = get_all_clients(sheet_url, bison_gid)
+        all_clients = get_all_clients_combined(sheet_url, bison_gid)
 
         # Get stats for each client
         underperforming = []
