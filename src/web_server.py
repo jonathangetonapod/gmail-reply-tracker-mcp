@@ -401,9 +401,9 @@ class WebServer:
 
             try:
                 # Save to database
-                user_token = self.database.save_user(
+                user_data = self.database.create_user(
                     email=email,
-                    token_data=token_dict,
+                    google_token=token_dict,
                     fathom_key=fathom_key if fathom_key else None
                 )
 
@@ -411,7 +411,7 @@ class WebServer:
                 del self.oauth_states[email]
 
                 # Show success with token
-                return render_template_string(SUCCESS_HTML, email=email, token=user_token)
+                return render_template_string(SUCCESS_HTML, email=email, token=user_data['session_token'])
 
             except Exception as e:
                 logger.error("Failed to save user: %s", str(e))
@@ -434,9 +434,9 @@ class WebServer:
 
             try:
                 # Save to database without Fathom key
-                user_token = self.database.save_user(
+                user_data = self.database.create_user(
                     email=email,
-                    token_data=token_dict,
+                    google_token=token_dict,
                     fathom_key=None
                 )
 
@@ -444,7 +444,7 @@ class WebServer:
                 del self.oauth_states[email]
 
                 # Show success with token
-                return render_template_string(SUCCESS_HTML, email=email, token=user_token)
+                return render_template_string(SUCCESS_HTML, email=email, token=user_data['session_token'])
 
             except Exception as e:
                 logger.error("Failed to save user: %s", str(e))
