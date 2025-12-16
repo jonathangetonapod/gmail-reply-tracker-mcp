@@ -74,179 +74,94 @@ SETUP_LANDING_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Welcome to Gmail & Calendar MCP Setup</title>
+    <title>Gmail & Calendar Setup</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f5f5f5;
             min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 40px 20px;
         }
         .container {
-            max-width: 700px;
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
         }
         h1 {
             color: #333;
-            font-size: 36px;
+            font-size: 28px;
             margin-bottom: 10px;
-            text-align: center;
         }
         .subtitle {
-            text-align: center;
             color: #666;
-            font-size: 18px;
-            margin-bottom: 40px;
-        }
-        .big-number {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 50px;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 15px;
+            font-size: 16px;
+            margin-bottom: 30px;
         }
         .step {
-            margin: 30px 0;
-            padding-left: 10px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
         }
-        .step h2 {
+        .step-title {
+            font-weight: 600;
             color: #333;
-            font-size: 22px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
-        .step p {
-            color: #555;
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
-        .step ul {
-            list-style: none;
-            padding-left: 20px;
-            margin-top: 15px;
-        }
-        .step ul li {
+        .step-desc {
             color: #666;
-            font-size: 15px;
-            line-height: 1.8;
-            padding-left: 25px;
-            position: relative;
-        }
-        .step ul li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #28a745;
-            font-weight: bold;
+            font-size: 14px;
+            line-height: 1.5;
         }
         .start-button {
             display: block;
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: #2196f3;
             color: white;
             text-align: center;
-            padding: 20px 40px;
-            border-radius: 12px;
+            padding: 14px;
+            border-radius: 6px;
             text-decoration: none;
-            font-size: 20px;
-            font-weight: bold;
-            margin: 40px auto 20px;
-            max-width: 400px;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 30px 0 10px;
         }
         .start-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.6);
+            background: #1976d2;
         }
-        .start-button:active {
-            transform: translateY(0);
-        }
-        .time-estimate {
+        .note {
             text-align: center;
-            color: #888;
+            color: #999;
             font-size: 14px;
-            margin-top: 10px;
-        }
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 30px 0;
-        }
-        .info-box strong {
-            color: #1976d2;
-            font-size: 16px;
-        }
-        .info-box p {
-            color: #555;
-            margin-top: 10px;
-            line-height: 1.6;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Let's Get You Set Up!</h1>
-        <p class="subtitle">Connect Claude to your Gmail & Calendar in 3 easy steps</p>
+        <h1>Gmail & Calendar Setup</h1>
+        <p class="subtitle">Connect Claude to your Gmail and Google Calendar</p>
 
         <div class="step">
-            <div class="big-number">1</div>
-            <h2>Connect Your Google Account</h2>
-            <p>You'll be asked to sign in with Google and grant permissions for:</p>
-            <ul>
-                <li>Reading and sending emails</li>
-                <li>Viewing and creating calendar events</li>
-            </ul>
-            <p style="margin-top: 10px; color: #888; font-size: 14px;">
-                ℹ️ Your credentials are encrypted and never shared. Each team member has their own separate account.
-            </p>
+            <div class="step-title">Step 1: Connect Google Account</div>
+            <div class="step-desc">Sign in with Google to authorize Gmail and Calendar access</div>
         </div>
 
         <div class="step">
-            <div class="big-number">2</div>
-            <h2>Add Fathom API Key (Optional)</h2>
-            <p>If you use Fathom for meeting notes, you can connect it too. Otherwise, just skip this step!</p>
+            <div class="step-title">Step 2: Fathom (Optional)</div>
+            <div class="step-desc">Add your Fathom API key if you use it, or skip this step</div>
         </div>
 
         <div class="step">
-            <div class="big-number">3</div>
-            <h2>Run One Command</h2>
-            <p>Copy and paste one line into your terminal. That's it! It automatically:</p>
-            <ul>
-                <li>Downloads the connector file</li>
-                <li>Finds your Claude config</li>
-                <li>Updates it for you</li>
-                <li>Creates a backup (just in case)</li>
-            </ul>
+            <div class="step-title">Step 3: Install</div>
+            <div class="step-desc">Run one command in your terminal to connect Claude Desktop</div>
         </div>
 
-        <div class="info-box">
-            <strong>💡 What you'll be able to do:</strong>
-            <p>After setup, just ask Claude things like:<br><br>
-            <em>"Show me emails I haven't replied to"</em><br>
-            <em>"What's on my calendar tomorrow?"</em><br>
-            <em>"Send an email to john@example.com about the meeting"</em></p>
-        </div>
-
-        <a href="{{ server_url }}/setup/start" class="start-button">
-            ✨ Start Setup Now
-        </a>
-        <p class="time-estimate">⏱ Takes about 2 minutes</p>
+        <a href="{{ server_url }}/setup/start" class="start-button">Start Setup</a>
+        <p class="note">Takes 2 minutes</p>
     </div>
 </body>
 </html>
@@ -256,147 +171,127 @@ FATHOM_FORM_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Step 2: Fathom Integration (Optional)</title>
+    <title>Step 2: Fathom (Optional)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f5f5f5;
             min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 40px 20px;
         }
         .card {
-            background: white;
-            padding: 50px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             max-width: 600px;
-            width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
         }
         .progress {
-            text-align: center;
-            color: #888;
+            color: #999;
             font-size: 14px;
             margin-bottom: 10px;
         }
         h1 {
             color: #333;
-            margin-bottom: 10px;
-            text-align: center;
-            font-size: 32px;
+            margin-bottom: 8px;
+            font-size: 24px;
         }
         .success {
-            text-align: center;
             color: #28a745;
-            margin-bottom: 30px;
-            font-size: 18px;
-            font-weight: 500;
+            margin-bottom: 20px;
+            font-size: 14px;
         }
         p {
             color: #666;
-            margin-bottom: 25px;
-            line-height: 1.6;
-            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.5;
         }
         label {
             display: block;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #333;
-            font-weight: 600;
-            font-size: 15px;
+            font-weight: 500;
+            font-size: 14px;
         }
         input[type="text"] {
             width: 100%;
-            padding: 14px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
             box-sizing: border-box;
-            transition: border-color 0.2s;
         }
         input[type="text"]:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #2196f3;
         }
         .button {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: #2196f3;
             color: white;
             border: none;
-            padding: 16px 40px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 10px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 4px;
             cursor: pointer;
             width: 100%;
-            margin-bottom: 15px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            margin-bottom: 10px;
         }
         .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
+            background: #1976d2;
         }
         .button-secondary {
-            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+            background: #757575;
         }
         .button-secondary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.5);
+            background: #616161;
         }
         .help-text {
-            font-size: 13px;
-            color: #888;
-            margin-top: 10px;
-            line-height: 1.5;
+            font-size: 12px;
+            color: #999;
+            margin-top: 6px;
         }
         .help-text a {
-            color: #667eea;
+            color: #2196f3;
             text-decoration: none;
         }
-        .help-text a:hover {
-            text-decoration: underline;
-        }
         .buttons {
-            margin-top: 30px;
+            margin-top: 20px;
         }
-        .skip-note {
+        .note {
             text-align: center;
             color: #999;
-            font-size: 14px;
-            margin-top: 20px;
+            font-size: 13px;
+            margin-top: 15px;
         }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="progress">Step 2 of 3</div>
-        <div class="success">✓ Google Account Connected!</div>
-        <h1>🎙️ Fathom Integration</h1>
-        <p>If you use Fathom for meeting notes, add your API key. Otherwise, click Skip!</p>
+        <div class="success">✓ Google Connected</div>
+        <h1>Fathom Integration (Optional)</h1>
+        <p>Add your Fathom API key if you use it, otherwise skip this step.</p>
 
         <form method="POST" action="/setup/fathom">
             <input type="hidden" name="email" value="{{ email }}">
 
-            <label for="fathom_key">Fathom API Key (Optional):</label>
-            <input type="text" id="fathom_key" name="fathom_key" placeholder="Your Fathom API key...">
+            <label for="fathom_key">Fathom API Key:</label>
+            <input type="text" id="fathom_key" name="fathom_key" placeholder="Optional">
             <div class="help-text">
-                Find your API key at: <a href="https://fathom.video/settings/integrations" target="_blank">fathom.video/settings/integrations</a>
+                Get your key at <a href="https://fathom.video/settings/integrations" target="_blank">fathom.video/settings/integrations</a>
             </div>
 
             <div class="buttons">
-                <button type="submit" class="button">💾 Save & Continue</button>
-                <button type="submit" class="button button-secondary" formaction="/setup/skip">⏭️ Skip This Step</button>
+                <button type="submit" class="button">Save & Continue</button>
+                <button type="submit" class="button button-secondary" formaction="/setup/skip">Skip</button>
             </div>
         </form>
 
-        <div class="skip-note">
-            💡 You can always add your Fathom key later in settings
-        </div>
+        <div class="note">You can add this later in settings</div>
     </div>
 </body>
 </html>
@@ -406,433 +301,222 @@ SUCCESS_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Final Step - Install in Claude Desktop</title>
+    <title>Step 3: Install</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f5f5f5;
             min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 40px 20px;
         }
         .card {
+            max-width: 700px;
+            margin: 0 auto;
             background: white;
-            padding: 50px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 900px;
-            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
         }
         .progress {
-            text-align: center;
-            color: #888;
+            color: #999;
             font-size: 14px;
             margin-bottom: 10px;
         }
         h1 {
-            color: #28a745;
-            margin-bottom: 10px;
-            text-align: center;
-            font-size: 38px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            font-size: 18px;
-            margin-bottom: 30px;
-        }
-        .info {
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            padding: 25px;
-            border-radius: 12px;
-            margin: 30px 0;
-            border-left: 5px solid #28a745;
-            box-shadow: 0 2px 10px rgba(40, 167, 69, 0.1);
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .info-item strong {
-            color: #2e7d32;
-            font-size: 15px;
-        }
-        .final-step {
-            background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
-            padding: 30px;
-            border-radius: 12px;
-            border: 3px solid #ffc107;
-            margin: 30px 0;
-        }
-        .final-step h2 {
             color: #333;
-            font-size: 28px;
-            margin-bottom: 15px;
-            text-align: center;
+            margin-bottom: 8px;
+            font-size: 24px;
         }
-        .final-step-subtitle {
-            text-align: center;
+        .success {
+            color: #28a745;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .status {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .status-line {
+            padding: 4px 0;
             color: #666;
-            font-size: 16px;
-            margin-bottom: 25px;
         }
-        .os-tabs {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 25px;
+        h2 {
+            color: #333;
+            font-size: 18px;
+            margin: 30px 0 15px;
         }
-        .os-tab {
-            background: white;
-            border: 2px solid #ddd;
-            padding: 12px 30px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.2s;
+        .os-select {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
         }
-        .os-tab:hover {
-            border-color: #667eea;
-            transform: translateY(-2px);
-        }
-        .os-tab.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-        .os-content {
-            display: none;
-        }
-        .os-content.active {
-            display: block;
+        select {
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-left: 8px;
         }
         .command-box {
-            background: #1e1e1e;
-            padding: 25px;
-            border-radius: 12px;
-            margin: 20px 0;
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
             position: relative;
+            border: 1px solid #ddd;
         }
         .command-box pre {
-            color: #f8f8f2;
-            font-size: 14px;
-            line-height: 1.6;
+            color: #333;
+            font-size: 13px;
             overflow-x: auto;
             margin: 0;
-            font-family: 'Monaco', 'Consolas', monospace;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
         .copy-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: #2196f3;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-            transition: all 0.2s;
+            font-size: 13px;
+            margin-top: 10px;
         }
         .copy-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.5);
-        }
-        .copy-btn.copied {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            background: #1976d2;
         }
         .instructions {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-        }
-        .instructions h3 {
-            color: #333;
-            font-size: 18px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .instructions ol {
-            padding-left: 25px;
-            color: #555;
-        }
-        .instructions li {
-            margin: 12px 0;
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-size: 14px;
             line-height: 1.6;
-            font-size: 15px;
+            color: #666;
         }
-        .instructions li strong {
+        .examples {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .examples h3 {
             color: #333;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-weight: 600;
         }
-        .what-next {
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            padding: 25px;
-            border-radius: 12px;
-            margin: 30px 0;
-            border-left: 5px solid #2196f3;
-        }
-        .what-next h3 {
-            color: #1976d2;
-            font-size: 20px;
-            margin-bottom: 15px;
-        }
-        .what-next ul {
+        .examples ul {
             list-style: none;
             padding: 0;
+            margin: 0;
         }
-        .what-next li {
-            padding: 8px 0;
-            padding-left: 30px;
-            position: relative;
-            color: #555;
-            line-height: 1.6;
-        }
-        .what-next li:before {
-            content: "✨";
-            position: absolute;
-            left: 0;
-            font-size: 18px;
+        .examples li {
+            padding: 6px 0;
+            color: #666;
+            font-size: 13px;
         }
         .footer {
             text-align: center;
             margin-top: 30px;
             padding-top: 20px;
-            border-top: 2px solid #eee;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: #999;
         }
         .footer a {
-            color: #667eea;
+            color: #2196f3;
             text-decoration: none;
-            font-weight: 600;
-        }
-        .footer a:hover {
-            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="progress">Step 3 of 3 - Almost Done!</div>
-        <h1>🎉 Almost There!</h1>
-        <p class="subtitle">Your accounts are connected. One final step to activate Claude Desktop.</p>
+        <div class="progress">Step 3 of 3</div>
+        <div class="success">✓ Setup Complete</div>
+        <h1>Final Step: Install</h1>
 
-        <div class="info">
-            <div class="info-grid">
-                <div class="info-item">
-                    <span style="font-size: 24px;">👤</span>
-                    <div>
-                        <strong>Email:</strong><br>
-                        <span style="color: #666;">{{ email }}</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <span style="font-size: 24px;">✅</span>
-                    <div>
-                        <strong>Gmail & Calendar:</strong><br>
-                        <span style="color: #28a745;">Connected</span>
-                    </div>
-                </div>
-                <div class="info-item">
-                    <span style="font-size: 24px;">{{ '✅' if has_fathom else '⚪' }}</span>
-                    <div>
-                        <strong>Fathom:</strong><br>
-                        <span style="color: {{ '#28a745' if has_fathom else '#999' }};">{{ 'Connected' if has_fathom else 'Skipped' }}</span>
-                    </div>
-                </div>
+        <div class="status">
+            <div class="status-line"><strong>Email:</strong> {{ email }}</div>
+            <div class="status-line"><strong>Gmail & Calendar:</strong> Connected</div>
+            <div class="status-line"><strong>Fathom:</strong> {{ 'Connected' if has_fathom else 'Skipped' }}</div>
+        </div>
+
+        <h2>Run this command:</h2>
+        <div class="os-select">
+            <label>
+                Operating System:
+                <select id="os-select" onchange="showCommand()">
+                    <option value="mac">Mac / Linux</option>
+                    <option value="windows">Windows</option>
+                </select>
+            </label>
+        </div>
+
+        <div id="mac-command" class="command-container">
+            <div class="command-box">
+                <pre>curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }}</pre>
+            </div>
+            <button class="copy-btn" onclick="copyToClipboard('mac')">Copy Command</button>
+            <div class="instructions">
+                1. Copy the command above<br>
+                2. Open Terminal<br>
+                3. Paste and press Enter<br>
+                4. Restart Claude Desktop
             </div>
         </div>
 
-        <div class="final-step">
-            <h2>🚀 Final Step: Run This Command</h2>
-            <p class="final-step-subtitle">Copy & paste one line into your terminal. That's it!</p>
-
-            <div class="os-tabs">
-                <button class="os-tab active" onclick="showOS('mac')">🍎 Mac / Linux</button>
-                <button class="os-tab" onclick="showOS('windows')">🪟 Windows</button>
+        <div id="windows-command" class="command-container" style="display:none;">
+            <div class="command-box">
+                <pre>$env:MCP_SESSION_TOKEN = "{{ token }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression</pre>
             </div>
-
-            <div id="mac-content" class="os-content active">
-                <div class="command-box">
-                    <button class="copy-btn" onclick="copyCommand('mac-command')">📋 Copy</button>
-                    <pre id="mac-command">curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }}</pre>
-                </div>
-                <div class="instructions">
-                    <h3>📝 What to do:</h3>
-                    <ol>
-                        <li><strong>Click the "Copy" button</strong> above</li>
-                        <li><strong>Open Terminal</strong> (search for "Terminal" in Spotlight)</li>
-                        <li><strong>Paste the command</strong> and press Enter</li>
-                        <li><strong>Wait 10 seconds</strong> for it to finish</li>
-                        <li><strong>Restart Claude Desktop</strong></li>
-                    </ol>
-                </div>
-            </div>
-
-            <div id="windows-content" class="os-content">
-                <div class="command-box">
-                    <button class="copy-btn" onclick="copyCommand('windows-command')">📋 Copy</button>
-                    <pre id="windows-command">$env:MCP_SESSION_TOKEN = "{{ token }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression</pre>
-                </div>
-                <div class="instructions">
-                    <h3>📝 What to do:</h3>
-                    <ol>
-                        <li><strong>Click the "Copy" button</strong> above</li>
-                        <li><strong>Open PowerShell</strong> (search for "PowerShell" in Start Menu)</li>
-                        <li><strong>Paste the command</strong> and press Enter</li>
-                        <li><strong>Wait 10 seconds</strong> for it to finish</li>
-                        <li><strong>Restart Claude Desktop</strong></li>
-                    </ol>
-                </div>
+            <button class="copy-btn" onclick="copyToClipboard('windows')">Copy Command</button>
+            <div class="instructions">
+                1. Copy the command above<br>
+                2. Open PowerShell<br>
+                3. Paste and press Enter<br>
+                4. Restart Claude Desktop
             </div>
         </div>
 
-        <div class="what-next">
-            <h3>💡 What You Can Do Next:</h3>
+        <div class="examples">
+            <h3>What you can ask Claude:</h3>
             <ul>
-                <li>"Show me emails I haven't replied to in the last 3 days"</li>
+                <li>"Show me unreplied emails from last week"</li>
                 <li>"What's on my calendar tomorrow?"</li>
-                <li>"Search my emails for messages about the project proposal"</li>
-                <li>"Create a calendar event for tomorrow at 2pm"</li>
-                <li>"Send an email to john@example.com thanking him for the meeting"</li>
+                <li>"Search emails about project proposal"</li>
             </ul>
         </div>
 
         <div class="footer">
-            <a href="{{ server_url }}/settings?token={{ token }}">⚙️ Update Settings</a>
-            <span style="color: #ccc; margin: 0 15px;">|</span>
-            <span style="color: #888;">Need help? Contact your admin</span>
+            <a href="{{ server_url }}/settings?token={{ token }}">Settings</a>
         </div>
     </div>
 
     <script>
-        function showOS(os) {
-            // Update tabs
-            document.querySelectorAll('.os-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // Update content
-            document.querySelectorAll('.os-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.getElementById(os + '-content').classList.add('active');
+        function showCommand() {
+            const os = document.getElementById('os-select').value;
+            document.getElementById('mac-command').style.display = os === 'mac' ? 'block' : 'none';
+            document.getElementById('windows-command').style.display = os === 'windows' ? 'block' : 'none';
         }
 
-        function copyCommand(elementId) {
-            const command = document.getElementById(elementId).textContent;
-            navigator.clipboard.writeText(command).then(() => {
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
-                btn.classList.add('copied');
+        function copyToClipboard(os) {
+            const commands = {
+                'mac': 'curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }}',
+                'windows': '$env:MCP_SESSION_TOKEN = "{{ token }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression'
+            };
+
+            navigator.clipboard.writeText(commands[os]).then(() => {
+                event.target.textContent = '✓ Copied!';
                 setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.classList.remove('copied');
-                }, 3000);
-            });
-        }
-    </script>
-
-        <details style="margin-top: 30px;">
-            <summary style="cursor: pointer; color: #007bff; font-weight: bold;">
-                📝 Manual Installation (if you prefer)
-            </summary>
-
-            <div style="margin-top: 20px;">
-                <div class="step">
-                    <span class="step-number">1</span>
-                    <strong>Download the connector file</strong><br>
-                    <a href="{{ server_url }}/download/http-mcp-client.js" class="download-btn" download>Download http-mcp-client.js</a>
-                    <p style="margin: 10px 0 0 38px; color: #666; font-size: 14px;">
-                        Save this file somewhere permanent (e.g., your Documents folder). Don't delete it!
-                    </p>
-                </div>
-
-                <div class="step">
-                    <span class="step-number">2</span>
-                    <strong>Open your Claude Desktop config file</strong><br>
-                    <p style="margin: 10px 0 0 38px; color: #666;">The config file is located at:</p>
-                    <div class="config-location" style="margin-left: 38px;">
-                        <strong>Mac:</strong> ~/Library/Application Support/Claude/claude_desktop_config.json<br>
-                        <strong>Windows:</strong> %APPDATA%\\Claude\\claude_desktop_config.json
-                    </div>
-                </div>
-
-                <div class="step">
-                    <span class="step-number">3</span>
-                    <strong>Add this configuration</strong><br>
-                    <p style="margin: 10px 0 0 38px; color: #666;">
-                        Copy the code below and add it to your config file.
-                        <strong>Replace</strong> <code>/path/to/http-mcp-client.js</code> with the actual path where you saved the file in Step 1.
-                    </p>
-                    <button class="copy-btn" onclick="copyConfig()" style="margin-left: 38px;">📋 Copy Configuration</button>
-                    <pre id="config">{{ config_json }}</pre>
-                </div>
-            </div>
-        </details>
-
-        <div class="note">
-            <strong>💡 After setup:</strong> Restart Claude Desktop. Then you can ask Claude to:
-            <ul style="margin: 10px 0;">
-                <li>"Show me my unreplied emails from the last 3 days"</li>
-                <li>"List my calendar events for next week"</li>
-                <li>"Search my emails for messages about project proposal"</li>
-            </ul>
-        </div>
-
-        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-            <p style="color: #666; font-size: 14px;">
-                <a href="{{ server_url }}/settings?token={{ token }}" style="color: #2196f3; text-decoration: none;">
-                    ⚙️ Update Settings (Fathom API Key)
-                </a>
-            </p>
-            <p style="color: #888; font-size: 14px; margin-top: 10px;">
-                Need help? Contact your team admin.
-            </p>
-        </div>
-    </div>
-
-    <script>
-        function copyConfig() {
-            const config = document.getElementById('config').textContent;
-            navigator.clipboard.writeText(config).then(() => {
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
-                btn.style.background = '#28a745';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '#007bff';
-                }, 2000);
-            });
-        }
-
-        function copyCommand(elementId) {
-            const command = document.getElementById(elementId).textContent;
-            navigator.clipboard.writeText(command).then(() => {
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '✓ Copied!';
-                btn.style.background = '#28a745';
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.background = '#007bff';
+                    event.target.textContent = 'Copy Command';
                 }, 2000);
             });
         }
