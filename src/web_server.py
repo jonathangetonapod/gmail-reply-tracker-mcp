@@ -497,203 +497,123 @@ SETUP_LANDING_HTML = """
 
     <!-- Troubleshooting Modal -->
     <div id="troubleshootingModal" class="modal" onclick="closeTroubleshootingModalOnClickOutside(event)">
-        <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header" style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);">
                 <span class="close" onclick="closeTroubleshootingModal()">&times;</span>
                 <h2>🔧 Troubleshooting Guide</h2>
-                <p>Solutions to common installation and setup issues</p>
+                <p style="margin: 8px 0 0 0; opacity: 0.95;">Quick fixes for common issues</p>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-
-                <!-- Quick Links -->
-                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <strong>📑 Quick Jump:</strong>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
-                        <a href="#issue-xcode" style="color: #1976d2; text-decoration: none;">Xcode Tools</a> •
-                        <a href="#issue-oauth" style="color: #1976d2; text-decoration: none;">OAuth Timeout</a> •
-                        <a href="#issue-claude" style="color: #1976d2; text-decoration: none;">Claude Not Connecting</a> •
-                        <a href="#issue-tools" style="color: #1976d2; text-decoration: none;">No Tools Showing</a> •
-                        <a href="#issue-threads" style="color: #1976d2; text-decoration: none;">Email Threading</a> •
-                        <a href="#issue-permissions" style="color: #1976d2; text-decoration: none;">Permissions</a>
-                    </div>
-                </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 25px;">
 
                 <!-- Issue 1: Xcode Command Line Tools -->
-                <div id="issue-xcode" style="border-left: 4px solid #f44336; padding-left: 15px; margin-bottom: 30px;">
-                    <h3 style="color: #f44336; margin-top: 0;">❌ "xcode-select: note: no developer tools installed"</h3>
-                    <p><strong>What happened:</strong> macOS needs Xcode Command Line Tools to install Git.</p>
-
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <strong>✅ Solution:</strong>
-                        <ol style="margin: 10px 0;">
-                            <li>A dialog box will appear asking to install Command Line Tools</li>
-                            <li>Click <strong>Install</strong></li>
-                            <li>Wait 5-10 minutes for installation to complete</li>
-                            <li>The script will continue automatically!</li>
+                <div style="background: #fff5f5; border-left: 4px solid #f44336; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #f44336; margin: 0 0 10px 0; font-size: 18px;">❌ "xcode-select: no developer tools installed"</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> macOS needs developer tools for Git</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #2e7d32;">✅ Fix:</strong>
+                        <ol style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Click <strong>Install</strong> when the dialog appears</li>
+                            <li>Wait 5-10 minutes</li>
+                            <li>Script continues automatically</li>
                         </ol>
                     </div>
-
-                    <p><strong>Manual installation:</strong></p>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">xcode-select --install</pre>
-                    <p style="font-size: 14px; color: #666;">Then run the install script again</p>
                 </div>
 
                 <!-- Issue 2: OAuth Timeout -->
-                <div id="issue-oauth" style="border-left: 4px solid #ff9800; padding-left: 15px; margin-bottom: 30px;">
-                    <h3 style="color: #ff9800; margin-top: 0;">⏱️ OAuth Flow Times Out / Connection Refused</h3>
-                    <p><strong>What happened:</strong> Browser can't connect back to the OAuth server.</p>
-
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <strong>✅ Solution - Update Google Cloud Console:</strong>
-                        <ol style="margin: 10px 0;">
-                            <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Credentials</a></li>
-                            <li>Click on your OAuth client</li>
-                            <li>Under "Authorized redirect URIs", add:
-                                <pre style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-radius: 4px;">http://localhost:8080
-http://localhost:8080/</pre>
-                            </li>
-                            <li>Click <strong>Save</strong></li>
-                            <li>Download updated credentials.json (if prompted)</li>
-                            <li>Run installation again</li>
+                <div style="background: #fff8e1; border-left: 4px solid #ff9800; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #ff9800; margin: 0 0 10px 0; font-size: 18px;">⏱️ OAuth "Connection Refused"</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> Browser can't connect to OAuth server</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #2e7d32;">✅ Fix:</strong>
+                        <ol style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Close the error browser tab</li>
+                            <li>Rerun the install command</li>
+                            <li>OAuth browser will open automatically</li>
                         </ol>
+                        <p style="margin: 12px 0 0 0; font-size: 14px; color: #666;">💡 Still failing? Contact your admin about OAuth config</p>
                     </div>
-
-                    <p style="font-size: 14px; color: #666;"><strong>Note:</strong> Both URIs (with and without trailing slash) are required!</p>
                 </div>
 
-                <!-- Issue 3: Claude Desktop Not Connecting -->
-                <div id="issue-claude" style="border-left: 4px solid #9c27b0; padding-left: 15px; margin-bottom: 30px;">
-                    <h3 style="color: #9c27b0; margin-top: 0;">🔌 Claude Desktop Not Connecting to MCP Server</h3>
-                    <p><strong>What happened:</strong> MCP server not showing in Claude or shows as disconnected.</p>
-
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <strong>✅ Solution - Check Config File:</strong>
-                        <ol style="margin: 10px 0;">
-                            <li>Open config file:
-                                <pre style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-radius: 4px;">~/Library/Application Support/Claude/claude_desktop_config.json</pre>
-                            </li>
-                            <li>Verify the <code>command</code> path is correct:
-                                <pre style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-radius: 4px; font-size: 12px;">"command": "/Users/YOUR_USERNAME/gmail-calendar-mcp/venv/bin/python"</pre>
-                            </li>
-                            <li>Should be FULL path, NOT just "python"</li>
-                            <li>Restart Claude Desktop completely (⌘Q then reopen)</li>
+                <!-- Issue 3: Claude Not Connecting -->
+                <div style="background: #f3e5f5; border-left: 4px solid #9c27b0; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #9c27b0; margin: 0 0 10px 0; font-size: 18px;">🔌 Claude Desktop Not Connecting</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> MCP server not appearing in Claude</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #2e7d32;">✅ Fix:</strong>
+                        <ol style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Completely quit Claude (⌘Q)</li>
+                            <li>Reopen Claude Desktop</li>
+                            <li>Wait 10 seconds for MCP to connect</li>
                         </ol>
+                        <p style="margin: 12px 0 0 0; font-size: 14px; color: #666;">💡 Check logs: <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px;">~/Library/Logs/Claude/mcp*.log</code></p>
                     </div>
-
-                    <p><strong>Still not working?</strong> Check Claude Desktop logs:</p>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">~/Library/Logs/Claude/mcp*.log</pre>
                 </div>
 
                 <!-- Issue 4: No Tools Showing -->
-                <div id="issue-tools" style="border-left: 4px solid #3f51b5; padding-left: 15px; margin-bottom: 30px;">
-                    <h3 style="color: #3f51b5; margin-top: 0;">🔍 No Tools Showing in Claude</h3>
-                    <p><strong>What happened:</strong> MCP shows connected but no tools available.</p>
-
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <strong>✅ Solution - Verify OAuth Scopes:</strong>
-                        <ol style="margin: 10px 0;">
-                            <li>Check your Google OAuth consent screen has these scopes:
-                                <ul style="margin: 5px 0;">
-                                    <li><code>gmail.modify</code></li>
-                                    <li><code>gmail.send</code></li>
-                                    <li><code>calendar</code></li>
-                                    <li><code>userinfo.email</code></li>
-                                </ul>
-                            </li>
-                            <li>Delete token and re-authenticate:
-                                <pre style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-radius: 4px;">rm ~/gmail-calendar-mcp/credentials/token.json
+                <div style="background: #e8eaf6; border-left: 4px solid #3f51b5; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #3f51b5; margin: 0 0 10px 0; font-size: 18px;">🔍 No Tools Showing</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> Connected but no tools available</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #2e7d32;">✅ Fix - Re-authenticate:</strong>
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; margin: 10px 0; white-space: pre-wrap; word-wrap: break-word;">rm ~/gmail-calendar-mcp/credentials/token.json
 cd ~/gmail-calendar-mcp
 ./venv/bin/python auto_oauth.py</pre>
-                            </li>
-                            <li>Restart Claude Desktop</li>
-                        </ol>
+                        <p style="margin: 10px 0 0 0;">Then restart Claude Desktop</p>
                     </div>
                 </div>
 
-                <!-- Issue 5: Email Threading Problems -->
-                <div id="issue-threads" style="border-left: 4px solid #00bcd4; padding-left: 15px; margin-bottom: 30px;">
-                    <h3 style="color: #00bcd4; margin-top: 0;">📧 Replies Creating New Threads Instead of Continuing Conversation</h3>
-                    <p><strong>What happened:</strong> Email replies not staying in the same thread.</p>
-
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <strong>✅ Solution - Use reply_to_email:</strong>
-                        <p style="margin: 10px 0;"><strong>Workflow:</strong></p>
-                        <ol style="margin: 10px 0;">
-                            <li>First, search for the email:
-                                <pre style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-radius: 4px; font-size: 13px;">"Find emails from john@example.com about project update"</pre>
-                            </li>
-                            <li>Note the <code>thread_id</code> from results</li>
-                            <li>Then reply using the thread_id:
-                                <pre style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-radius: 4px; font-size: 13px;">"Reply to thread 18c4f5e2a1b3d9f7 with: Thanks for the update!"</pre>
-                            </li>
+                <!-- Issue 5: Email Threading -->
+                <div style="background: #e0f7fa; border-left: 4px solid #00bcd4; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #00bcd4; margin: 0 0 10px 0; font-size: 18px;">📧 Replies Creating New Threads</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> Emails not staying in same conversation</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #2e7d32;">✅ Fix - Use reply_to_email tool:</strong>
+                        <ol style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Search for the email first</li>
+                            <li>Get the <code>thread_id</code> from results</li>
+                            <li>Reply using: "Reply to thread [ID] with: [message]"</li>
                         </ol>
-
-                        <p style="margin-top: 15px;"><strong>🚫 Don't use "send email" for replies!</strong></p>
-                        <p style="font-size: 14px;">The system now auto-detects existing threads and will suggest using reply_to_email.</p>
+                        <p style="margin: 12px 0 0 0; font-size: 14px; color: #666;">✨ System now auto-detects threads and suggests correct tool!</p>
                     </div>
                 </div>
 
-                <!-- Issue 6: Test Users / Permissions -->
-                <div id="issue-permissions" style="border-left: 4px solid #4caf50; padding-left: 15px; margin-bottom: 30px;">
-                    <h3 style="color: #4caf50; margin-top: 0;">🔐 "Access Blocked" or "App Not Verified"</h3>
-                    <p><strong>What happened:</strong> Google blocks authentication for users not added as test users.</p>
-
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <strong>✅ Solution - Add Test Users:</strong>
-                        <ol style="margin: 10px 0;">
-                            <li>Go to <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank">OAuth Consent Screen</a></li>
-                            <li>Scroll to "Test users" section</li>
-                            <li>Click <strong>+ ADD USERS</strong></li>
-                            <li>Enter team member emails (one per line)</li>
-                            <li>Click <strong>Save</strong></li>
-                            <li>Team members can now authenticate!</li>
+                <!-- Issue 6: Permissions -->
+                <div style="background: #e8f5e9; border-left: 4px solid #4caf50; padding: 18px; margin-bottom: 20px; border-radius: 6px;">
+                    <h3 style="color: #4caf50; margin: 0 0 10px 0; font-size: 18px;">🔐 "App Not Verified" Warning</h3>
+                    <p style="margin: 8px 0; color: #555;"><strong>What's happening:</strong> Google security warning during login</p>
+                    <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                        <strong style="color: #2e7d32;">✅ Fix - Click through the warning:</strong>
+                        <ol style="margin: 10px 0 0 0; padding-left: 20px; line-height: 1.6;">
+                            <li>Click <strong>"Advanced"</strong></li>
+                            <li>Click <strong>"Go to [App Name] (unsafe)"</strong></li>
+                            <li>Review permissions</li>
+                            <li>Click <strong>"Allow"</strong></li>
                         </ol>
+                        <p style="margin: 12px 0 0 0; font-size: 14px; color: #666;">✅ This is safe - it's your team's internal app!</p>
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #e0e0e0;">
+                        <p style="margin: 10px 0 0 0; font-size: 14px; color: #d32f2f;"><strong>Getting "Access Blocked"?</strong> Contact your admin to add you as a test user</p>
                     </div>
-
-                    <p><strong>For "App not verified" warning during OAuth:</strong></p>
-                    <ol style="font-size: 14px;">
-                        <li>Click "Advanced"</li>
-                        <li>Click "Go to [App Name] (unsafe)"</li>
-                        <li>Review permissions</li>
-                        <li>Click "Allow"</li>
-                    </ol>
-                    <p style="font-size: 13px; color: #666;">This is safe - you're granting access to your own app!</p>
                 </div>
 
-                <!-- Common Commands -->
-                <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; margin-top: 30px;">
-                    <h3 style="margin-top: 0;">💡 Useful Commands</h3>
+                <!-- Quick Commands -->
+                <div style="background: #f5f5f5; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 16px;">💡 Quick Commands</h3>
 
-                    <p><strong>Check if Claude config is correct:</strong></p>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">cat ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+                    <p style="margin: 12px 0 4px 0; font-weight: 600; font-size: 14px;">Test OAuth:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">cd ~/gmail-calendar-mcp && ./venv/bin/python auto_oauth.py</pre>
 
-                    <p><strong>Test OAuth manually:</strong></p>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">cd ~/gmail-calendar-mcp
-./venv/bin/python auto_oauth.py</pre>
-
-                    <p><strong>Check MCP server logs:</strong></p>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">tail -f ~/Library/Logs/Claude/mcp*.log</pre>
-
-                    <p><strong>Reinstall cleanly:</strong></p>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">rm -rf ~/gmail-calendar-mcp
-curl -fsSL https://raw.githubusercontent.com/jonathangetonapod/gmail-reply-tracker-mcp/main/local_install.sh | bash -s "your-email@domain.com"</pre>
+                    <p style="margin: 16px 0 4px 0; font-weight: 600; font-size: 14px;">Clean reinstall:</p>
+                    <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">rm -rf ~/gmail-calendar-mcp && curl -fsSL https://raw.githubusercontent.com/jonathangetonapod/gmail-reply-tracker-mcp/main/local_install.sh | bash -s "your@email.com"</pre>
                 </div>
 
                 <!-- Still Need Help -->
-                <div style="background: #fff9c4; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center;">
-                    <h3 style="margin-top: 0;">Still Having Issues?</h3>
-                    <p>Report your issue on GitHub with:</p>
-                    <ul style="text-align: left; display: inline-block;">
-                        <li>What step failed</li>
-                        <li>Error message (if any)</li>
-                        <li>Your macOS version</li>
-                        <li>Screenshot of the issue</li>
-                    </ul>
-                    <br>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 8px; margin-top: 20px; text-align: center;">
+                    <h3 style="margin: 0 0 10px 0; color: white;">💬 Still Need Help?</h3>
+                    <p style="margin: 0 0 15px 0; opacity: 0.95;">Contact your admin or report the issue</p>
                     <a href="https://github.com/jonathangetonapod/gmail-reply-tracker-mcp/issues" target="_blank"
-                       style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px;
-                              border-radius: 6px; text-decoration: none; margin-top: 10px;">
-                        📝 Report Issue on GitHub
+                       style="display: inline-block; background: white; color: #667eea; padding: 12px 30px;
+                              border-radius: 6px; text-decoration: none; font-weight: 600; transition: transform 0.2s;">
+                        📝 Report on GitHub
                     </a>
                 </div>
 
