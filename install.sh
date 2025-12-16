@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Gmail MCP Server - Automated Setup Script
-# Usage: curl -fsSL https://mcp-gmail-multi-tenant-production.up.railway.app/install.sh | bash -s YOUR_SESSION_TOKEN
+# Usage: curl -fsSL https://mcp-gmail-multi-tenant-production.up.railway.app/install.sh | sudo bash -s YOUR_SESSION_TOKEN
 #
 
 set -e
@@ -48,7 +48,7 @@ if [ -z "$SESSION_TOKEN" ]; then
     print_error "No session token provided!"
     echo
     echo "Usage:"
-    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s YOUR_SESSION_TOKEN YOUR_EMAIL"
+    echo "  curl -fsSL ${SERVER_URL}/install.sh | sudo bash -s YOUR_SESSION_TOKEN YOUR_EMAIL"
     echo
     echo "To get your session token:"
     echo "  1. Visit: ${SERVER_URL}/setup"
@@ -63,7 +63,7 @@ if [ -z "$USER_EMAIL" ]; then
     print_error "No email provided!"
     echo
     echo "Usage:"
-    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s YOUR_SESSION_TOKEN YOUR_EMAIL"
+    echo "  curl -fsSL ${SERVER_URL}/install.sh | sudo bash -s YOUR_SESSION_TOKEN YOUR_EMAIL"
     echo
     exit 1
 fi
@@ -186,7 +186,7 @@ if ! command -v node &> /dev/null; then
                     echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
                     echo
                     echo "Then close this terminal, open a new one, and re-run:"
-                    echo "  curl -fsSL ${SERVER_URL}/install.sh | bash -s $SESSION_TOKEN $USER_EMAIL"
+                    echo "  curl -fsSL ${SERVER_URL}/install.sh | sudo bash -s $SESSION_TOKEN $USER_EMAIL"
                     echo
                     exit 1
                 fi
