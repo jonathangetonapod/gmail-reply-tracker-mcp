@@ -1011,9 +1011,290 @@ class WebServer:
         @self.app.route('/admin/users')
         def admin_users():
             """List all users (admin endpoint)."""
-            # TODO: Add authentication
+            # Simple admin authentication via environment variable
+            admin_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
+
+            if admin_token != expected_token:
+                return jsonify({"error": "Unauthorized"}), 401
+
             users = self.database.list_users()
-            return jsonify({"users": users})
+
+            # Remove sensitive data
+            safe_users = []
+            for user in users:
+                safe_users.append({
+                    "id": user["id"],
+                    "email": user["email"],
+                    "has_fathom": bool(user.get("fathom_key")),
+                    "session_token": user.get("session_token", "")[:20] + "...",  # Truncated
+                    "created_at": user.get("created_at", "")
+                })
+
+            return jsonify({"users": safe_users, "count": len(safe_users)})
+
+        @self.app.route('/admin')
+        def admin_dashboard():
+            """Admin dashboard for managing users."""
+            import os
+            admin_token = request.args.get('token')
+            expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
+
+            if admin_token != expected_token:
+                return """
+                    <h1>Admin Dashboard</h1>
+                    <p>Please provide admin token as query parameter:</p>
+                    <code>?token=YOUR_ADMIN_TOKEN</code>
+                """, 401
+
+            admin_html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-secondary { background: #e2e3e5; color: #383d41; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #0056b3; }
+        .update-form {
+            display: none;
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .update-form input {
+            width: 300px;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔐 Admin Dashboard</h1>
+        <p style="color: #666;">Manage user accounts and Fathom API keys</p>
+    </div>
+
+    <div class="card">
+        <h2>Users</h2>
+        <table id="users-table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>User ID</th>
+                    <th>Fathom Status</th>
+                    <th>Session Token</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="5" style="text-align: center;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const adminToken = '{{ admin_token }}';
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/admin/users', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const data = await response.json();
+
+                const tbody = document.querySelector('#users-table tbody');
+                tbody.innerHTML = '';
+
+                data.users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${user.email}</strong></td>
+                        <td><code style="font-size: 12px;">${user.id.substring(0, 12)}...</code></td>
+                        <td>
+                            <span class="badge ${user.has_fathom ? 'badge-success' : 'badge-secondary'}">
+                                ${user.has_fathom ? '✓ Connected' : '✗ Not set'}
+                            </span>
+                        </td>
+                        <td><code style="font-size: 11px;">${user.session_token}</code></td>
+                        <td>
+                            <button onclick="showUpdateForm('${user.email}', '${user.id}')">
+                                Update Fathom
+                            </button>
+                            <div id="update-form-${user.id}" class="update-form">
+                                <input
+                                    type="text"
+                                    id="fathom-key-${user.id}"
+                                    placeholder="Enter new Fathom API key"
+                                >
+                                <button onclick="updateFathom('${user.id}', '${user.email}')">Save</button>
+                                <button onclick="removeFathom('${user.id}', '${user.email}')" style="background: #dc3545;">Remove</button>
+                                <button onclick="hideUpdateForm('${user.id}')" style="background: #6c757d;">Cancel</button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        function showUpdateForm(email, userId) {
+            document.getElementById(`update-form-${userId}`).style.display = 'block';
+        }
+
+        function hideUpdateForm(userId) {
+            document.getElementById(`update-form-${userId}`).style.display = 'none';
+        }
+
+        async function updateFathom(userId, email) {
+            const fathomKey = document.getElementById(`fathom-key-${userId}`).value;
+
+            if (!fathomKey) {
+                alert('Please enter a Fathom API key');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/update-fathom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        fathom_key: fathomKey
+                    })
+                });
+
+                if (response.ok) {
+                    alert(`✓ Updated Fathom key for ${email}`);
+                    loadUsers();
+                } else {
+                    alert('Error updating Fathom key');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function removeFathom(userId, email) {
+            if (!confirm(`Remove Fathom API key for ${email}?`)) return;
+
+            try {
+                const response = await fetch('/admin/update-fathom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        fathom_key: null
+                    })
+                });
+
+                if (response.ok) {
+                    alert(`✓ Removed Fathom key for ${email}`);
+                    loadUsers();
+                } else {
+                    alert('Error removing Fathom key');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Load users on page load
+        loadUsers();
+
+        // Refresh every 30 seconds
+        setInterval(loadUsers, 30000);
+    </script>
+</body>
+</html>
+            """
+
+            return render_template_string(admin_html, admin_token=admin_token)
+
+        @self.app.route('/admin/update-fathom', methods=['POST'])
+        def admin_update_fathom():
+            """Admin endpoint to update user's Fathom key."""
+            import os
+            admin_token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            expected_token = os.environ.get('ADMIN_TOKEN', 'change-me-in-production')
+
+            if admin_token != expected_token:
+                return jsonify({"error": "Unauthorized"}), 401
+
+            data = request.get_json()
+            user_id = data.get('user_id')
+            fathom_key = data.get('fathom_key')
+
+            if not user_id:
+                return jsonify({"error": "Missing user_id"}), 400
+
+            try:
+                self.database.update_fathom_key(user_id, fathom_key)
+                return jsonify({
+                    "success": True,
+                    "message": f"Updated Fathom key for user {user_id}"
+                })
+            except Exception as e:
+                logger.error("Failed to update Fathom key: %s", str(e))
+                return jsonify({"error": str(e)}), 500
 
     def run(self, host='0.0.0.0', port=8080, debug=False):
         """
