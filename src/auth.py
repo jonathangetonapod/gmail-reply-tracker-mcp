@@ -10,6 +10,10 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+# Fix for Google OAuth adding 'openid' scope causing oauthlib validation errors
+# Google always adds 'openid' to returned scopes even if not requested
+os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
+
 
 logger = logging.getLogger(__name__)
 
