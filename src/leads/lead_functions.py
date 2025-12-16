@@ -403,12 +403,13 @@ def get_workspace_info(
 # BISON FUNCTIONS
 # ============================================================================
 
-def get_bison_client_list(sheet_url: str = DEFAULT_SHEET_URL):
+def get_bison_client_list(sheet_url: str = DEFAULT_SHEET_URL, gid: str = SHEET_GID_BISON):
     """
     MCP Tool: Get list of all Bison clients.
 
     Args:
         sheet_url: Google Sheet URL (optional)
+        gid: Google Sheet GID (optional)
 
     Returns:
         {
@@ -419,7 +420,7 @@ def get_bison_client_list(sheet_url: str = DEFAULT_SHEET_URL):
             ]
         }
     """
-    workspaces = load_bison_workspaces_from_sheet(sheet_url)
+    workspaces = load_bison_workspaces_from_sheet(sheet_url, gid=gid)
 
     clients = [{"client_name": w["client_name"]} for w in workspaces]
 
@@ -434,7 +435,8 @@ def get_bison_lead_responses(
     start_date: str = None,
     end_date: str = None,
     days: int = 7,
-    sheet_url: str = DEFAULT_SHEET_URL
+    sheet_url: str = DEFAULT_SHEET_URL,
+    gid: str = SHEET_GID_BISON
 ):
     """
     MCP Tool: Get interested lead responses from Bison for a specific client.
@@ -458,6 +460,7 @@ def get_bison_lead_responses(
         end_date: End date in YYYY-MM-DD format (optional if using 'days')
         days: Number of days to look back (default: 7)
         sheet_url: Google Sheet URL (optional)
+        gid: Google Sheet GID (optional)
 
     Returns:
         {
@@ -492,7 +495,7 @@ def get_bison_lead_responses(
         }
     """
     # Load workspaces
-    workspaces = load_bison_workspaces_from_sheet(sheet_url)
+    workspaces = load_bison_workspaces_from_sheet(sheet_url, gid=gid)
 
     # Find the workspace by name (fuzzy matching)
     workspace = None
@@ -702,7 +705,8 @@ def get_bison_campaign_stats(
     start_date: str = None,
     end_date: str = None,
     days: int = 7,
-    sheet_url: str = DEFAULT_SHEET_URL
+    sheet_url: str = DEFAULT_SHEET_URL,
+    gid: str = SHEET_GID_BISON
 ):
     """
     MCP Tool: Get campaign statistics from Bison for a specific client.
@@ -713,6 +717,7 @@ def get_bison_campaign_stats(
         end_date: End date in YYYY-MM-DD format (optional)
         days: Number of days to look back (default: 7)
         sheet_url: Google Sheet URL (optional)
+        gid: Google Sheet GID (optional)
 
     Returns:
         {
@@ -734,7 +739,7 @@ def get_bison_campaign_stats(
         }
     """
     # Load workspaces
-    workspaces = load_bison_workspaces_from_sheet(sheet_url)
+    workspaces = load_bison_workspaces_from_sheet(sheet_url, gid=gid)
 
     # Find the workspace (same logic as get_bison_lead_responses)
     workspace = None
