@@ -19,6 +19,10 @@ NC='\033[0m' # No Color
 REPO_URL="https://github.com/jonathangetonapod/gmail-reply-tracker-mcp.git"
 INSTALL_DIR="$HOME/gmail-calendar-mcp"
 
+# Parse parameters
+USER_EMAIL="$1"
+FATHOM_API_KEY="$2"
+
 # Functions
 print_header() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -167,24 +171,13 @@ print_success "OAuth setup completed!"
 
 # Optional: Fathom API key
 echo
-print_step "Fathom Integration (Optional)"
-echo
-echo "Do you have a Fathom API key? (Fathom is optional - Gmail/Calendar work without it)"
-echo
-echo "  y) Yes, I have a Fathom API key"
-echo "  n) No, skip Fathom (I can add it later)"
-echo
-read -p "Enter your choice (y/n): " fathom_choice
-
-if [[ "$fathom_choice" == "y" || "$fathom_choice" == "Y" ]]; then
-    echo
-    read -p "Enter your Fathom API key: " fathom_key
-
-    # Create .env file with Fathom key
-    echo "FATHOM_API_KEY=$fathom_key" > .env
-    print_success "Fathom API key configured"
+print_step "Configuring Fathom Integration"
+if [ -n "$FATHOM_API_KEY" ]; then
+    # Create .env file with Fathom key from parameter
+    echo "FATHOM_API_KEY=$FATHOM_API_KEY" > .env
+    print_success "Fathom API key configured automatically"
 else
-    print_success "Skipping Fathom (you can add it later if needed)"
+    print_success "No Fathom key provided (you can add it later if needed)"
 fi
 
 # Update Claude Desktop configuration

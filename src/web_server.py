@@ -496,14 +496,14 @@ SUCCESS_HTML = """
                 Operating System:
                 <select id="os-select" onchange="showCommand()">
                     <option value="mac">Mac / Linux</option>
-                    <option value="windows">Windows</option>
+                    <option value="windows">Windows (Coming Soon)</option>
                 </select>
             </label>
         </div>
 
         <div id="mac-command" class="command-container">
             <div class="command-box">
-                <pre>curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }} {{ email }}</pre>
+                <pre>curl -fsSL https://raw.githubusercontent.com/jonathangetonapod/gmail-reply-tracker-mcp/main/local_install.sh | bash -s "{{ email }}"{% if fathom_key %} "{{ fathom_key }}"{% endif %}</pre>
             </div>
             <button class="copy-btn" onclick="copyToClipboard('mac')">Copy Command</button>
             <div class="instructions">
@@ -516,14 +516,10 @@ SUCCESS_HTML = """
 
         <div id="windows-command" class="command-container" style="display:none;">
             <div class="command-box">
-                <pre>$env:MCP_SESSION_TOKEN = "{{ token }}"; $env:MCP_USER_EMAIL = "{{ email }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression</pre>
+                <pre># Windows installer coming soon!<br># For now, please use Mac/Linux or install manually</pre>
             </div>
-            <button class="copy-btn" onclick="copyToClipboard('windows')">Copy Command</button>
             <div class="instructions">
-                1. Copy the command above<br>
-                2. Open PowerShell<br>
-                3. Paste and press Enter<br>
-                4. Restart Claude Desktop
+                Windows support coming soon. Please use Mac/Linux for now.
             </div>
         </div>
 
@@ -550,8 +546,8 @@ SUCCESS_HTML = """
 
         function copyToClipboard(os) {
             const commands = {
-                'mac': 'curl -fsSL {{ server_url }}/install.sh | bash -s {{ token }} {{ email }}',
-                'windows': '$env:MCP_SESSION_TOKEN = "{{ token }}"; $env:MCP_USER_EMAIL = "{{ email }}"; Invoke-WebRequest -Uri "{{ server_url }}/install.ps1" -UseBasicParsing | Invoke-Expression'
+                'mac': 'curl -fsSL https://raw.githubusercontent.com/jonathangetonapod/gmail-reply-tracker-mcp/main/local_install.sh | bash -s "{{ email }}"{% if fathom_key %} "{{ fathom_key }}"{% endif %}',
+                'windows': '# Windows installer coming soon!'
             };
 
             navigator.clipboard.writeText(commands[os]).then(() => {
@@ -764,6 +760,7 @@ class WebServer:
                     token=session_token,
                     server_url=self.redirect_uri.rsplit('/', 2)[0],
                     has_fathom=bool(fathom_key),
+                    fathom_key=fathom_key,
                     config_json=config_json
                 )
 
@@ -818,6 +815,7 @@ class WebServer:
                     token=session_token,
                     server_url=self.redirect_uri.rsplit('/', 2)[0],
                     has_fathom=False,  # Skip endpoint means no Fathom
+                    fathom_key=None,
                     config_json=config_json
                 )
 
