@@ -4,11 +4,22 @@
 import json
 import logging
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import Optional
+from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 from googleapiclient.errors import HttpError
+
+# Load .env file if it exists (for local installations)
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass  # dotenv not installed, that's ok
 
 from config import Config
 from auth import GmailAuthManager
