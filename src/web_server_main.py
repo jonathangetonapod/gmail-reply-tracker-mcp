@@ -51,6 +51,7 @@ def main():
     scopes = [s.strip() for s in scopes_str.split(',') if s.strip()]
     if not scopes:
         scopes = [
+            'openid',
             'https://www.googleapis.com/auth/gmail.modify',
             'https://www.googleapis.com/auth/calendar',
             'https://www.googleapis.com/auth/userinfo.email'
