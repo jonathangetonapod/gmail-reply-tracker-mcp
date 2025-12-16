@@ -711,28 +711,48 @@ class MCPHandler:
         self, gmail: GmailClient, analyzer: EmailAnalyzer, **kwargs
     ) -> str:
         """Get unreplied emails."""
+        from datetime import datetime, timedelta
+
         days_back = kwargs.get('days_back', 7)
         max_results = kwargs.get('max_results', 50)
+        exclude_automated = kwargs.get('exclude_automated', True)
 
-        unreplied = await asyncio.to_thread(
-            gmail.get_unreplied_emails,
-            days_back=days_back,
-            max_results=max_results
-        )
+        # Build Gmail query
+        since_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y/%m/%d')
+        query = f"-in:sent -in:draft after:{since_date}"
 
-        if not unreplied:
-            return "No unreplied emails found."
+        # Fetch threads
+        thread_infos = await asyncio.to_thread(gmail.list_threads, query, max_results * 2)
+        user_email = await asyncio.to_thread(gmail.get_user_email)
 
-        return json.dumps([
-            {
-                "thread_id": email['thread_id'],
-                "subject": email['subject'],
-                "from": email['from'],
-                "date": email['date'],
-                "snippet": email['snippet']
-            }
-            for email in unreplied[:max_results]
-        ], indent=2)
+        # Process threads
+        unreplied = []
+        for thread_info in thread_infos:
+            if len(unreplied) >= max_results:
+                break
+
+            # Fetch full thread
+            thread = await asyncio.to_thread(gmail.get_thread, thread_info['id'])
+
+            # Check if unreplied
+            if analyzer.is_unreplied(thread, user_email):
+                last_message = thread['messages'][-1]
+
+                # Optional: Filter automated
+                if exclude_automated and analyzer.is_automated_email(last_message):
+                    continue
+
+                # Format email information
+                email_info = analyzer.format_unreplied_email(thread, last_message)
+                unreplied.append(email_info)
+
+        return json.dumps({
+            "success": True,
+            "count": len(unreplied),
+            "days_back": days_back,
+            "exclude_automated": exclude_automated,
+            "emails": unreplied
+        }, indent=2)
 
     async def _get_email_thread(self, gmail: GmailClient, **kwargs) -> str:
         """Get email thread."""
@@ -744,20 +764,102 @@ class MCPHandler:
         """Search emails."""
         query = kwargs['query']
         max_results = kwargs.get('max_results', 20)
-        results = await asyncio.to_thread(
-            gmail.search_messages, query, max_results
-        )
-        return json.dumps(results, indent=2)
+
+        # Search messages using list_messages
+        message_infos = await asyncio.to_thread(gmail.list_messages, query, max_results)
+
+        # Fetch message details
+        results = []
+        for msg_info in message_infos:
+            msg = await asyncio.to_thread(gmail.get_message, msg_info['id'])
+
+            from email_analyzer import EmailAnalyzer
+            analyzer = EmailAnalyzer()
+            headers = analyzer.parse_headers(msg.get('payload', {}).get('headers', []))
+
+            # Extract timestamp
+            received_timestamp = analyzer.extract_received_timestamp(msg)
+            received_date = None
+            if received_timestamp:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromtimestamp(int(received_timestamp) / 1000.0)
+                    received_date = dt.isoformat()
+                except (ValueError, OSError):
+                    pass
+
+            results.append({
+                "id": msg.get('id'),
+                "thread_id": msg.get('threadId'),
+                "from": headers.get('From'),
+                "subject": headers.get('Subject'),
+                "date": received_date or headers.get('Date'),
+                "snippet": msg.get('snippet', ''),
+                "labels": msg.get('labelIds', [])
+            })
+
+        return json.dumps({
+            "success": True,
+            "query": query,
+            "count": len(results),
+            "results": results
+        }, indent=2)
 
     async def _send_email(self, gmail: GmailClient, **kwargs) -> str:
         """Send email."""
-        result = await asyncio.to_thread(gmail.send_email, **kwargs)
-        return f"Email sent successfully. Message ID: {result}"
+        result = await asyncio.to_thread(
+            gmail.send_message,
+            to=kwargs['to'],
+            subject=kwargs['subject'],
+            body=kwargs['body'],
+            cc=kwargs.get('cc'),
+            bcc=kwargs.get('bcc')
+        )
+        return json.dumps({
+            "success": True,
+            "message_id": result['id'],
+            "message": f"Email sent successfully to {kwargs['to']}"
+        }, indent=2)
 
     async def _reply_to_email(self, gmail: GmailClient, **kwargs) -> str:
         """Reply to email."""
-        result = await asyncio.to_thread(gmail.reply_to_thread, **kwargs)
-        return f"Reply sent successfully. Message ID: {result}"
+        thread_id = kwargs['thread_id']
+        body = kwargs['body']
+
+        # Get thread to extract reply information
+        thread = await asyncio.to_thread(gmail.get_thread, thread_id)
+        last_message = thread['messages'][-1]
+
+        from email_analyzer import EmailAnalyzer
+        analyzer = EmailAnalyzer()
+        headers = analyzer.parse_headers(last_message.get('payload', {}).get('headers', []))
+
+        from_addr = headers.get('From', '')
+        subject = headers.get('Subject', '')
+        message_id = headers.get('Message-ID', '')
+        references = headers.get('References', '')
+
+        if not subject.startswith('Re:'):
+            subject = f"Re: {subject}"
+
+        new_references = f"{references} {message_id}" if references else message_id
+
+        result = await asyncio.to_thread(
+            gmail.send_message,
+            to=from_addr,
+            subject=subject,
+            body=body,
+            thread_id=thread_id,
+            in_reply_to=message_id,
+            references=new_references
+        )
+
+        return json.dumps({
+            "success": True,
+            "message_id": result['id'],
+            "thread_id": thread_id,
+            "message": f"Reply sent successfully to thread {thread_id}"
+        }, indent=2)
 
     async def _list_calendar_events(self, calendar: CalendarClient, **kwargs) -> str:
         """List calendar events."""
