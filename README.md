@@ -2,137 +2,96 @@
 
 # 📬 Gmail + Calendar + Fathom + Leads MCP Server
 
-### Your AI-Powered Productivity & Lead Management Command Center
+### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Connect Claude to your entire productivity stack and lead generation platforms with natural language*
+*Transform Claude into your AI productivity command center with 34 tools across Gmail, Calendar, Fathom AI, and lead management platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io/)
+[![Railway](https://img.shields.io/badge/Deploy-Railway-blueviolet)](https://railway.app)
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Documentation](#-documentation)
+[Quick Start](#-quick-start) • [Features](#-what-you-can-do) • [Architecture](#-architecture) • [Installation](#-installation)
 
 </div>
 
 ---
 
-## 🚀 What This Does
+## 🚀 What This Is
 
-Transform Claude into your personal productivity assistant with **one-click access** to:
+A **production-ready multi-tenant MCP server** that connects Claude to your entire productivity stack with natural language. Deploy once, serve multiple users.
 
-- 📧 **Gmail** - Smart email management, automated filtering, and intelligent replies
-- 📅 **Google Calendar** - Natural language scheduling with automatic timezone detection
-- 🎙️ **Fathom AI** - Meeting transcripts, summaries, and action item extraction
-- 🎯 **Lead Management** - Track 80 clients across Instantly.ai & Bison platforms with campaign analytics
+### Two Deployment Models
 
-**Ask Claude things like:**
-> "What emails need my attention today?"
-> "Schedule a meeting with Sarah tomorrow at 2pm and send her a calendar invite"
-> "What were the action items from yesterday's client call?"
-> "Show me interested leads from our top performing clients this week"
-> "Which clients are underperforming and need attention?"
+**1. Multi-Tenant Railway Server** (Recommended for teams)
+- Deploy once on Railway, serve unlimited users
+- Web-based OAuth flow - no credentials.json needed
+- Session-based authentication
+- Automatic scaling
 
-## ✨ What's New
-
-- 🎯 **NEW: Lead Management Integration** - Track 80 clients across Instantly.ai (56) & Bison (24)
-- 🎯 **NEW: Campaign Analytics** - Get performance stats, top clients, and weekly summaries
-- 🎯 **NEW: Interested Lead Tracking** - Auto-fetch responses with conversation threads
-- ✅ **Automatic timezone detection** - No more UTC confusion
-- ✅ **Calendar invitations sent automatically** - Attendees actually receive emails now
-- ✅ **Full Fathom AI integration** - Access transcripts, summaries, and action items
-- ✅ **Multi-account support** - Run multiple instances for different companies/accounts
-- ✅ **One-command setup** - New QUICKSTART.sh script for instant installation
-
-## 📋 Table of Contents
-
-- [Quick Start](#-quick-start)
-- [Features](#-features)
-- [Installation](#-installation)
-- [Usage Examples](#-usage-examples)
-- [Available Tools](#-available-tools)
-- [Troubleshooting](#-troubleshooting)
-- [Documentation](#-documentation)
+**2. Local Installation** (Individual use)
+- One-command installation with beautiful UX
+- Runs locally on your machine
+- Full control and privacy
+- Zero ongoing costs
 
 ---
 
-## 🎯 Quick Start
+## ✨ What You Can Do
 
-**For MacBook Users (Easiest Method):**
+Ask Claude things like:
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/jonathangetonapod/gmail-reply-tracker-mcp.git
-cd gmail-reply-tracker-mcp
-
-# 2. Run the quick setup script
-chmod +x QUICKSTART.sh
-./QUICKSTART.sh
-
-# 3. Follow the prompts - it handles everything!
-```
-
-**Never touched code before?** We've got you covered:
-- 📖 [Mac Setup Guide](MAC_SETUP.md) - 10 simple steps, 30 minutes
-- 📖 [Complete Beginner's Guide](BEGINNER_SETUP.md) - Mac & Windows, explained from scratch
+> **📧 Email**: "Show me unreplied emails from the last 3 days"
+>
+> **📅 Calendar**: "Schedule a meeting with sarah@company.com tomorrow at 2pm and send invites"
+>
+> **🎙️ Meetings**: "What were the action items from yesterday's client call?"
+>
+> **🎯 Leads**: "Show me interested leads from our top performing clients this week"
+>
+> **📊 Analytics**: "Which clients are underperforming and need attention?"
 
 ---
 
-## 🎨 Features
+## 🎯 Key Features
+
+### 34 Production Tools Across 4 Platforms
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### 📧 Gmail
-
-- Smart unreplied email detection
-- Automated filtering (newsletters, no-reply)
-- Full thread context
-- Advanced search (Gmail syntax)
-- Inbox analytics
+**📧 Gmail (13 tools)**
+- Unreplied email detection
+- Thread context & search
 - Send emails & replies
-- Draft creation
+- Draft management
+- Inbox analytics
 
-</td>
-<td width="50%" valign="top">
-
-### 📅 Calendar
-
-- Natural language event creation
-- Automatic timezone detection
-- Email invitations (sent automatically)
+**📅 Google Calendar (7 tools)**
+- Natural language scheduling
+- Auto timezone detection
+- Email invitations
 - Multi-calendar support
-- Event management (CRUD)
-- Past & future events
-- Meeting coordination
+- Event CRUD operations
 
 </td>
-</tr>
-<tr>
 <td width="50%" valign="top">
 
-### 🎙️ Fathom AI
-
-- List meeting recordings
-- Full transcripts with speakers
-- AI-generated summaries
+**🎙️ Fathom AI (6 tools)**
+- Meeting transcripts
+- AI summaries
 - Action item extraction
-- Search by title/attendee
+- Search & analytics
 - Calendar cross-reference
-- Meeting analytics
 
-</td>
-<td width="50%" valign="top">
-
-### 🎯 Lead Management
-
-- Track 80 clients (Instantly.ai + Bison)
-- Interested lead responses
-- Campaign performance analytics
-- Top/underperforming client reports
-- Weekly summary dashboards
-- Conversation thread tracking
-- Date validation & fuzzy search
+**🎯 Lead Management (8 tools)**
+- Track 88 clients total
+  - 64 Instantly.ai clients
+  - 24 Bison clients
+- Campaign analytics
+- Interested lead tracking
+- Performance reports
 
 </td>
 </tr>
@@ -140,435 +99,393 @@ chmod +x QUICKSTART.sh
 
 ---
 
-## 💬 Usage Examples
+## 🏗️ Architecture
 
-### Email Management
-```
-"What emails do I need to reply to?"
-"Show me unreplied emails from john@company.com"
-"Search for emails about the Q4 budget"
-"Draft a reply thanking them for the update"
-"Send an email to team@company.com about the project"
-```
+### Multi-Tenant Railway Deployment
 
-### Lead Management
 ```
-"Show me all our Instantly clients"
-"Get interested leads from ABC Corp for the last 7 days"
-"Which clients are underperforming this week?"
-"Show me top 5 clients by reply rate"
-"Generate a weekly summary of all lead generation activity"
+┌─────────────┐
+│   Railway   │  ← Deploy once, serve everyone
+│   Server    │
+│             │  • Web OAuth flow
+│  34 Tools  │  • Session management
+│             │  • Multi-user support
+└──────┬──────┘
+       │
+       ├──── User 1 (session token)
+       ├──── User 2 (session token)
+       └──── User N (session token)
 ```
 
-### Calendar & Scheduling
+**Key Advantages:**
+- ✅ No credentials.json distribution
+- ✅ Centralized updates
+- ✅ Web-based authentication
+- ✅ Automatic scaling
+- ✅ Zero client-side setup
+
+### Hybrid Local Installation
+
 ```
-"What's on my calendar this week?"
-"Schedule a meeting with sarah@company.com tomorrow at 2pm"
-"Create a calendar event for Friday at 3pm and invite the team"
-"Cancel my 3pm meeting today"
-"Show me all meetings from last week"
+┌──────────────────┐
+│ Railway Setup    │  ← OAuth flow only
+│ Page (Web)       │
+│                  │
+│ User enters:     │
+│ • Email          │
+│ • Fathom API key │
+│                  │
+│ Gets: One command│
+└────────┬─────────┘
+         │
+         ↓
+┌──────────────────┐
+│ Local Machine    │  ← MCP runs here
+│                  │
+│ One command:     │
+│ • Installs deps  │
+│ • Configures     │
+│ • Authenticates  │
+│ • Updates Claude │
+└──────────────────┘
 ```
 
-### Meeting Intelligence (Fathom)
-```
-"List my recent Fathom meetings"
-"Get the transcript from yesterday's client call"
-"What action items came out of the engineering sync?"
-"Summarize the Project Phoenix kickoff meeting"
-"Find all meetings where we discussed the new feature"
-```
-
-### Cross-Platform Queries
-```
-"What's the status of the marketing campaign? Check emails, calendar, and meetings"
-"Find all action items from this week across meetings and emails"
-"Who have I been meeting with most this month?"
-```
+**Key Advantages:**
+- ✅ One-command setup
+- ✅ Beautiful UX for non-technical users
+- ✅ Runs locally (full privacy)
+- ✅ Auto-detects & closes Claude Desktop
+- ✅ Step-by-step progress (1 of 9, 2 of 9...)
+- ✅ Friendly error messages
 
 ---
 
-## 🛠️ Available Tools
+## 📦 Quick Start
 
-**26 tools** available across Gmail, Calendar, and Fathom:
+### Option 1: Multi-Tenant Railway (Teams)
 
-<details>
-<summary><b>📧 Gmail Tools (13)</b></summary>
+**Deploy the server:**
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
+
+1. Click "Deploy on Railway"
+2. Set environment variables (guide: [RAILWAY_SETUP.md](RAILWAY_SETUP.md))
+3. Share your Railway URL with users
+4. Users authenticate via web OAuth
+
+**User setup:**
+Users just need to:
+1. Visit your Railway URL
+2. Click "Authorize Gmail & Calendar"
+3. Get their session token
+4. Add MCP server to Claude Desktop config
+
+### Option 2: Local Installation (Individual)
+
+**For non-technical users:**
+
+1. Visit: `https://your-railway-url.railway.app/setup`
+2. Enter your email + optional Fathom API key
+3. Copy the one-line command
+4. Paste in Terminal and press Enter
+5. Follow the beautiful step-by-step progress
+
+**The script handles everything:**
+- ✅ Installs Homebrew (if needed)
+- ✅ Installs Python 3.11+ (if needed)
+- ✅ Installs Git (if needed)
+- ✅ Downloads the project
+- ✅ Creates virtual environment
+- ✅ Installs dependencies
+- ✅ Runs OAuth (opens browser)
+- ✅ Updates Claude Desktop config
+- ✅ Auto-detects & closes Claude if running
+
+**Total time:** 5-10 minutes (mostly automated)
+
+---
+
+## 🛠️ Complete Tool List
+
+### 📧 Gmail Tools (13)
 
 | Tool | Description |
 |------|-------------|
-| `get_unreplied_emails` | Find emails you've read but haven't replied to |
-| `get_email_thread` | Get full conversation history for a thread |
-| `search_emails` | Search using Gmail query syntax |
-| `get_inbox_summary` | Statistics on unreplied emails |
-| `get_unreplied_by_sender` | Filter by sender or domain |
-| `send_email` | Send a new email (with confirmation) |
-| `reply_to_email` | Reply to a thread (with confirmation) |
-| `reply_all_to_email` | Reply all to a thread |
-| `create_email_draft` | Create draft without sending |
+| `get_unreplied_emails` | Find unre plied emails with smart filtering |
+| `get_email_thread` | Full conversation history |
+| `search_emails` | Gmail query syntax search |
+| `get_inbox_summary` | Inbox statistics |
+| `get_unreplied_by_sender` | Filter by sender/domain |
+| `send_email` | Send new email |
+| `reply_to_email` | Reply to thread |
+| `reply_all_to_email` | Reply all |
+| `create_email_draft` | Create draft |
+| `get_recent_emails` | Recent emails |
+| `get_email_by_id` | Get specific email |
+| `list_email_labels` | List all labels |
+| `modify_email_labels` | Add/remove labels |
 
-</details>
-
-<details>
-<summary><b>📅 Calendar Tools (7)</b></summary>
-
-| Tool | Description |
-|------|-------------|
-| `list_calendars` | List all accessible calendars |
-| `list_calendar_events` | List upcoming events |
-| `list_past_calendar_events` | List past events |
-| `create_calendar_event` | Create new event (auto-sends invites) |
-| `update_calendar_event` | Update existing event |
-| `delete_calendar_event` | Delete an event |
-| `quick_add_calendar_event` | Create event with natural language |
-
-</details>
-
-<details>
-<summary><b>🎙️ Fathom Tools (6)</b></summary>
+### 📅 Calendar Tools (7)
 
 | Tool | Description |
 |------|-------------|
-| `list_fathom_meetings` | List recent meeting recordings |
-| `get_fathom_transcript` | Get full meeting transcript |
-| `get_fathom_summary` | Get AI-generated summary |
-| `get_fathom_action_items` | Extract action items |
-| `search_fathom_meetings_by_title` | Search meetings by title |
-| `search_fathom_meetings_by_attendee` | Find meetings with specific people |
+| `list_calendars` | All accessible calendars |
+| `list_calendar_events` | Upcoming events |
+| `list_past_calendar_events` | Past events |
+| `create_calendar_event` | Create event (auto-invites) |
+| `update_calendar_event` | Update event |
+| `delete_calendar_event` | Delete event |
+| `quick_add_calendar_event` | Natural language creation |
 
-</details>
+### 🎙️ Fathom Tools (6)
 
-## 📦 Installation
+| Tool | Description |
+|------|-------------|
+| `list_fathom_meetings` | Recent recordings |
+| `get_fathom_transcript` | Full transcript |
+| `get_fathom_summary` | AI summary |
+| `get_fathom_action_items` | Action items |
+| `search_fathom_meetings_by_title` | Search by title |
+| `search_fathom_meetings_by_attendee` | Search by attendee |
 
-### Prerequisites
+### 🎯 Lead Management Tools (8)
 
-- Python 3.10+ ([Download](https://www.python.org/downloads/))
-- Gmail account
-- Google Cloud Project ([Create one](https://console.cloud.google.com))
-- Claude Desktop ([Download](https://claude.ai/download))
-- (Optional) Fathom AI account with API access
+| Tool | Description |
+|------|-------------|
+| `get_all_clients` | All 88 clients (Instantly + Bison) |
+| `get_instantly_clients` | 64 Instantly.ai clients |
+| `get_bison_clients` | 24 Bison clients |
+| `get_client_campaigns` | Campaign data for client |
+| `get_interested_leads` | Fetch interested responses |
+| `get_top_clients` | Top performers by metric |
+| `get_underperforming_clients` | Clients needing attention |
+| `get_weekly_summary` | Weekly analytics dashboard |
 
-### Installation Options
+**Total: 34 tools** 🎉
 
-<details open>
-<summary><b>⚡ Option 1: Quickstart Script (Recommended for Mac)</b></summary>
+---
+
+## 📊 Production Features
+
+### For Developers
+
+- ✅ **41 unit tests** - Full test coverage
+- ✅ **Type hints** - Complete type safety
+- ✅ **Error handling** - Friendly error messages
+- ✅ **Rate limiting** - API quota management
+- ✅ **Logging** - Comprehensive debug logs
+- ✅ **OAuth 2.0** - Secure authentication
+- ✅ **Session management** - Multi-tenant support
+- ✅ **SQLite database** - User session storage
+
+### For Users
+
+- ✅ **Automatic timezone detection** - No more UTC confusion
+- ✅ **Calendar invitations sent automatically** - Attendees get emails
+- ✅ **Smart email filtering** - Auto-filters newsletters/automated emails
+- ✅ **Step-by-step progress** - Beautiful installation UX
+- ✅ **Auto-recovery** - Handles errors gracefully
+- ✅ **Cross-platform** - macOS & Linux support
+
+---
+
+## 🔧 Advanced Setup
+
+### Railway Multi-Tenant Deployment
+
+See [RAILWAY_SETUP.md](RAILWAY_SETUP.md) for complete deployment guide.
+
+**Environment variables needed:**
+```env
+# Required
+LEAD_SHEETS_URL=https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID
+LEAD_SHEETS_GID_INSTANTLY=0
+LEAD_SHEETS_GID_BISON=123456789
+
+# Optional
+FATHOM_API_KEY=your_key_here
+PORT=8080
+```
+
+### Manual Local Installation
+
+For developers who want full control:
 
 ```bash
-# Clone the repository
+# 1. Clone
 git clone https://github.com/jonathangetonapod/gmail-reply-tracker-mcp.git
 cd gmail-reply-tracker-mcp
 
-# Run the magic script
-chmod +x QUICKSTART.sh
-./QUICKSTART.sh
-```
-
-The script will:
-- ✅ Create virtual environment
-- ✅ Install all dependencies
-- ✅ Check for credentials
-- ✅ Run OAuth authentication
-- ✅ Generate Claude Desktop config
-
-</details>
-
-<details>
-<summary><b>📖 Option 2: Step-by-Step Guides (For Beginners)</b></summary>
-
-Choose your operating system:
-- **[Mac Setup Guide](MAC_SETUP.md)** - 10 simple steps, 30 minutes
-- **[Complete Beginner's Guide](BEGINNER_SETUP.md)** - Mac & Windows, zero coding knowledge required
-
-Both guides explain everything from scratch, including Python installation and Terminal basics.
-
-</details>
-
-<details>
-<summary><b>🔧 Option 3: Manual Installation (For Developers)</b></summary>
-
-#### 1. Clone Repository
-
-```bash
-git clone https://github.com/jonathangetonapod/gmail-reply-tracker-mcp.git
-cd gmail-reply-tracker-mcp
-```
-
-#### 2. Create Virtual Environment
-
-```bash
+# 2. Create venv
 python3 -m venv venv
-source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate    # Windows
-```
+source venv/bin/activate
 
-#### 3. Install Dependencies
-
-```bash
+# 3. Install deps
 pip install -r requirements.txt
-```
 
-#### 4. Set Up Google Cloud Project
-
-Follow [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed Google Cloud setup, or quick version:
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create new project → Enable Gmail API & Calendar API
-3. Create OAuth Desktop credentials → Download as `credentials.json`
-4. Move to `credentials/credentials.json`
-5. Run: `python setup_oauth.py` (opens browser for auth)
-
-#### 5. Configure Environment
-
-```bash
-cp .env.example .env
-# Edit .env and add your Fathom API key (optional)
-```
-
-#### 6. Configure Claude Desktop
-
-Edit your Claude Desktop config:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "gmail-calendar-fathom": {
-      "command": "/ABSOLUTE/PATH/TO/PROJECT/venv/bin/python3",
-      "args": ["/ABSOLUTE/PATH/TO/PROJECT/src/server.py"],
-      "env": {
-        "GMAIL_CREDENTIALS_PATH": "/ABSOLUTE/PATH/TO/PROJECT/credentials/credentials.json",
-        "GMAIL_TOKEN_PATH": "/ABSOLUTE/PATH/TO/PROJECT/credentials/token.json",
-        "GMAIL_OAUTH_SCOPES": "https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/calendar",
-        "FATHOM_API_KEY": "your_fathom_api_key_here"
-      }
-    }
-  }
-}
-```
-
-**Important:** Replace `/ABSOLUTE/PATH/TO/PROJECT` with your actual path (e.g., `/Users/yourname/gmail-reply-tracker-mcp`)
-
-#### 7. Restart Claude Desktop
-
-Quit and reopen Claude Desktop. You should see the MCP server connected!
-
-</details>
-
----
-
-## 🏗️ Project Structure
-
-```
-gmail-calendar-fathom/
-├── src/
-│   ├── server.py              # MCP server (26 tools)
-│   ├── gmail_client.py        # Gmail API wrapper
-│   ├── calendar_client.py     # Calendar API wrapper
-│   ├── fathom_client.py       # Fathom AI wrapper
-│   ├── email_analyzer.py      # Email intelligence
-│   ├── auth.py                # OAuth handler
-│   └── config.py              # Configuration
-├── credentials/               # OAuth files (gitignored)
-├── tests/                     # Unit tests
-├── QUICKSTART.sh              # Automated setup script
-├── MAC_SETUP.md               # Mac guide
-├── BEGINNER_SETUP.md          # Beginner guide
-├── requirements.txt           # Dependencies
-└── .env                       # Config (gitignored)
-```
-
----
-
-## 🔧 Troubleshooting
-
-<details>
-<summary><b>🔐 Authentication Issues</b></summary>
-
-**"Credentials file not found"**
-- Download `credentials.json` from Google Cloud Console
-- Place in `credentials/` directory
-
-**"Authentication failed" or "Permission denied"**
-```bash
-# Delete token and re-authenticate
-rm credentials/token.json
+# 4. Setup OAuth
+mkdir -p credentials
+# Download credentials.json from Google Cloud Console
+# Place in credentials/credentials.json
 python setup_oauth.py
+
+# 5. Configure Claude Desktop
+# Edit: ~/Library/Application Support/Claude/claude_desktop_config.json
+# Add MCP server config (see docs)
+
+# 6. Restart Claude Desktop
 ```
 
-**"Error 403: org_internal"**
-- OAuth consent screen must be set to **External** (not Internal)
-- Create NEW credentials after changing to External
-- See [SETUP_GUIDE.md](SETUP_GUIDE.md) for details
-
-</details>
-
-<details>
-<summary><b>🔌 Claude Desktop Connection Issues</b></summary>
-
-**Tools not appearing**
-1. Use **absolute paths** (not `./` or `~/`)
-2. Use venv python path: `/path/to/project/venv/bin/python3`
-3. Restart Claude Desktop (Quit completely and reopen)
-4. Check Claude logs for errors
-
-**Two Gmail sign-in windows on startup**
-- Tokens may be expired - run `python setup_oauth.py` to refresh
-- Check that each MCP instance uses unique token paths
-
-</details>
-
-<details>
-<summary><b>⚙️ Functionality Issues</b></summary>
-
-**Calendar invitations not sent**
-- Update to latest version: `git pull origin main`
-- Restart Claude Desktop
-
-**Calendar events at wrong time**
-- Update to latest version (includes auto timezone detection)
-- Restart Claude Desktop
-
-**Fathom tools not available**
-- Add `FATHOM_API_KEY` to `.env` file
-- Get API key from https://fathom.video Settings > API
-- Restart Claude Desktop
-
-**Rate limit errors**
-- Wait a few minutes
-- Reduce `max_results` in queries
-- Adjust `GMAIL_API_MAX_REQUESTS_PER_MINUTE` in `.env`
-
-</details>
+See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ---
 
-## 🔒 Security & Privacy
+## 🏆 What Makes This Special
 
-**What This Accesses:**
-- Gmail (read/write via `gmail.modify` scope)
-- Google Calendar (full access)
-- Fathom AI (read-only via API key)
+### 1. Production-Ready Architecture
 
-**Data Storage:**
-- OAuth tokens stored locally in `credentials/token.json`
-- No email data cached or stored
-- All processing happens locally
-- No third-party servers involved
+- Multi-tenant from day one
+- Session-based authentication
+- Proper error handling
+- Comprehensive logging
+- 41 unit tests
 
-**Best Practices:**
-- Never commit `credentials/` to git (automatically ignored)
-- Tokens have restrictive file permissions (600)
-- Revoke access anytime: [Google Account Security](https://myaccount.google.com/permissions)
+### 2. Amazing User Experience
 
----
+- One-command installation
+- Step-by-step progress indicators
+- Auto-detects and closes Claude Desktop
+- Friendly error messages with recovery steps
+- Password warnings before sudo prompts
+- OAuth flow with fallback instructions
 
-## 💡 FAQ
+### 3. Solved Hard Problems
 
-<details>
-<summary><b>Can I use this with multiple accounts?</b></summary>
+- **Railway Python bytecode caching** - Inlined logic to bypass cache
+- **Google OAuth scope validation** - Handles 'openid' scope addition
+- **Multi-tenant session management** - SQLite + encrypted tokens
+- **Timezone auto-detection** - No more UTC confusion
+- **Calendar invitations** - Actually sends emails to attendees
 
-Yes! Create separate directories for each account:
-```bash
-~/GetOnAPod_MCPs/account1/
-~/GetOnAPod_MCPs/account2/
-```
+### 4. Comprehensive Integration
 
-Each gets its own credentials and MCP server entry in Claude Desktop config. See [SETUP_GUIDE.md](SETUP_GUIDE.md) for multi-account setup.
-
-</details>
-
-<details>
-<summary><b>Works with Google Workspace?</b></summary>
-
-Yes! Just ensure your organization allows third-party OAuth apps.
-
-</details>
-
-<details>
-<summary><b>Can I customize email filtering?</b></summary>
-
-Yes! Edit `AUTOMATED_FROM_PATTERNS` in `src/email_analyzer.py` to add your own automation patterns.
-
-</details>
-
-<details>
-<summary><b>How do I share this with my team?</b></summary>
-
-Each person needs:
-1. Their own Google Cloud Project & credentials
-2. Clone this repo & run setup
-3. Configure their Claude Desktop
-
-</details>
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Slack integration
-- [ ] Email templates & quick replies
-- [ ] Advanced Fathom analytics
-- [ ] Smart scheduling suggestions
-- [ ] Email auto-categorization
-- [ ] Meeting prep summaries
+- 34 tools across 4 platforms
+- Lead management with 88 clients
+- Google Sheets as database
+- Campaign analytics
+- Interested lead tracking
 
 ---
 
 ## 📚 Documentation
 
-- **[Setup Guide](SETUP_GUIDE.md)** - Detailed Google Cloud setup
-- **[Mac Guide](MAC_SETUP.md)** - 10-step Mac setup (30 mins)
-- **[Beginner Guide](BEGINNER_SETUP.md)** - Zero-to-hero for non-coders
-- **[Gmail API Docs](https://developers.google.com/gmail/api)** - Official Gmail API reference
-- **[MCP Documentation](https://modelcontextprotocol.io/)** - Model Context Protocol
+- **[Railway Setup Guide](RAILWAY_SETUP.md)** - Multi-tenant deployment
+- **[Setup Guide](SETUP_GUIDE.md)** - Manual installation
+- **[Testing Guide](TESTING.md)** - Running tests
+- **[Contributing Guide](CONTRIBUTING.md)** - For contributors
+
+---
+
+## 🔒 Security & Privacy
+
+### Multi-Tenant Model
+- OAuth tokens encrypted in SQLite
+- Session-based authentication
+- No credentials.json distribution
+- Server-side token management
+
+### Local Model
+- OAuth tokens stored locally
+- File permissions set to 600
+- No third-party servers
+- All processing local
+
+### Best Practices
+- Never commit credentials
+- Revoke access anytime: [Google Account](https://myaccount.google.com/permissions)
+- Regular security audits
+- Minimal scope requests
+
+---
+
+## 🚀 Roadmap
+
+- [ ] Slack integration (10+ tools)
+- [ ] Email templates & quick replies
+- [ ] Advanced Fathom analytics
+- [ ] Smart scheduling suggestions
+- [ ] Email auto-categorization
+- [ ] Meeting prep summaries
+- [ ] Multi-language support
+- [ ] Mobile OAuth flow
+
+---
+
+## 📝 Changelog
+
+**v2.0.0** (December 2024)
+- 🎉 **Major**: Multi-tenant Railway deployment
+- 🎉 **Major**: Lead management integration (8 tools)
+- ✨ One-command installation with beautiful UX
+- ✨ 88 clients tracked (64 Instantly + 24 Bison)
+- ✨ Enhanced OAuth flow
+- ✨ Auto-detect and close Claude Desktop
+- ✨ Step-by-step progress indicators
+- ✨ Friendly error messages
+- 🐛 Fixed Railway Python bytecode caching
+- 🐛 Fixed Google OAuth scope validation
+- 📦 Expanded from 26 to 34 tools
+
+**v1.2.0** (December 2024)
+- ✨ Automatic timezone detection
+- ✨ Calendar invitations sent automatically
+- 🐛 Fixed multiple authentication bugs
+
+**v1.0.0** (December 2024)
+- 🎉 Initial release
+- ✨ Gmail + Calendar + Fathom
 
 ---
 
 ## 🤝 Contributing
 
 Contributions welcome! Please:
+
 1. Fork the repository
-2. Create a feature branch
+2. Create feature branch: `git checkout -b feature/amazing`
 3. Add tests for new functionality
-4. Submit a pull request
+4. Ensure tests pass: `pytest`
+5. Submit pull request
 
-Run tests: `pytest`
-
----
-
-## 📝 Changelog
-
-**v1.2.0** (December 2024)
-- ✨ Automatic timezone detection
-- ✨ Calendar invitations sent automatically
-- 🐛 Fixed multiple authentication bugs
-- 📚 Added QUICKSTART.sh script
-
-**v1.1.0** (December 2024)
-- ✨ Fathom AI integration (6 new tools)
-- ✨ Cross-platform search
-
-**v1.0.0** (December 2024)
-- 🎉 Initial release
-- ✨ Gmail reply tracking
-- ✨ Calendar management
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
 ## 📜 License
 
-MIT License - See [LICENSE](LICENSE) for details
+MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+Built with:
+- [Model Context Protocol](https://modelcontextprotocol.io/) - MCP framework
+- [Gmail API](https://developers.google.com/gmail/api) - Email integration
+- [Google Calendar API](https://developers.google.com/calendar) - Calendar integration
+- [Fathom AI API](https://fathom.video) - Meeting intelligence
+- [Railway](https://railway.app) - Multi-tenant hosting
 
 ---
 
 <div align="center">
 
-**Built with [Model Context Protocol](https://modelcontextprotocol.io/)**
-
-Powered by [Claude](https://claude.ai) • Uses [Gmail API](https://developers.google.com/gmail/api) & [Google Calendar API](https://developers.google.com/calendar)
+**Production-ready multi-tenant MCP server with 34 tools**
 
 ⭐ Star this repo if you found it helpful!
 
-[Report Bug](https://github.com/jonathangetonapod/gmail-reply-tracker-mcp/issues) • [Request Feature](https://github.com/jonathangetonapod/gmail-reply-tracker-mcp/issues)
+[Report Bug](https://github.com/jonathangetonapod/gmail-reply-tracker-mcp/issues) • [Request Feature](https://github.com/jonathangetonapod/gmail-reply-tracker-mcp/issues) • [Documentation](https://github.com/jonathangetonapod/gmail-reply-tracker-mcp/wiki)
+
+Made with ❤️ by the GetOnAPod team
 
 </div>
