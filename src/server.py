@@ -1143,12 +1143,19 @@ async def send_email(
     body: str,
     cc: str = None,
     bcc: str = None,
+    force_new_thread: bool = False,
     confirm: bool = False
 ) -> str:
     """
-    Send a new email. Requires confirmation before sending.
+    Send a NEW email (creates a new conversation thread).
 
-    This tool will show you a preview first. Reply with confirmation to actually send.
+    ⚠️ IMPORTANT: This creates a NEW thread. To REPLY to existing emails, use reply_to_email instead!
+
+    This tool will:
+    1. Check if you have existing conversations with this recipient
+    2. Suggest using reply_to_email if threads exist
+    3. Show preview before sending
+    4. Require confirmation to actually send
 
     Args:
         to: Recipient email address
@@ -1156,13 +1163,71 @@ async def send_email(
         body: Email body (plain text)
         cc: CC recipients (comma-separated, optional)
         bcc: BCC recipients (comma-separated, optional)
+        force_new_thread: Set True to skip existing thread check and force new thread
         confirm: Set to True to actually send (after previewing)
 
     Returns:
-        JSON string with preview or sent message confirmation
+        JSON string with preview, existing thread suggestions, or sent message confirmation
     """
     try:
         initialize_clients()
+
+        # Check for existing threads with this recipient (unless forcing new thread)
+        if not force_new_thread and not confirm:
+            logger.info("Checking for existing threads with: %s", to)
+
+            # Extract email address from "Name <email>" format
+            recipient_email = to
+            if '<' in to and '>' in to:
+                recipient_email = to[to.index('<')+1:to.index('>')]
+
+            # Search for existing conversations
+            search_query = f"(to:{recipient_email} OR from:{recipient_email})"
+            try:
+                message_infos = gmail_client.search_messages(search_query, max_results=5)
+
+                if message_infos:
+                    # Found existing threads - suggest using reply_to_email
+                    existing_threads = []
+                    seen_threads = set()
+
+                    for msg in message_infos:
+                        thread_id = msg.get('threadId')
+                        if thread_id not in seen_threads:
+                            seen_threads.add(thread_id)
+
+                            # Get thread details
+                            headers = email_analyzer.parse_headers(
+                                msg.get('payload', {}).get('headers', [])
+                            )
+
+                            existing_threads.append({
+                                "thread_id": thread_id,
+                                "subject": headers.get('Subject', 'No subject'),
+                                "from": headers.get('From', ''),
+                                "date": headers.get('Date', ''),
+                                "snippet": msg.get('snippet', '')[:100]
+                            })
+
+                            if len(existing_threads) >= 3:
+                                break
+
+                    if existing_threads:
+                        return json.dumps({
+                            "success": False,
+                            "warning": "EXISTING_CONVERSATIONS_FOUND",
+                            "message": f"Found {len(message_infos)} existing email(s) with {to}. Are you trying to REPLY?",
+                            "suggestion": "Use reply_to_email instead of send_email to continue an existing conversation.",
+                            "existing_threads": existing_threads,
+                            "options": {
+                                "to_reply": "Use reply_to_email with one of the thread_ids above",
+                                "force_new": "If you really want a NEW conversation, call send_email again with force_new_thread=True"
+                            }
+                        }, indent=2)
+
+            except Exception as search_error:
+                # If search fails, continue with sending (don't block on search errors)
+                logger.warning("Thread search failed, continuing: %s", search_error)
 
         # If not confirmed, return preview
         if not confirm:
@@ -1171,7 +1236,7 @@ async def send_email(
                 "to": to,
                 "subject": subject,
                 "body": body,
-                "message": "Email NOT sent yet. Review the details above. To send, confirm with the user first."
+                "message": "Email NOT sent yet. This will create a NEW thread. Review and confirm."
             }
 
             if cc:
@@ -1186,7 +1251,7 @@ async def send_email(
             }, indent=2)
 
         # Confirmed - send the email
-        logger.info("Sending email to: %s, subject: %s", to, subject)
+        logger.info("Sending NEW email to: %s, subject: %s", to, subject)
 
         sent_message = gmail_client.send_message(
             to=to,
@@ -1228,12 +1293,20 @@ async def reply_to_email(
     confirm: bool = False
 ) -> str:
     """
-    Reply to an email thread. Requires confirmation before sending.
+    Reply to an EXISTING email thread (continues the conversation).
 
-    This tool will show you a preview first. Reply with confirmation to actually send.
+    ✅ USE THIS to reply to existing emails - keeps them in the same thread!
+    ❌ DO NOT use send_email for replies - that creates a new thread
+
+    This tool:
+    - Automatically adds "Re:" to subject
+    - Sets proper threading headers (In-Reply-To, References)
+    - Maintains thread continuity in Gmail
+    - Shows preview before sending
+    - Requires confirmation to send
 
     Args:
-        thread_id: Gmail thread ID to reply to
+        thread_id: Gmail thread ID to reply to (from search results or get_thread)
         body: Reply body (plain text)
         confirm: Set to True to actually send (after previewing)
 
@@ -1277,6 +1350,11 @@ async def reply_to_email(
         message_id = headers.get('Message-ID', '')
         references = headers.get('References', '')
 
+        # Safety check: If Message-ID is missing, use last message's ID as fallback
+        if not message_id:
+            logger.warning("Message-ID header missing, using message ID as fallback")
+            message_id = f"<{last_message['id']}@mail.gmail.com>"
+
         # Get user email to exclude from CC
         user_email = gmail_client.get_user_email()
 
@@ -1305,11 +1383,13 @@ async def reply_to_email(
         if not subject.startswith('Re:'):
             subject = f"Re: {subject}"
 
-        # Build references header
-        if references:
+        # Build references header for proper threading
+        if references and message_id:
             new_references = f"{references} {message_id}"
-        else:
+        elif message_id:
             new_references = message_id
+        else:
+            new_references = None
 
         # If not confirmed, return preview
         if not confirm:
