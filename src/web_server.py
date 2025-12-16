@@ -356,7 +356,7 @@ class WebServer:
                 user_info = service.userinfo().get().execute()
                 email = user_info.get('email')
 
-                # Store credentials token in database
+                # Store credentials token temporarily for Fathom setup
                 token_dict = {
                     'token': credentials.token,
                     'refresh_token': credentials.refresh_token,
@@ -365,6 +365,12 @@ class WebServer:
                     'client_secret': credentials.client_secret,
                     'scopes': credentials.scopes,
                     'expiry': credentials.expiry.isoformat() if credentials.expiry else None
+                }
+
+                # Store temporarily in oauth_states with email as key
+                self.oauth_states[email] = {
+                    'credentials': token_dict,
+                    'timestamp': datetime.now()
                 }
 
                 # Clean up state
@@ -386,15 +392,30 @@ class WebServer:
             if not email:
                 return "<h1>Error</h1><p>Email missing</p>", 400
 
-            # Get state from OAuth flow
-            # In production, we'd store this more securely
-            state = request.args.get('state')
-
             # Retrieve stored credentials
-            # For now, we'll need to refactor to pass credentials through
-            # This is a simplified version
+            if email not in self.oauth_states:
+                return "<h1>Error</h1><p>Session expired. Please start setup again.</p>", 400
 
-            return "<h1>Configuration needed</h1><p>This endpoint needs refactoring to properly pass credentials</p>", 500
+            creds_data = self.oauth_states[email]
+            token_dict = creds_data['credentials']
+
+            try:
+                # Save to database
+                user_token = self.database.save_user(
+                    email=email,
+                    token_data=token_dict,
+                    fathom_key=fathom_key if fathom_key else None
+                )
+
+                # Clean up temporary storage
+                del self.oauth_states[email]
+
+                # Show success with token
+                return render_template_string(SUCCESS_HTML, email=email, token=user_token)
+
+            except Exception as e:
+                logger.error("Failed to save user: %s", str(e))
+                return f"<h1>Error</h1><p>Failed to save configuration: {str(e)}</p>", 500
 
         @self.app.route('/setup/skip', methods=['POST'])
         def setup_skip():
@@ -404,8 +425,30 @@ class WebServer:
             if not email:
                 return "<h1>Error</h1><p>Email missing</p>", 400
 
-            # Complete setup without Fathom
-            return "<h1>Configuration needed</h1><p>This endpoint needs refactoring to properly pass credentials</p>", 500
+            # Retrieve stored credentials
+            if email not in self.oauth_states:
+                return "<h1>Error</h1><p>Session expired. Please start setup again.</p>", 400
+
+            creds_data = self.oauth_states[email]
+            token_dict = creds_data['credentials']
+
+            try:
+                # Save to database without Fathom key
+                user_token = self.database.save_user(
+                    email=email,
+                    token_data=token_dict,
+                    fathom_key=None
+                )
+
+                # Clean up temporary storage
+                del self.oauth_states[email]
+
+                # Show success with token
+                return render_template_string(SUCCESS_HTML, email=email, token=user_token)
+
+            except Exception as e:
+                logger.error("Failed to save user: %s", str(e))
+                return f"<h1>Error</h1><p>Failed to save configuration: {str(e)}</p>", 500
 
         @self.app.route('/admin/users')
         def admin_users():
