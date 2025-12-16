@@ -411,7 +411,30 @@ class WebServer:
                 del self.oauth_states[email]
 
                 # Show success with token
-                return render_template_string(SUCCESS_HTML, email=email, token=user_data['session_token'])
+                session_token = user_data['session_token']
+                config_json = json.dumps({
+                    "mcpServers": {
+                        "gmail-railway": {
+                            "command": "npx",
+                            "args": [
+                                "-y",
+                                "@modelcontextprotocol/server-fetch",
+                                f"{self.redirect_uri.rsplit('/', 2)[0]}/mcp",
+                                "--header",
+                                f"Authorization: Bearer {session_token}"
+                            ]
+                        }
+                    }
+                }, indent=2)
+
+                return render_template_string(
+                    SUCCESS_HTML,
+                    email=email,
+                    token=session_token,
+                    server_url=self.redirect_uri.rsplit('/', 2)[0],
+                    has_fathom=bool(fathom_key),
+                    config_json=config_json
+                )
 
             except Exception as e:
                 logger.error("Failed to save user: %s", str(e))
@@ -444,7 +467,30 @@ class WebServer:
                 del self.oauth_states[email]
 
                 # Show success with token
-                return render_template_string(SUCCESS_HTML, email=email, token=user_data['session_token'])
+                session_token = user_data['session_token']
+                config_json = json.dumps({
+                    "mcpServers": {
+                        "gmail-railway": {
+                            "command": "npx",
+                            "args": [
+                                "-y",
+                                "@modelcontextprotocol/server-fetch",
+                                f"{self.redirect_uri.rsplit('/', 2)[0]}/mcp",
+                                "--header",
+                                f"Authorization: Bearer {session_token}"
+                            ]
+                        }
+                    }
+                }, indent=2)
+
+                return render_template_string(
+                    SUCCESS_HTML,
+                    email=email,
+                    token=session_token,
+                    server_url=self.redirect_uri.rsplit('/', 2)[0],
+                    has_fathom=False,  # Skip endpoint means no Fathom
+                    config_json=config_json
+                )
 
             except Exception as e:
                 logger.error("Failed to save user: %s", str(e))
