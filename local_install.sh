@@ -26,7 +26,7 @@ USER_EMAIL="$1"
 FATHOM_API_KEY="$2"
 
 # Progress tracking
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 CURRENT_STEP=0
 
 # Functions
