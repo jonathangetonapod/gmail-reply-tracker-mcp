@@ -1771,18 +1771,30 @@ class MCPHandler:
                 config.lead_sheets_gid_bison
             )
 
-            # Find workspace by client name
+            # Find workspace by client name using fuzzy matching
+            from rapidfuzz import fuzz, process
+
             workspace = None
-            search_term = client_name.lower()
-            for ws in workspaces:
-                if search_term in ws["client_name"].lower():
-                    workspace = ws
-                    break
+            if workspaces:
+                client_names = [ws["client_name"] for ws in workspaces]
+                result = process.extractOne(
+                    client_name,
+                    client_names,
+                    scorer=fuzz.WRatio,
+                    score_cutoff=60
+                )
+
+                if result:
+                    matched_name, score, index = result
+                    workspace = workspaces[index]
+                    logger.info("Matched '%s' to '%s' (score: %d%%)", client_name, matched_name, score)
+                else:
+                    logger.warning("No match found for '%s'", client_name)
 
             if not workspace:
                 return json.dumps({
                     "success": False,
-                    "error": f"Client '{client_name}' not found"
+                    "error": f"Client '{client_name}' not found. Available clients: {', '.join([ws['client_name'] for ws in workspaces[:5]])}..."
                 }, indent=2)
 
             # Get or create campaign
@@ -1867,18 +1879,30 @@ class MCPHandler:
                 config.lead_sheets_gid_instantly
             )
 
-            # Find workspace by client name
+            # Find workspace by client name using fuzzy matching
+            from rapidfuzz import fuzz, process
+
             workspace = None
-            search_term = client_name.lower()
-            for ws in workspaces:
-                if search_term in ws["client_name"].lower():
-                    workspace = ws
-                    break
+            if workspaces:
+                client_names = [ws["client_name"] for ws in workspaces]
+                result = process.extractOne(
+                    client_name,
+                    client_names,
+                    scorer=fuzz.WRatio,
+                    score_cutoff=60
+                )
+
+                if result:
+                    matched_name, score, index = result
+                    workspace = workspaces[index]
+                    logger.info("Matched '%s' to '%s' (score: %d%%)", client_name, matched_name, score)
+                else:
+                    logger.warning("No match found for '%s'", client_name)
 
             if not workspace:
                 return json.dumps({
                     "success": False,
-                    "error": f"Client '{client_name}' not found"
+                    "error": f"Client '{client_name}' not found. Available clients: {', '.join([ws['client_name'] for ws in workspaces[:5]])}..."
                 }, indent=2)
 
             # Create the campaign with sequences

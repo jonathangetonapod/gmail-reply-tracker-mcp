@@ -2768,18 +2768,34 @@ async def create_bison_sequence(
             config.lead_sheets_gid_bison
         )
 
-        # Find workspace by client name
+        # Find workspace by client name using fuzzy matching
+        from rapidfuzz import fuzz, process
+
         workspace = None
-        search_term = client_name.lower()
-        for ws in workspaces:
-            if search_term in ws["client_name"].lower():
-                workspace = ws
-                break
+        if workspaces:
+            # Get all client names
+            client_names = [ws["client_name"] for ws in workspaces]
+
+            # Find best match using fuzzy matching
+            # extractOne returns (match, score, index)
+            result = process.extractOne(
+                client_name,
+                client_names,
+                scorer=fuzz.WRatio,  # Weighted ratio for better matching
+                score_cutoff=60  # Minimum 60% similarity
+            )
+
+            if result:
+                matched_name, score, index = result
+                workspace = workspaces[index]
+                logger.info("Matched '%s' to '%s' (score: %d%%)", client_name, matched_name, score)
+            else:
+                logger.warning("No match found for '%s' (tried %d clients)", client_name, len(workspaces))
 
         if not workspace:
             return json.dumps({
                 "success": False,
-                "error": f"Client '{client_name}' not found in Bison clients list"
+                "error": f"Client '{client_name}' not found in Bison clients list. Available clients: {', '.join([ws['client_name'] for ws in workspaces[:5]])}..."
             }, indent=2)
 
         # Get or create campaign
@@ -2911,18 +2927,33 @@ async def create_instantly_campaign(
             config.lead_sheets_gid_instantly
         )
 
-        # Find workspace by client name
+        # Find workspace by client name using fuzzy matching
+        from rapidfuzz import fuzz, process
+
         workspace = None
-        search_term = client_name.lower()
-        for ws in workspaces:
-            if search_term in ws["client_name"].lower():
-                workspace = ws
-                break
+        if workspaces:
+            # Get all client names
+            client_names = [ws["client_name"] for ws in workspaces]
+
+            # Find best match using fuzzy matching
+            result = process.extractOne(
+                client_name,
+                client_names,
+                scorer=fuzz.WRatio,
+                score_cutoff=60  # Minimum 60% similarity
+            )
+
+            if result:
+                matched_name, score, index = result
+                workspace = workspaces[index]
+                logger.info("Matched '%s' to '%s' (score: %d%%)", client_name, matched_name, score)
+            else:
+                logger.warning("No match found for '%s' (tried %d clients)", client_name, len(workspaces))
 
         if not workspace:
             return json.dumps({
                 "success": False,
-                "error": f"Client '{client_name}' not found in Instantly clients list"
+                "error": f"Client '{client_name}' not found in Instantly clients list. Available clients: {', '.join([ws['client_name'] for ws in workspaces[:5]])}..."
             }, indent=2)
 
         # Convert placeholders to Instantly format: {FIRST_NAME} → {{first_name}}
