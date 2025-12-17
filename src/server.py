@@ -3091,6 +3091,97 @@ async def create_instantly_campaign(
         }, indent=2)
 
 
+@mcp.tool()
+async def check_campaign_spam(
+    client_name: str = None,
+    platform: str = "bison",
+    status: str = "active"
+) -> str:
+    """
+    Check active campaigns for spam content using EmailGuard API.
+
+    Scans all email sequences (subject lines and bodies) from Bison or Instantly campaigns
+    and identifies spam words, spam scores, and potential deliverability issues.
+
+    Args:
+        client_name: Optional specific client to check (uses fuzzy matching). If not provided, checks all clients.
+        platform: Platform to check - "bison" or "instantly" (default: "bison")
+        status: Campaign status to filter - "active", "launching", etc. (default: "active")
+
+    Returns:
+        JSON string with spam analysis:
+        - total_clients: Number of clients checked
+        - total_campaigns: Number of campaigns checked
+        - spam_campaigns: Number of campaigns with spam issues
+        - clients: Array of client results with campaigns and spam details
+
+    Example Usage:
+        - "Check spam for all active Bison campaigns"
+        - "Check spam for Michael Hernandez's campaigns"
+        - "Scan Brian Bliss's active campaigns for spam words"
+    """
+    try:
+        # Get EmailGuard API key from environment
+        emailguard_key = os.environ.get('EMAILGUARD_API_KEY')
+        if not emailguard_key:
+            return json.dumps({
+                "success": False,
+                "error": "EmailGuard API key not configured. Please set EMAILGUARD_API_KEY environment variable."
+            }, indent=2)
+
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        from leads import spam_checker
+
+        logger.info("Checking campaign spam for platform: %s, status: %s, client: %s",
+                   platform, status, client_name or "all")
+
+        # Currently only Bison is implemented
+        if platform.lower() == "bison":
+            results = await asyncio.to_thread(
+                spam_checker.check_all_bison_campaigns_spam,
+                emailguard_key,
+                status=status,
+                client_name=client_name
+            )
+        else:
+            return json.dumps({
+                "success": False,
+                "error": f"Platform '{platform}' not yet supported. Currently only 'bison' is available."
+            }, indent=2)
+
+        # Add summary
+        response = {
+            "success": True,
+            "platform": platform,
+            "status_filter": status,
+            "summary": {
+                "total_clients": results["total_clients"],
+                "total_campaigns": results["total_campaigns"],
+                "spam_campaigns": results["spam_campaigns"],
+                "clean_campaigns": results["total_campaigns"] - results["spam_campaigns"]
+            },
+            "results": results
+        }
+
+        logger.info("Spam check complete: %d campaigns checked, %d with spam issues",
+                   results["total_campaigns"], results["spam_campaigns"])
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in check_campaign_spam: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
 def main():
     """Main entry point for MCP server."""
     try:

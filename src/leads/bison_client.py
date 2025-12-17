@@ -4,6 +4,7 @@ Bison/LeadGenJay API wrapper functions.
 
 import requests
 from datetime import datetime
+from typing import Optional, List
 
 
 def get_bison_lead_replies(api_key: str, status: str = "interested", folder: str = "all"):
@@ -313,6 +314,93 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
         print(f"[DEBUG] Response Status: {response.status_code}")
         print(f"[DEBUG] Response Body: {response.text}")
 
+    response.raise_for_status()
+
+    return response.json()
+
+def list_bison_campaigns(
+    api_key: str,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    tag_ids: Optional[List[int]] = None
+):
+    """
+    List all campaigns from Bison API.
+
+    Args:
+        api_key: Bison API key
+        status: Filter by status (e.g., "active", "launching", "draft")
+        search: Search term to filter campaigns
+        tag_ids: List of tag IDs to filter by
+
+    Returns:
+        {
+            "data": [
+                {
+                    "id": int,
+                    "uuid": str,
+                    "name": str,
+                    "type": str,
+                    "status": str,
+                    "emails_sent": int,
+                    "opened": int,
+                    ...
+                }
+            ]
+        }
+    """
+    url = "https://send.leadgenjay.com/api/campaigns"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {}
+    if search is not None:
+        payload["search"] = search
+    if status is not None:
+        payload["status"] = status
+    if tag_ids is not None:
+        payload["tag_ids"] = tag_ids
+
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def get_bison_campaign_sequences(api_key: str, campaign_id: int):
+    """
+    Get campaign sequence steps from Bison API.
+
+    Args:
+        api_key: Bison API key
+        campaign_id: Campaign ID
+
+    Returns:
+        {
+            "data": {
+                "sequence_id": int,
+                "sequence_steps": [
+                    {
+                        "id": int,
+                        "email_subject": str,
+                        "order": str,
+                        "email_body": str,
+                        "wait_in_days": str,
+                        "variant": bool,
+                        "variant_from_step_id": int or None,
+                        "attachments": list,
+                        "thread_reply": bool
+                    }
+                ]
+            }
+        }
+    """
+    url = f"https://send.leadgenjay.com/api/campaigns/v1.1/{campaign_id}/sequence-steps"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    response = requests.get(url, headers=headers, timeout=30)
     response.raise_for_status()
 
     return response.json()
