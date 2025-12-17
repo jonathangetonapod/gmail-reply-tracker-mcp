@@ -2894,7 +2894,8 @@ async def create_instantly_campaign(
         campaign_name: Campaign name (e.g., 'Speaker Outreach 2025')
         steps: Array of email sequence steps (1-3 steps typically). Each step should have:
             - subject: Email subject line
-            - body: Email body content
+            - body: Email body content. IMPORTANT: Use \\n for line breaks between paragraphs.
+              Example: "Hey {{first_name}},\\n\\nI noticed...\\n\\nBest,\\nMike"
             - wait: Hours to wait before sending (for follow-ups, first email is 0)
             - variants: Optional array of A/B test variants, each with subject and body
         email_accounts: List of email addresses to send from (optional)
@@ -2956,8 +2957,31 @@ async def create_instantly_campaign(
                 "error": f"Client '{client_name}' not found in Instantly clients list. Available clients: {', '.join([ws['client_name'] for ws in workspaces[:5]])}..."
             }, indent=2)
 
+        # Auto-format email bodies that are missing line breaks
+        def auto_format_email_body(body: str) -> str:
+            """Add line breaks to email body if missing."""
+            if not body or '\n' in body:
+                # Already has newlines, don't modify
+                return body
+
+            import re
+
+            # Add double newline before common email closings
+            closings = ['Best,', 'Thanks,', 'Regards,', 'Sincerely,', 'Cheers,']
+            for closing in closings:
+                body = body.replace(f' {closing}', f'\n\n{closing}')
+
+            # Add double newline after sentence endings followed by capital letter
+            # This catches paragraph breaks like: "...referrals. Asking because..."
+            body = re.sub(r'([.!?]) ([A-Z])', r'\1\n\n\2', body)
+
+            return body
+
         # Convert placeholders to Instantly format: {FIRST_NAME} → {{first_name}}
         for step in steps:
+            # Auto-format body if needed
+            if 'body' in step:
+                step['body'] = auto_format_email_body(step['body'])
             if 'subject' in step:
                 original = step['subject']
                 step['subject'] = convert_to_instantly_placeholders(step['subject'])
