@@ -2275,6 +2275,111 @@ async def get_instantly_workspace(workspace_id: str) -> str:
 
 
 @mcp.tool()
+async def get_all_clients_with_positive_replies(
+    days: int = 7,
+    platform: str = "all"
+) -> str:
+    """
+    FAST: Get ALL clients with positive replies across platforms using parallel processing.
+
+    This tool is OPTIMIZED for speed - it fetches data from all 88+ clients simultaneously
+    instead of checking them one by one. Perfect for queries like "which clients had positive
+    replies this week?"
+
+    Args:
+        days: Number of days to look back (default: 7)
+        platform: Which platform to check - "all", "instantly", or "bison" (default: "all")
+
+    Returns:
+        JSON with list of clients that have positive replies, sorted by reply count
+    """
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from leads.lead_functions import get_lead_responses
+        from leads.sheets_client import load_workspaces_from_sheet, load_bison_workspaces_from_sheet
+
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching positive replies for all clients (days=%d, platform=%s)...", days, platform)
+
+        clients_with_replies = []
+
+        # Helper function to fetch leads for a single workspace
+        def fetch_workspace_leads(workspace, platform_name, gid):
+            try:
+                workspace_id = workspace.get("workspace_id") or workspace.get("client_name")
+                result = get_lead_responses(
+                    sheet_url=config.lead_sheets_url,
+                    gid=gid,
+                    workspace_id=workspace_id,
+                    days=days
+                )
+
+                total_leads = result.get("total_leads", 0)
+                if total_leads > 0:
+                    return {
+                        "client_name": workspace.get("client_name", workspace_id),
+                        "platform": platform_name,
+                        "total_replies": total_leads,
+                        "leads": result.get("leads", [])[:5]  # First 5 leads as preview
+                    }
+            except Exception as e:
+                logger.debug(f"Error fetching leads for {workspace.get('client_name', 'unknown')}: {e}")
+            return None
+
+        # PARALLEL PROCESSING: Fetch all clients simultaneously
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = []
+
+            # Queue Instantly clients
+            if platform in ["all", "instantly"]:
+                instantly_workspaces = load_workspaces_from_sheet(config.lead_sheets_url, gid=config.lead_sheets_gid_instantly)
+                for ws in instantly_workspaces:
+                    futures.append(executor.submit(fetch_workspace_leads, ws, "instantly", config.lead_sheets_gid_instantly))
+
+            # Queue Bison clients
+            if platform in ["all", "bison"]:
+                bison_workspaces = load_bison_workspaces_from_sheet(config.lead_sheets_url, gid=config.lead_sheets_gid_bison)
+                for ws in bison_workspaces:
+                    futures.append(executor.submit(fetch_workspace_leads, ws, "bison", config.lead_sheets_gid_bison))
+
+            # Collect results as they complete
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    clients_with_replies.append(result)
+
+        # Sort by number of replies (descending)
+        clients_with_replies.sort(key=lambda x: x["total_replies"], reverse=True)
+
+        total_replies = sum(c["total_replies"] for c in clients_with_replies)
+
+        logger.info("Found %d clients with positive replies (total: %d replies)",
+                   len(clients_with_replies), total_replies)
+
+        return json.dumps({
+            "success": True,
+            "period": f"Last {days} days",
+            "platform": platform,
+            "total_clients_with_replies": len(clients_with_replies),
+            "total_positive_replies": total_replies,
+            "clients": clients_with_replies
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_all_clients_with_positive_replies: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def get_bison_clients() -> str:
     """
     Get list of all Bison clients.
