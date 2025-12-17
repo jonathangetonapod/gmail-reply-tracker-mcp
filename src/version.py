@@ -2,11 +2,50 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.4.0"
-RELEASE_DATE = "2024-12-17"
+VERSION = "2.4.1"
+RELEASE_DATE = "2025-12-17"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.4.1": {
+        "date": "December 17, 2025",
+        "title": "Critical Bug Fixes",
+        "highlights": [
+            {
+                "icon": "🔧",
+                "category": "Bug Fix",
+                "title": "Fixed Instantly Lead Fetching",
+                "description": "Resolved MCP JSON-RPC protocol errors preventing lead data retrieval",
+                "details": "Removed print() statements from _source_fetch_interested_leads.py that were breaking the MCP JSON-RPC protocol and causing 'technical difficulties' errors when fetching Instantly lead responses.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔧",
+                "category": "Bug Fix",
+                "title": "Fixed Instantly API Parameter Error",
+                "description": "Resolved 'unexpected parameter' error in campaign statistics",
+                "details": "Added missing gid parameter to get_lead_responses() and get_campaign_stats() functions. These functions were being called with a gid parameter from server.py but weren't accepting it, causing API failures.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔧",
+                "category": "Bug Fix",
+                "title": "Fixed OAuth Port Conflicts",
+                "description": "OAuth now automatically finds available ports instead of crashing",
+                "details": "Added automatic port detection to auto_oauth.py that tries ports 8080-8089 until finding a free one. Fixes 'Address already in use' errors when port 8080 is occupied by another process. Also added fix_port_issue.sh helper script.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Removed 5 print() statements from src/leads/_source_fetch_interested_leads.py",
+            "Added gid parameter to get_lead_responses() in lead_functions.py",
+            "Added gid parameter to get_campaign_stats() in lead_functions.py",
+            "Added find_free_port() function to auto_oauth.py that scans ports 8080-8089",
+            "Created fix_port_issue.sh helper script to manually clear port 8080",
+            "OAuth now displays 'Found available port: XXXX' message",
+        ],
+    },
     "2.4.0": {
         "date": "December 17, 2024",
         "title": "Spam Detection & Enhanced Testing",
