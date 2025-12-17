@@ -349,7 +349,7 @@ def list_instantly_campaigns(api_key: str, status: int = None):
             }
         ]
     """
-    url = "https://api.instantly.ai/api/v2/campaigns/list"
+    url = "https://api.instantly.ai/api/v2/campaigns"
     headers = {"Authorization": f"Bearer {api_key}"}
 
     params = {}
@@ -361,8 +361,10 @@ def list_instantly_campaigns(api_key: str, status: int = None):
 
     data = response.json()
 
-    # Handle different response structures
-    if isinstance(data, list):
+    # Handle different response structures (V2 API returns {"items": [...], "next_starting_after": ...})
+    if isinstance(data, dict) and "items" in data:
+        return data["items"]
+    elif isinstance(data, list):
         return data
     elif isinstance(data, dict) and "data" in data:
         return data["data"]
