@@ -6,23 +6,35 @@ The `create_bison_sequence` tool automates uploading email sequences to Bison ca
 
 ## How to Use in Claude
 
-Simply tell Claude to create a sequence for a Bison client. Claude will use the `create_bison_sequence` tool automatically.
+Simply tell Claude to create a sequence for a Bison client. Claude will ask to confirm the campaign name before creating it.
 
 ### Example Prompts
 
 **From formatted copy docs:**
 ```
-"Upload the Validation Fatigue campaign to Jeff Mikolai's Bison campaign 42"
+"Upload these speaker outreach sequences to Michael Hernandez"
 
 [Then paste your copy doc]
 ```
 
+Claude will ask:
+- "I see 3 variations. Should I upload these as separate sequences or as a 3-step sequence?"
+- "What should I name the campaign? (default: 'Speaker Outreach')"
+
 **From simple instructions:**
 ```
-"Create a 3-step cold outreach sequence for Jeff Mikolai's campaign ID 42"
-
-"Add a new sequence titled 'Q1 2025 Outreach' to Derek Hobbs' campaign 8"
+"Create a 3-step cold outreach sequence for Jeff Mikolai"
+"Add sequences to Derek Hobbs' existing campaign 42"
 ```
+
+### Important: A/B/C Variations
+
+If you have multiple versions of Email 1 (like Version A, B, C), Claude will:
+1. Ask how you want to handle them
+2. Options:
+   - **Separate campaigns:** Each variation gets its own campaign (best for true A/B testing)
+   - **3-step sequence:** Upload as Email 1, 2, 3 (not recommended for variations)
+   - **Pick one:** Choose which version to upload
 
 ## Working with Your Copy Docs
 

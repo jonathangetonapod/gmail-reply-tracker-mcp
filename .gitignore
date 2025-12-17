@@ -66,3 +66,4 @@ dmypy.json
 
 # pyenv
 .python-version
+test_*.py
