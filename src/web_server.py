@@ -324,9 +324,12 @@ SETUP_LANDING_HTML = """
         <h1>Gmail & Calendar Setup</h1>
         <p class="subtitle">Connect Claude to your Gmail and Google Calendar</p>
 
-        <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 30px;">
+        <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap;">
             <button class="info-button" onclick="openModal()">
                 ℹ️ How This Works & Example Prompts
+            </button>
+            <button class="info-button" onclick="openPrivacyModal()" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+                🔒 Privacy & Who Can See What
             </button>
             <button class="info-button" onclick="openTroubleshootingModal()" style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);">
                 🔧 Troubleshooting Guide
@@ -711,6 +714,189 @@ SETUP_LANDING_HTML = """
         </div>
     </div>
 
+    <!-- Privacy Modal -->
+    <div id="privacyModal" class="modal" onclick="closePrivacyModalOnClickOutside(event)">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);">
+                <span class="close" onclick="closePrivacyModal()">&times;</span>
+                <h2>🔒 Privacy & Who Can See What</h2>
+                <p style="margin: 8px 0 0 0; opacity: 0.95;">Crystal clear breakdown of data access and security</p>
+            </div>
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 30px;">
+
+                <!-- Key Message -->
+                <div style="background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; text-align: center;">
+                    <h2 style="margin: 0 0 15px 0; font-size: 28px; color: white;">✅ Your Personal Data is 100% Private</h2>
+                    <p style="margin: 0; font-size: 18px; opacity: 0.95; line-height: 1.6;">
+                        <strong>Jonathan (the admin) CANNOT access your personal Gmail, Calendar, or Fathom data.</strong>
+                    </p>
+                    <p style="margin: 15px 0 0 0; font-size: 16px; opacity: 0.9;">
+                        Here's exactly why, with technical proof...
+                    </p>
+                </div>
+
+                <!-- Section 1: What Jonathan CANNOT See -->
+                <div style="background: #e8f5e9; border: 2px solid #4caf50; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="color: #2e7d32; margin: 0 0 20px 0; font-size: 22px; display: flex; align-items: center;">
+                        <span style="font-size: 32px; margin-right: 12px;">❌</span>
+                        What Jonathan CANNOT Access
+                    </h3>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px;">🚫 Your Personal Gmail</h4>
+                        <p style="margin: 0; color: #555; line-height: 1.6;">Cannot read, search, or access any of your emails. Your inbox is completely private.</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px;">🚫 Your Personal Calendar</h4>
+                        <p style="margin: 0; color: #555; line-height: 1.6;">Cannot see your meetings, appointments, or schedule. Your calendar is yours alone.</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px;">🚫 Your Fathom Recordings</h4>
+                        <p style="margin: 0; color: #555; line-height: 1.6;">Cannot access your meeting recordings, transcripts, or notes. Completely private.</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px;">
+                        <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px;">🚫 Your OAuth Tokens</h4>
+                        <p style="margin: 0; color: #555; line-height: 1.6;">Cannot access the security tokens that connect to your Google account. They're stored only on YOUR computer.</p>
+                    </div>
+                </div>
+
+                <!-- Section 2: Why This Is True (Technical Explanation) -->
+                <div style="background: #e3f2fd; border: 2px solid #2196f3; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="color: #1976d2; margin: 0 0 20px 0; font-size: 22px; display: flex; align-items: center;">
+                        <span style="font-size: 32px; margin-right: 12px;">🔐</span>
+                        Why Your Data is Private (Technical Proof)
+                    </h3>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #1976d2; font-size: 16px;">1. OAuth Tokens Are Stored Locally</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;">When you authorize Google access during setup, your OAuth token is saved to:</p>
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 13px; margin: 0 0 10px 0; overflow-x: auto;">~/gmail-calendar-mcp/credentials/token.json</pre>
+                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>This file lives on YOUR computer only.</strong> It never gets sent to any server, cloud, or shared location. Jonathan has no way to access files on your machine.</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #1976d2; font-size: 16px;">2. MCP Server Runs Locally</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;">The MCP server that connects Claude to your Gmail/Calendar runs as a local process on YOUR machine:</p>
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 13px; margin: 0 0 10px 0; overflow-x: auto;">~/gmail-calendar-mcp/venv/bin/python ~/gmail-calendar-mcp/src/server.py</pre>
+                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>This is your own private server.</strong> It only responds to YOUR Claude Desktop app. No one else can connect to it.</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #1976d2; font-size: 16px;">3. Direct Google API Connection</h4>
+                        <p style="margin: 0; color: #555; line-height: 1.6;">When Claude asks for your emails or calendar:</p>
+                        <ol style="margin: 10px 0 0 20px; padding: 0; color: #555; line-height: 1.8;">
+                            <li>Your local MCP server uses YOUR token</li>
+                            <li>Connects directly to Google's API (gmail.googleapis.com)</li>
+                            <li>Fetches data and returns it to Claude on YOUR machine</li>
+                            <li>Nothing touches the internet except the Google API call</li>
+                        </ol>
+                        <p style="margin: 10px 0 0 0; color: #555; line-height: 1.6;"><strong>No middleman, no shared server, no admin access.</strong></p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px;">
+                        <h4 style="margin: 0 0 12px 0; color: #1976d2; font-size: 16px;">4. You Can Verify This Yourself</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;">Check where your token is stored (only on your machine):</p>
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 13px; margin: 0 0 10px 0; overflow-x: auto;">ls -la ~/gmail-calendar-mcp/credentials/token.json</pre>
+                        <p style="margin: 10px 0 0 0; color: #555; line-height: 1.6;">Check the file permissions (only YOU can read it):</p>
+                        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 13px; margin: 0; overflow-x: auto;">-rw------- 1 yourname staff ... token.json</pre>
+                        <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">The <code>-rw-------</code> means only you can read/write this file.</p>
+                    </div>
+                </div>
+
+                <!-- Section 3: What Jonathan CAN See -->
+                <div style="background: #fff8e1; border: 2px solid #ff9800; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="color: #e65100; margin: 0 0 20px 0; font-size: 22px; display: flex; align-items: center;">
+                        <span style="font-size: 32px; margin-right: 12px;">⚠️</span>
+                        What Jonathan CAN Access (Full Transparency)
+                    </h3>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ Client API Keys (Bison & Instantly)</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>Location:</strong> Stored in a shared Google Sheet that tracks client campaigns</p>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>What this means:</strong> Jonathan can create/manage marketing campaigns for clients using Bison and Instantly</p>
+                        <p style="margin: 0; color: #d32f2f; line-height: 1.6; font-size: 14px;"><strong>⚠️ Important:</strong> This is for client work only, not your personal data</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ Railway Server Logs</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>What's logged:</strong> When someone uses the Railway MCP server (multi-tenant version), connection logs are visible</p>
+                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>What's NOT logged:</strong> Email content, calendar events, or personal data - only connection timestamps and errors</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px;">
+                        <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ This Source Code</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>What:</strong> The entire MCP server code is on GitHub (open source)</p>
+                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>Why this matters:</strong> You can audit the code yourself to verify privacy claims</p>
+                        <a href="https://github.com/jonathangetonapod/gmail-reply-tracker-mcp" target="_blank" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #2196f3; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">View Source Code on GitHub</a>
+                    </div>
+                </div>
+
+                <!-- Architecture Diagram -->
+                <div style="background: #f5f5f5; border: 2px solid #757575; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="color: #424242; margin: 0 0 20px 0; font-size: 22px; text-align: center;">
+                        📊 How Data Flows (Visual Explanation)
+                    </h3>
+
+                    <div style="background: white; padding: 25px; border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 2;">
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <strong style="color: #2196f3; font-size: 15px;">YOUR COMPUTER (100% Private)</strong>
+                        </div>
+                        <div style="padding-left: 20px; border-left: 3px solid #4caf50;">
+                            ├─ 💻 Claude Desktop (your app)<br>
+                            │  └─ Asks: "Show me unreplied emails"<br>
+                            │<br>
+                            ├─ 🔌 MCP Server (runs locally)<br>
+                            │  └─ Receives request from Claude<br>
+                            │<br>
+                            ├─ 🔑 token.json (YOUR OAuth token)<br>
+                            │  └─ Stored only on YOUR machine<br>
+                            │  └─ <strong style="color: #4caf50;">✅ Jonathan CANNOT access this</strong><br>
+                            │<br>
+                            └─ 🌐 Direct API call to Google<br>
+                               └─ gmail.googleapis.com (using YOUR token)<br>
+                               └─ Returns YOUR emails to YOUR machine
+                        </div>
+                        <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 6px; border-left: 4px solid #4caf50;">
+                            <strong style="color: #2e7d32;">✅ Result:</strong> Your data never leaves your machine except for the direct Google API call, which uses YOUR credentials and returns data only to YOU.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- You Can Revoke Access -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                    <h3 style="color: white; margin: 0 0 15px 0; font-size: 20px;">🔓 You Have Full Control</h3>
+                    <p style="margin: 0 0 15px 0; opacity: 0.95; line-height: 1.6;">You can revoke access to your Gmail/Calendar at any time:</p>
+                    <ol style="margin: 0 0 20px 20px; padding: 0; opacity: 0.95; line-height: 1.8;">
+                        <li>Visit <a href="https://myaccount.google.com/permissions" target="_blank" style="color: #fff; text-decoration: underline;">Google Account Permissions</a></li>
+                        <li>Find the MCP app in the list</li>
+                        <li>Click "Remove Access"</li>
+                        <li>Done! The MCP server can no longer access your data</li>
+                    </ol>
+                    <a href="https://myaccount.google.com/permissions" target="_blank"
+                       style="display: inline-block; background: white; color: #667eea; padding: 12px 24px;
+                              border-radius: 6px; text-decoration: none; font-weight: 600;">
+                        Manage Google Permissions →
+                    </a>
+                </div>
+
+                <!-- Bottom Line Summary -->
+                <div style="background: #f5f5f5; padding: 30px; border-radius: 12px; text-align: center; border: 3px solid #4caf50;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 24px; color: #2e7d32;">🎯 Bottom Line</h3>
+                    <p style="margin: 0 0 10px 0; font-size: 18px; color: #333; line-height: 1.6;">
+                        Your personal Gmail, Calendar, and Fathom data is <strong>100% private</strong> and stored only on your computer.
+                    </p>
+                    <p style="margin: 0; font-size: 16px; color: #666; line-height: 1.6;">
+                        Jonathan (the admin) can only access shared client API keys for campaign management - nothing personal.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <script>
         function openModal() {
             document.getElementById('infoModal').style.display = 'block';
@@ -744,11 +930,28 @@ SETUP_LANDING_HTML = """
             }
         }
 
+        function openPrivacyModal() {
+            document.getElementById('privacyModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePrivacyModal() {
+            document.getElementById('privacyModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function closePrivacyModalOnClickOutside(event) {
+            if (event.target.id === 'privacyModal') {
+                closePrivacyModal();
+            }
+        }
+
         // Close modals with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeModal();
                 closeTroubleshootingModal();
+                closePrivacyModal();
             }
         });
     </script>
