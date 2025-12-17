@@ -355,15 +355,16 @@ def list_bison_campaigns(
         "Content-Type": "application/json"
     }
 
-    payload = {}
+    params = {}
     if search is not None:
-        payload["search"] = search
+        params["search"] = search
     if status is not None:
-        payload["status"] = status
+        params["status"] = status
     if tag_ids is not None:
-        payload["tag_ids"] = tag_ids
+        params["tag_ids"] = tag_ids
 
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    # Use GET to list campaigns (POST is for creating campaigns)
+    response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
 
     return response.json()
