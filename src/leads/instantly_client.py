@@ -225,10 +225,23 @@ def create_instantly_campaign_api(
 
         # If no variants provided, create one from subject/body at step level
         if not variants and ('subject' in step or 'body' in step):
+            body = step.get('body', '')
+            # Convert newlines to HTML breaks for Instantly
+            if body and '\n' in body:
+                original_newlines = body.count('\n')
+                body = body.replace('\n', '<br>')
+                print(f"[Instantly] Converted {original_newlines} newlines to <br> tags")
             variants = [{
                 "subject": step.get('subject', ''),
-                "body": step.get('body', '')
+                "body": body
             }]
+        else:
+            # If variants were provided, also convert their newlines to <br> tags
+            for variant in variants:
+                if 'body' in variant and variant['body'] and '\n' in variant['body']:
+                    original_newlines = variant['body'].count('\n')
+                    variant['body'] = variant['body'].replace('\n', '<br>')
+                    print(f"[Instantly] Converted {original_newlines} newlines to <br> tags in variant")
 
         # Create step with correct Instantly API structure
         transformed_step = {
