@@ -2662,17 +2662,22 @@ def convert_to_bison_placeholders(text: str) -> str:
     import re
 
     # Map of Instantly → Bison placeholders
+    # Includes all common variations (camelCase, snake_case, no separator)
     replacements = {
         r'\{\{first_name\}\}': '{FIRST_NAME}',
         r'\{\{firstName\}\}': '{FIRST_NAME}',
+        r'\{\{firstname\}\}': '{FIRST_NAME}',  # No underscore
         r'\{\{last_name\}\}': '{LAST_NAME}',
         r'\{\{lastName\}\}': '{LAST_NAME}',
+        r'\{\{lastname\}\}': '{LAST_NAME}',  # No underscore
         r'\{\{company\}\}': '{COMPANY_NAME}',
         r'\{\{company_name\}\}': '{COMPANY_NAME}',
         r'\{\{companyName\}\}': '{COMPANY_NAME}',
+        r'\{\{companyname\}\}': '{COMPANY_NAME}',  # No separator
         r'\{\{title\}\}': '{TITLE}',
         r'\{\{job_title\}\}': '{TITLE}',
         r'\{\{jobTitle\}\}': '{TITLE}',
+        r'\{\{jobtitle\}\}': '{TITLE}',  # No underscore
         r'\{\{email\}\}': '{EMAIL}',
     }
 
