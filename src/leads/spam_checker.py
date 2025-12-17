@@ -152,7 +152,7 @@ def check_bison_campaign_spam(
             })
 
         except Exception as e:
-            print(f"[ERROR] Failed to check step {order}: {e}")
+            # Error logging removed for MCP compatibility
             results["steps"].append({
                 "step_order": order,
                 "subject": subject,
@@ -174,7 +174,7 @@ def _check_single_bison_client(
     api_key = client["api_key"]
     name = client["client_name"]
 
-    print(f"[INFO] Checking campaigns for client: {name}")
+    # Logging removed for MCP compatibility
 
     try:
         # List campaigns for this client
@@ -196,7 +196,7 @@ def _check_single_bison_client(
             campaign_id = campaign["id"]
             campaign_name = campaign["name"]
 
-            print(f"[INFO]   Checking campaign: {campaign_name}")
+            # Logging removed for MCP compatibility
 
             spam_check = check_bison_campaign_spam(
                 api_key,
@@ -213,7 +213,7 @@ def _check_single_bison_client(
         return client_result
 
     except Exception as e:
-        print(f"[ERROR] Failed to check client {name}: {e}")
+        # Error logging removed for MCP compatibility
         return {
             "client_name": name,
             "error": str(e)
@@ -287,7 +287,7 @@ def check_all_bison_campaigns_spam(
     }
 
     # Check clients in parallel (max 10 at a time)
-    print(f"[INFO] Checking {len(clients)} clients in parallel...")
+    # Logging removed for MCP compatibility
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all client checks
         future_to_client = {
@@ -309,7 +309,7 @@ def check_all_bison_campaigns_spam(
                 results["clients"].append(client_result)
 
             except Exception as e:
-                print(f"[ERROR] Unexpected error processing client {client.get('client_name', 'unknown')}: {e}")
+                # Error logging removed for MCP compatibility
                 results["clients"].append({
                     "client_name": client.get("client_name", "unknown"),
                     "error": f"Unexpected error: {str(e)}"
@@ -398,7 +398,7 @@ def check_instantly_campaign_spam(
                     })
 
                 except Exception as e:
-                    print(f"[ERROR] Failed to check step {step_idx + 1}: {e}")
+                    # Error logging removed for MCP compatibility
                     results["steps"].append({
                         "step_order": step_idx + 1,
                         "variant": variant_idx + 1 if len(variants) > 1 else None,
@@ -421,7 +421,7 @@ def _check_single_instantly_client(
     api_key = client["api_key"]
     name = client["client_name"]
 
-    print(f"[INFO] Checking campaigns for client: {name}")
+    # Logging removed for MCP compatibility
 
     try:
         # List campaigns for this client
@@ -429,7 +429,7 @@ def _check_single_instantly_client(
 
         # Ensure campaigns is a list
         if not isinstance(campaigns, list):
-            print(f"[ERROR] Expected list of campaigns, got {type(campaigns)}: {campaigns}")
+            # Error logging removed for MCP compatibility
             return {
                 "client_name": name,
                 "error": f"Invalid campaigns response type: {type(campaigns)}"
@@ -449,10 +449,10 @@ def _check_single_instantly_client(
 
             # Validate campaign_id
             if not campaign_id:
-                print(f"[WARN] Campaign missing ID, skipping: {campaign}")
+                # Warning logging removed for MCP compatibility
                 continue
 
-            print(f"[INFO]   Checking campaign: {campaign_name}")
+            # Logging removed for MCP compatibility
 
             spam_check = check_instantly_campaign_spam(
                 api_key,
@@ -469,7 +469,7 @@ def _check_single_instantly_client(
         return client_result
 
     except Exception as e:
-        print(f"[ERROR] Failed to check client {name}: {e}")
+        # Error logging removed for MCP compatibility
         return {
             "client_name": name,
             "error": str(e)
@@ -556,7 +556,7 @@ def check_all_instantly_campaigns_spam(
     }
 
     # Check clients in parallel (max 10 at a time)
-    print(f"[INFO] Checking {len(clients)} clients in parallel...")
+    # Logging removed for MCP compatibility
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all client checks
         future_to_client = {
@@ -578,7 +578,7 @@ def check_all_instantly_campaigns_spam(
                 results["clients"].append(client_result)
 
             except Exception as e:
-                print(f"[ERROR] Unexpected error processing client {client.get('client_name', 'unknown')}: {e}")
+                # Error logging removed for MCP compatibility
                 results["clients"].append({
                     "client_name": client.get("client_name", "unknown"),
                     "error": f"Unexpected error: {str(e)}"

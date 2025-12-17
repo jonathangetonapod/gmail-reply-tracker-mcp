@@ -270,8 +270,7 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
                 else:
                     converted_step[key] = converted
 
-                if original != converted:
-                    print(f"[BISON] Converted subject: '{original}' → '{converted}'")
+                # Conversion logging removed for MCP compatibility
 
         # Convert body placeholders
         for key in body_keys:
@@ -286,8 +285,7 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
                 else:
                     converted_step[key] = converted
 
-                if original != converted:
-                    print(f"[BISON] Converted body: '{original[:100]}...' → '{converted[:100]}...'")
+                # Conversion logging removed for MCP compatibility
 
         converted_steps.append(converted_step)
 
@@ -302,17 +300,13 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
         "sequence_steps": converted_steps
     }
 
-    # Debug: Print request details
-    import json as json_module
-    print(f"[DEBUG] POST {url}")
-    print(f"[DEBUG] Payload: {json_module.dumps(payload, indent=2)}")
+    # Debug logging removed for MCP compatibility
 
     response = requests.post(url, headers=headers, json=payload, timeout=30)
 
-    # Debug: Print response details if error
+    # Error logging removed for MCP compatibility
     if not response.ok:
-        print(f"[DEBUG] Response Status: {response.status_code}")
-        print(f"[DEBUG] Response Body: {response.text}")
+        pass  # Error response logging removed for MCP compatibility
 
     response.raise_for_status()
 

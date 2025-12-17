@@ -70,7 +70,7 @@ def fetch_workspace_details(api_key: str):
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f"[API] Failed to fetch workspace details: {e}")
+        # Error logging removed for MCP compatibility
         return None
 
 
@@ -190,11 +190,9 @@ def create_instantly_campaign_api(
     Raises:
         HTTPError: If timezone is invalid or other API errors occur
     """
-    # Validate timezone
+    # Validate timezone (logging removed for MCP compatibility)
     if timezone not in INSTANTLY_VALID_TIMEZONES:
-        print(f"[Instantly] WARNING: Timezone '{timezone}' may not be valid.")
-        print(f"[Instantly] Valid timezones include: America/Chicago, America/Detroit, America/Boise, etc.")
-        print(f"[Instantly] See INSTANTLY_VALID_TIMEZONES list for all options.")
+        pass  # Invalid timezone - validation warning removed for MCP compatibility
 
     url = "https://api.instantly.ai/api/v2/campaigns"
     headers = {
@@ -255,8 +253,7 @@ def create_instantly_campaign_api(
             if body:
                 original_body = body
                 body = convert_to_instantly_html(body)
-                if original_body != body:
-                    print(f"[Instantly] Converted plain text to HTML div format")
+                # Conversion logging removed for MCP compatibility
             variants = [{
                 "subject": step.get('subject', ''),
                 "body": body
@@ -267,8 +264,7 @@ def create_instantly_campaign_api(
                 if 'body' in variant and variant['body']:
                     original_body = variant['body']
                     variant['body'] = convert_to_instantly_html(variant['body'])
-                    if original_body != variant['body']:
-                        print(f"[Instantly] Converted variant body to HTML div format")
+                    # Conversion logging removed for MCP compatibility
 
         # Create step with correct Instantly API structure
         transformed_step = {
@@ -312,16 +308,13 @@ def create_instantly_campaign_api(
     if email_accounts:
         payload["email_list"] = email_accounts
 
-    # Debug: Print request details
-    import json as json_module
-    print(f"[INSTANTLY] POST {url}")
-    print(f"[INSTANTLY] Payload: {json_module.dumps(payload, indent=2)}")
+    # Debug logging removed for MCP compatibility
 
     response = requests.post(url, headers=headers, json=payload, timeout=30)
 
-    # Debug: print error response if request fails
+    # Error logging removed for MCP compatibility
     if not response.ok:
-        print(f"[INSTANTLY] API Error {response.status_code}: {response.text}")
+        pass  # Error response logging removed for MCP compatibility
 
     response.raise_for_status()
 
@@ -376,7 +369,7 @@ def list_instantly_campaigns(api_key: str, status: int = None):
     elif isinstance(data, dict) and "campaigns" in data:
         return data["campaigns"]
     else:
-        print(f"[WARN] Unexpected Instantly campaigns response structure: {type(data)}")
+        # Unexpected structure warning removed for MCP compatibility
         return data if isinstance(data, list) else []
 
 
