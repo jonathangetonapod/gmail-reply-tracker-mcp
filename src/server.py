@@ -2762,31 +2762,56 @@ async def create_bison_sequence(
     Each step can have subject, body, wait time, and thread reply settings.
 
     IMPORTANT - A/B Testing / Email Variations:
-    Bison does NOT support A/B test variants in a single campaign like Instantly does.
-    To test multiple email variations (different subjects or copy), you must create
-    SEPARATE CAMPAIGNS for each variation.
+    Bison DOES support A/B test variants! Use the variant and variant_from_step parameters
+    to create multiple variations in a SINGLE campaign for testing different copy.
 
-    Example: To test 3 subject line variations:
-      ✅ CORRECT: Create 3 separate campaigns:
-         - Campaign "V1 - Neutral" with subject "quick question"
-         - Campaign "V2 - Softer" with subject "speaking question"
-         - Campaign "V3 - Ultra Short" with subject "quick question for you"
+    How variants work:
+    - Set variant=true and variant_from_step=ORDER_NUMBER to create a variant
+    - variant_from_step references the "order" field of the base step
+    - All variants of the same step are A/B tested against each other
 
-      ❌ INCORRECT: Do NOT try to create variants in one campaign
-         - This will fail or create unexpected results
+    Example: To A/B test 3 subject line variations in ONE campaign:
+      ✅ CORRECT: Create ONE campaign with 3 variant steps:
+      steps = [
+        {
+          "order": 1,
+          "email_subject": "quick question",
+          "email_body": "...",
+          "wait_in_days": 1,
+          "variant": false  # Base version
+        },
+        {
+          "order": 2,
+          "email_subject": "speaking question",  # Different subject!
+          "email_body": "...",
+          "wait_in_days": 1,
+          "variant": true,
+          "variant_from_step": 1  # This is a variant of order=1
+        },
+        {
+          "order": 3,
+          "email_subject": "quick question for you",  # Another variant!
+          "email_body": "...",
+          "wait_in_days": 1,
+          "variant": true,
+          "variant_from_step": 1  # Also a variant of order=1
+        }
+      ]
 
-    This is a Bison API limitation. For A/B testing, call this tool multiple times
-    with different campaign names and email copy.
+      ❌ INCORRECT: Creating 3 separate campaigns for A/B testing
+         - This creates 3 campaigns instead of 1 campaign with 3 variants
 
     Args:
         client_name: Name of the Bison client (e.g., 'Jeff Mikolai')
         sequence_title: Title for the sequence (e.g., 'Cold Outreach v2')
-        steps: Array of email sequence steps (1-3 steps typically). Each step should have:
+        steps: Array of email sequence steps. Each step should have:
             - email_subject: Subject line
             - email_body: Email body content
-            - order: Step order (1, 2, 3, etc.)
+            - order: Step order (1, 2, 3, etc.) - REQUIRED for variant_from_step to work
             - wait_in_days: Days to wait before sending (minimum: 1, default: 3 if not specified)
             - thread_reply: Whether to reply in same thread (default: false)
+            - variant: Whether this is a variant (default: false)
+            - variant_from_step: Order number of the step to be a variant of (e.g., 1)
         campaign_id: The Bison campaign ID to add sequences to (optional - if not provided, creates a new campaign)
         campaign_name: Campaign name (required if campaign_id not provided, e.g., 'Speaker Outreach 2025')
 
