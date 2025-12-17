@@ -434,6 +434,7 @@ fi
 # Get full path to Python in venv (will use the venv's python, which inherits the version)
 PYTHON_PATH="$INSTALL_DIR/venv/bin/python"
 SERVER_PATH="$INSTALL_DIR/src/server.py"
+FATHOM_KEY_VALUE="${FATHOM_API_KEY:-}"
 
 # Update configuration using Python (use any available python3 for this simple JSON manipulation)
 print_substep "Adding MCP server to config..."
@@ -444,6 +445,7 @@ import sys
 config_file = "$CONFIG_FILE"
 python_path = "$PYTHON_PATH"
 server_path = "$SERVER_PATH"
+fathom_api_key = "$FATHOM_KEY_VALUE"
 
 # Read existing config
 try:
@@ -463,10 +465,25 @@ for server_name in old_servers:
     if server_name in config['mcpServers']:
         del config['mcpServers'][server_name]
 
-# Add the correct local server configuration with full paths
+# Add the correct local server configuration with full paths and environment variables
+install_dir = "$INSTALL_DIR"
+env_vars = {
+    'GMAIL_CREDENTIALS_PATH': f'{install_dir}/credentials/credentials.json',
+    'GMAIL_TOKEN_PATH': f'{install_dir}/credentials/token.json',
+    'GMAIL_OAUTH_SCOPES': 'https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/userinfo.email',
+    'LEAD_SHEETS_URL': 'https://docs.google.com/spreadsheets/d/1CNejGg-egkp28ItSRfW7F_CkBXgYevjzstJ1QlrAyAY/edit',
+    'LEAD_SHEETS_GID_INSTANTLY': '928115249',
+    'LEAD_SHEETS_GID_BISON': '1631680229'
+}
+
+# Add Fathom API key if provided
+if fathom_api_key:
+    env_vars['FATHOM_API_KEY'] = fathom_api_key
+
 config['mcpServers']['gmail-calendar-fathom'] = {
     'command': python_path,
-    'args': [server_path]
+    'args': [server_path],
+    'env': env_vars
 }
 
 # Write updated config
@@ -490,7 +507,7 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}${BOLD}               🎉  Installation Complete!  🎉${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo
-echo -e "${GREEN}${BOLD}Congratulations! You now have access to 34 powerful tools:${NC}"
+echo -e "${GREEN}${BOLD}Congratulations! You now have access to 36 powerful tools:${NC}"
 echo
 echo -e "${BOLD}📧 Gmail (13 tools)${NC}"
 echo "   • Find unreplied emails"
@@ -512,11 +529,11 @@ echo "   • Action item extraction"
 echo "   • Meeting search"
 echo
 fi
-echo -e "${BOLD}🎯 Lead Management (8 tools)${NC}"
-echo "   • Track 88 clients (64 Instantly + 24 Bison)"
-echo "   • Campaign analytics"
-echo "   • Interested lead tracking"
-echo "   • Performance reports"
+echo -e "${BOLD}🎯 Lead Management & Campaign Automation (10 tools)${NC}"
+echo "   • Track 89 clients (64 Instantly + 25 Bison)"
+echo "   • Campaign analytics & interested lead tracking"
+echo "   • Create Bison sequences automatically"
+echo "   • Create Instantly.ai campaigns with A/B testing"
 echo
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo
@@ -534,7 +551,7 @@ fi
 echo
 echo -e "${BOLD}2. Verify Connection${NC}"
 echo "   • Look for 'gmail-calendar-fathom' in Claude's MCP status"
-echo "   • Should show as connected with 34 tools"
+echo "   • Should show as connected with 36 tools"
 echo
 echo -e "${BOLD}3. Try These Commands:${NC}"
 echo -e "   ${CYAN}📧 'Show me my unreplied emails from the last 3 days'${NC}"

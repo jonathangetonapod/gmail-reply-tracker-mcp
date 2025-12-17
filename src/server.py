@@ -2673,7 +2673,7 @@ async def create_bison_sequence(
             - email_subject: Subject line
             - email_body: Email body content
             - order: Step order (1, 2, 3, etc.)
-            - wait_in_days: Days to wait before sending (minimum: 1, even for first email)
+            - wait_in_days: Days to wait before sending (minimum: 1, default: 3 if not specified)
             - thread_reply: Whether to reply in same thread (default: false)
             - variant: Whether this is a variant (default: false)
             - variant_from_step: Which step this is a variant of (if variant=true)
@@ -2732,6 +2732,11 @@ async def create_bison_sequence(
             campaign_id = campaign_result['data']['id']
             created_campaign = True
             logger.info("Created campaign ID: %d", campaign_id)
+
+        # Ensure all steps have wait_in_days >= 1 (API requirement), default to 3
+        for step in steps:
+            if 'wait_in_days' not in step or step['wait_in_days'] < 1:
+                step['wait_in_days'] = 3  # Default to 3 days
 
         # Create the sequence
         logger.info("Creating sequence with %d steps...", len(steps))
