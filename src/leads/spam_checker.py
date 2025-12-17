@@ -427,6 +427,14 @@ def _check_single_instantly_client(
         # List campaigns for this client
         campaigns = instantly_client.list_instantly_campaigns(api_key, status=status_number)
 
+        # Ensure campaigns is a list
+        if not isinstance(campaigns, list):
+            print(f"[ERROR] Expected list of campaigns, got {type(campaigns)}: {campaigns}")
+            return {
+                "client_name": name,
+                "error": f"Invalid campaigns response type: {type(campaigns)}"
+            }
+
         client_result = {
             "client_name": name,
             "total_campaigns": len(campaigns),
@@ -436,8 +444,13 @@ def _check_single_instantly_client(
 
         # Check each campaign
         for campaign in campaigns:
-            campaign_id = campaign["id"]
-            campaign_name = campaign["name"]
+            campaign_id = campaign.get("id")
+            campaign_name = campaign.get("name", "Unknown")
+
+            # Validate campaign_id
+            if not campaign_id:
+                print(f"[WARN] Campaign missing ID, skipping: {campaign}")
+                continue
 
             print(f"[INFO]   Checking campaign: {campaign_name}")
 

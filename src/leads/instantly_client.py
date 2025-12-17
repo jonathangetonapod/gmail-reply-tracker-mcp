@@ -366,7 +366,18 @@ def list_instantly_campaigns(api_key: str, status: int = None):
     response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
 
-    return response.json()
+    data = response.json()
+
+    # Handle different response structures
+    if isinstance(data, list):
+        return data
+    elif isinstance(data, dict) and "data" in data:
+        return data["data"]
+    elif isinstance(data, dict) and "campaigns" in data:
+        return data["campaigns"]
+    else:
+        print(f"[WARN] Unexpected Instantly campaigns response structure: {type(data)}")
+        return data if isinstance(data, list) else []
 
 
 def get_instantly_campaign_details(api_key: str, campaign_id: str):
