@@ -2,11 +2,48 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 RELEASE_DATE = "2024-12-17"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.3.1": {
+        "date": "December 17, 2024",
+        "title": "Google Meet Integration",
+        "highlights": [
+            {
+                "icon": "🎥",
+                "category": "Feature",
+                "title": "Automatic Google Meet Links",
+                "description": "Calendar events with attendees now automatically include Google Meet video conference links",
+                "details": "No more manual 'Add Google Meet' clicks! When you create a calendar event with attendees, the system automatically generates a Google Meet link and includes it in the event and email invitations. The Meet link includes video access, phone dial-in, and PIN for maximum flexibility.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📧",
+                "category": "Enhancement",
+                "title": "Meet Links in Email Invites",
+                "description": "Email invitations now prominently display the Google Meet link",
+                "details": "Attendees receive the Meet link directly in their invitation email with a clear 🎥 icon, making it easy to join the meeting with one click.",
+                "screenshot": None,
+            },
+            {
+                "icon": "⚙️",
+                "category": "Feature",
+                "title": "Smart Auto-Detection",
+                "description": "Intelligently adds Meet links only when needed",
+                "details": "Events with attendees automatically get Meet links. Personal events without attendees don't get cluttered with unnecessary video conference links. You can also manually control this with add_meet_link parameter.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added add_meet_link parameter to calendar_client.create_event()",
+            "Implemented conferenceData with hangoutsMeet solution key",
+            "Set conferenceDataVersion=1 for events with conference data",
+            "Meet link included in API response JSON with meet_link field",
+        ],
+    },
     "2.3.0": {
         "date": "December 17, 2024",
         "title": "Campaign Automation & Privacy Enhancements",

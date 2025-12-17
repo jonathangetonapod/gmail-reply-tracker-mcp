@@ -48,6 +48,7 @@ Ask Claude things like:
 >
 > **📅 Calendar & Scheduling**:
 > - "Schedule a meeting with sarah@company.com tomorrow at 2pm and send invites"
+> - "Create a 30-minute call with john@company.com on Friday at 3pm" (automatically adds Google Meet link!)
 > - "What do I have on my calendar this week?"
 > - "Create a recurring meeting every Monday at 10am"
 >
@@ -117,7 +118,13 @@ Ask Claude things like:
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.3.0)
+### 🆕 Latest Features (v2.3.1)
+
+- 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
+- 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link with one-click join
+- ⚙️ **Smart Auto-Detection** - Intelligently adds Meet links only when needed (events with attendees)
+
+### Recent Features (v2.3.0)
 
 - ✨ **Instantly HTML Formatting** - Email bodies display with proper line breaks and paragraph spacing
 - 🔧 **Bison Placeholder Conversion** - Automatic conversion of {{firstname}}, {{company}} to Bison format
@@ -473,6 +480,13 @@ This helps your team stay informed about new features and decide when to update!
 ## 📝 Changelog
 
 > 💡 **See full visual timeline**: Visit `/changelog` on your Railway deployment for a beautiful timeline view!
+
+**v2.3.1** (December 17, 2024) - **Google Meet Integration**
+- 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
+- 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link for one-click joining
+- ⚙️ **Smart Auto-Detection** - Intelligently adds Meet links only when attendees are present
+- 📞 **Phone Dial-In Included** - Meet links come with phone numbers and PINs for maximum accessibility
+- 🐛 **Technical**: Added conferenceData support, add_meet_link parameter, meet_link in API responses
 
 **v2.3.0** (December 17, 2024) - **Campaign Automation & Privacy Enhancements**
 - ✨ **Instantly HTML Formatting** - Email bodies now display with proper line breaks and paragraph spacing
