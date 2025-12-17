@@ -2,11 +2,61 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.3.1"
+VERSION = "2.4.0"
 RELEASE_DATE = "2024-12-17"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.4.0": {
+        "date": "December 17, 2024",
+        "title": "Spam Detection & Enhanced Testing",
+        "highlights": [
+            {
+                "icon": "🛡️",
+                "category": "Feature",
+                "title": "EmailGuard API Integration",
+                "description": "Industry-standard spam detection for campaign sequences",
+                "details": "Check any subject line or email body for spam words using EmailGuard API. Scan entire Bison and Instantly campaigns including all variants. Get detailed reports with spam scores, word counts, and specific spam words identified.",
+                "screenshot": None,
+            },
+            {
+                "icon": "💬",
+                "category": "Enhancement",
+                "title": "User-Friendly Error Messages",
+                "description": "Clear explanations for API quota limits and rate limiting",
+                "details": "When EmailGuard API quota is exhausted, Claude now tells you 'EmailGuard API quota limit reached - please wait for reset or upgrade plan' instead of cryptic 400 errors. Also handles 429 rate limits, 401 auth failures, and 403 permissions errors with helpful messages.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📊",
+                "category": "Quality",
+                "title": "100 Unit Tests",
+                "description": "Complete test coverage across all features",
+                "details": "Comprehensive test suite: 27 email analysis tests, 14 campaign management tests, 14 lead fetching tests, 13 spam checking tests, 18 workspace management tests, 14 Gmail integration tests. All passing!",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔍",
+                "category": "Feature",
+                "title": "Campaign Spam Scanning",
+                "description": "Check entire campaigns for spam words",
+                "details": "Scan all sequence steps in Bison campaigns or all A/B test variants in Instantly campaigns. Get detailed reports showing which steps contain spam words and what needs to be fixed.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added src/leads/spam_checker.py with 3 spam checking functions",
+            "Added src/leads/emailguard_client.py for API integration",
+            "Enhanced error handling with HTTPError status code parsing",
+            "Removed all print() statements that were breaking MCP JSON-RPC protocol",
+            "Fixed Instantly API endpoint from /campaigns/list to /campaigns",
+            "Added tests/test_spam_checker.py with 13 comprehensive tests",
+            "Added tests/test_leads_fetching.py with 14 tests",
+            "Added tests/test_campaign_management.py with 14 tests",
+            "Added tests/test_workspace_management.py with 18 tests",
+        ],
+    },
     "2.3.1": {
         "date": "December 17, 2024",
         "title": "Google Meet Integration",
