@@ -136,3 +136,62 @@ def load_bison_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: st
 
     print(f"[Bison] Loaded {len(workspaces)} workspaces")
     return workspaces
+
+
+def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: str = SHEET_GID_INSTANTLY):
+    """
+    Reads Instantly workspaces from Google Sheet tab.
+
+    Instantly sheet structure:
+    - Column A: Client Name
+    - Column B: API Key
+
+    Returns:
+        [
+            {"client_name": "ABC Corp", "api_key": "..."},
+            {"client_name": "XYZ Ltd", "api_key": "..."},
+            ...
+        ]
+    """
+    # Normalize URL
+    if "/edit" in sheet_url:
+        base = sheet_url.split("/edit", 1)[0]
+    else:
+        base = sheet_url
+
+    csv_url = f"{base}/export?format=csv&gid={gid}"
+    print(f"[Instantly] Fetching workspace list from Google Sheet...")
+
+    resp = requests.get(csv_url, timeout=30)
+    resp.raise_for_status()
+
+    text = resp.text
+    reader = csv.reader(StringIO(text))
+    rows = list(reader)
+
+    workspaces = []
+    for idx, row in enumerate(rows):
+        if len(row) < 2:
+            continue
+        raw_name = (row[0] or "").strip()
+        raw_key = (row[1] or "").strip()
+
+        # Skip empty
+        if not raw_name or not raw_key:
+            continue
+
+        # Skip header row
+        if idx == 0 and (
+            "client" in raw_name.lower() or
+            "name" in raw_name.lower() or
+            "api" in raw_key.lower()
+        ):
+            continue
+
+        workspaces.append({
+            "client_name": raw_name,
+            "api_key": raw_key
+        })
+
+    print(f"[Instantly] Loaded {len(workspaces)} workspaces")
+    return workspaces

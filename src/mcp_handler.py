@@ -560,6 +560,77 @@ class MCPHandler:
                     "required": ["client_name", "sequence_title", "steps"]
                 }
             },
+            {
+                "name": "create_instantly_campaign",
+                "description": "Create an Instantly.ai campaign with email sequences. Automatically sets up campaign with scheduling, tracking, and sequences. Use this to automate campaign creation instead of manually setting up in Instantly UI.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "client_name": {
+                            "type": "string",
+                            "description": "Name of the Instantly client (e.g., 'Jeff Mikolai')"
+                        },
+                        "campaign_name": {
+                            "type": "string",
+                            "description": "Campaign name (e.g., 'Speaker Outreach 2025')"
+                        },
+                        "steps": {
+                            "type": "array",
+                            "description": "Array of email sequence steps (1-3 steps typically)",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "subject": {"type": "string", "description": "Email subject line"},
+                                    "body": {"type": "string", "description": "Email body content"},
+                                    "wait": {"type": "number", "description": "Hours to wait before sending (for follow-ups, first email is 0)"},
+                                    "variants": {
+                                        "type": "array",
+                                        "description": "Optional A/B test variants for this step",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "subject": {"type": "string"},
+                                                "body": {"type": "string"}
+                                            }
+                                        }
+                                    }
+                                },
+                                "required": ["subject", "body"]
+                            }
+                        },
+                        "email_accounts": {
+                            "type": "array",
+                            "description": "List of email addresses to send from (optional)",
+                            "items": {"type": "string"}
+                        },
+                        "daily_limit": {
+                            "type": "number",
+                            "description": "Daily sending limit per account (default: 50)"
+                        },
+                        "timezone": {
+                            "type": "string",
+                            "description": "Timezone for schedule (default: 'America/Chicago')"
+                        },
+                        "schedule_from": {
+                            "type": "string",
+                            "description": "Start time in HH:MM format (default: '09:00')"
+                        },
+                        "schedule_to": {
+                            "type": "string",
+                            "description": "End time in HH:MM format (default: '17:00')"
+                        },
+                        "stop_on_reply": {
+                            "type": "boolean",
+                            "description": "Stop campaign when lead replies (default: true)"
+                        },
+                        "text_only": {
+                            "type": "boolean",
+                            "description": "Send all emails as text only (default: false)"
+                        }
+                    },
+                    "required": ["client_name", "campaign_name", "steps"]
+                }
+            },
             # Lead Management Tools - Combined
             {
                 "name": "get_all_lead_clients",
@@ -703,6 +774,8 @@ class MCPHandler:
                 result = await self._get_bison_stats(**arguments)
             elif tool_name == 'create_bison_sequence':
                 result = await self._create_bison_sequence(**arguments)
+            elif tool_name == 'create_instantly_campaign':
+                result = await self._create_instantly_campaign(**arguments)
             # Lead Management tools - Combined
             elif tool_name == 'get_all_lead_clients':
                 result = await self._get_all_lead_clients(**arguments)
@@ -1713,6 +1786,61 @@ class MCPHandler:
             if created_campaign:
                 response["campaign_created"] = True
                 response["campaign_name"] = kwargs.get('campaign_name', kwargs['sequence_title'])
+
+            return json.dumps(response, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _create_instantly_campaign(self, **kwargs) -> str:
+        """Create Instantly.ai campaign with email sequences."""
+        try:
+            config = Config.from_env()
+            from leads import sheets_client, instantly_client
+
+            # Get client's API key from sheet
+            client_name = kwargs['client_name']
+            workspaces = await asyncio.to_thread(
+                sheets_client.load_instantly_workspaces_from_sheet,
+                config.lead_sheets_url,
+                config.lead_sheets_gid_instantly
+            )
+
+            # Find workspace by client name
+            workspace = None
+            search_term = client_name.lower()
+            for ws in workspaces:
+                if search_term in ws["client_name"].lower():
+                    workspace = ws
+                    break
+
+            if not workspace:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Client '{client_name}' not found"
+                }, indent=2)
+
+            # Create the campaign with sequences
+            result = await asyncio.to_thread(
+                instantly_client.create_instantly_campaign_api,
+                api_key=workspace["api_key"],
+                name=kwargs['campaign_name'],
+                sequence_steps=kwargs['steps'],
+                email_accounts=kwargs.get('email_accounts'),
+                daily_limit=kwargs.get('daily_limit', 50),
+                timezone=kwargs.get('timezone', 'America/Chicago'),
+                schedule_from=kwargs.get('schedule_from', '09:00'),
+                schedule_to=kwargs.get('schedule_to', '17:00'),
+                stop_on_reply=kwargs.get('stop_on_reply', True),
+                text_only=kwargs.get('text_only', False)
+            )
+
+            response = {
+                "success": True,
+                "message": f"Successfully created campaign '{kwargs['campaign_name']}' with {len(kwargs['steps'])} steps",
+                "campaign_id": result.get('id'),
+                "campaign_name": result.get('name'),
+                "steps_created": len(kwargs['steps'])
+            }
 
             return json.dumps(response, indent=2)
         except Exception as e:

@@ -5,6 +5,44 @@ Instantly API wrapper functions.
 import requests
 from ._source_fetch_interested_leads import fetch_interested_leads
 
+# Valid timezones for Instantly API (complete list from API docs)
+INSTANTLY_VALID_TIMEZONES = [
+    # GMT Offsets
+    "Etc/GMT+12", "Etc/GMT+11", "Etc/GMT+10", "Etc/GMT-12", "Etc/GMT-13",
+    # Americas
+    "America/Anchorage", "America/Dawson", "America/Creston", "America/Chihuahua",
+    "America/Boise", "America/Belize", "America/Chicago", "America/Bahia_Banderas",
+    "America/Regina", "America/Bogota", "America/Detroit", "America/Indiana/Marengo",
+    "America/Caracas", "America/Asuncion", "America/Glace_Bay", "America/Campo_Grande",
+    "America/Anguilla", "America/Santiago", "America/St_Johns", "America/Sao_Paulo",
+    "America/Argentina/La_Rioja", "America/Araguaina", "America/Godthab",
+    "America/Montevideo", "America/Bahia", "America/Noronha", "America/Scoresbysund",
+    "America/Danmarkshavn",
+    # Atlantic & Africa
+    "Atlantic/Cape_Verde", "Africa/Casablanca", "Atlantic/Canary", "Africa/Abidjan",
+    "Africa/Ceuta", "Africa/Algiers", "Africa/Windhoek", "Africa/Cairo",
+    "Africa/Blantyre", "Africa/Tripoli", "Africa/Addis_Ababa",
+    # Europe
+    "Europe/Isle_of_Man", "Arctic/Longyearbyen", "Europe/Belgrade", "Europe/Sarajevo",
+    "Europe/Bucharest", "Europe/Helsinki", "Europe/Istanbul", "Europe/Kaliningrad",
+    "Europe/Kirov", "Europe/Astrakhan",
+    # Asia
+    "Asia/Nicosia", "Asia/Beirut", "Asia/Damascus", "Asia/Jerusalem", "Asia/Amman",
+    "Asia/Baghdad", "Asia/Aden", "Asia/Tehran", "Asia/Dubai", "Asia/Baku",
+    "Asia/Tbilisi", "Asia/Yerevan", "Asia/Kabul", "Asia/Yekaterinburg", "Asia/Karachi",
+    "Asia/Kolkata", "Asia/Colombo", "Asia/Kathmandu", "Asia/Dhaka", "Asia/Rangoon",
+    "Asia/Novokuznetsk", "Asia/Hong_Kong", "Asia/Krasnoyarsk", "Asia/Brunei",
+    "Asia/Taipei", "Asia/Choibalsan", "Asia/Irkutsk", "Asia/Dili", "Asia/Pyongyang",
+    "Asia/Chita", "Asia/Sakhalin", "Asia/Anadyr", "Asia/Kamchatka",
+    # Australia & Pacific
+    "Australia/Perth", "Australia/Adelaide", "Australia/Darwin", "Australia/Brisbane",
+    "Australia/Melbourne", "Australia/Currie", "Pacific/Auckland", "Pacific/Fiji",
+    "Pacific/Apia",
+    # Antarctica & Indian Ocean
+    "Antarctica/Mawson", "Antarctica/Vostok", "Antarctica/Davis",
+    "Antarctica/DumontDUrville", "Antarctica/Macquarie", "Indian/Mahe"
+]
+
 
 def fetch_workspace_details(api_key: str):
     """
@@ -94,3 +132,142 @@ def get_instantly_lead_responses(api_key: str, start_date: str, end_date: str):
         start_date=start_date,
         end_date=end_date
     )
+
+
+def create_instantly_campaign_api(
+    api_key: str,
+    name: str,
+    sequence_steps: list,
+    email_accounts: list = None,
+    daily_limit: int = 50,
+    timezone: str = "America/Chicago",  # Central Time (valid timezone)
+    schedule_name: str = "Work Hours",
+    schedule_from: str = "09:00",
+    schedule_to: str = "17:00",
+    days: dict = None,
+    stop_on_reply: bool = True,
+    link_tracking: bool = True,
+    open_tracking: bool = True,
+    text_only: bool = False,
+    first_email_text_only: bool = False
+):
+    """
+    Create a campaign with sequences in Instantly API.
+
+    Args:
+        api_key: Instantly API key
+        name: Campaign name
+        sequence_steps: List of sequence step dictionaries, each containing:
+            - subject (str): Subject line
+            - body (str): Email body content
+            - variants (list, optional): List of variant objects with subject/body
+            - wait (int): Hours to wait before sending (for follow-ups)
+        email_accounts: List of email addresses to send from (optional)
+        daily_limit: Daily sending limit per account (default: 50)
+        timezone: Timezone for schedule (default: "America/Chicago")
+            IMPORTANT: Must be exact timezone from INSTANTLY_VALID_TIMEZONES list.
+            Common names like "America/New_York", "America/Los_Angeles", "US/Eastern"
+            are NOT valid. Use "America/Chicago" (Central), "America/Detroit" (Eastern),
+            "America/Boise" (Mountain), etc. See INSTANTLY_VALID_TIMEZONES for full list.
+        schedule_name: Name of the schedule (default: "Work Hours")
+        schedule_from: Start time HH:MM (default: "09:00")
+        schedule_to: End time HH:MM (default: "17:00")
+        days: Dict with days 0-6 set to true/false (default: Mon-Fri)
+        stop_on_reply: Stop campaign when lead replies (default: True)
+        link_tracking: Track link clicks (default: True)
+        open_tracking: Track email opens (default: True)
+        text_only: Send all emails as text only (default: False)
+        first_email_text_only: Send first email as text only (default: False)
+
+    Returns:
+        {
+            "id": str (campaign UUID),
+            "name": str,
+            "status": str,
+            ...
+        }
+
+    Raises:
+        HTTPError: If timezone is invalid or other API errors occur
+    """
+    # Validate timezone
+    if timezone not in INSTANTLY_VALID_TIMEZONES:
+        print(f"[Instantly] WARNING: Timezone '{timezone}' may not be valid.")
+        print(f"[Instantly] Valid timezones include: America/Chicago, America/Detroit, America/Boise, etc.")
+        print(f"[Instantly] See INSTANTLY_VALID_TIMEZONES list for all options.")
+
+    url = "https://api.instantly.ai/api/v2/campaigns"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    # Default to Mon-Fri if no days specified
+    if days is None:
+        days = {
+            "0": False,  # Sunday
+            "1": True,   # Monday
+            "2": True,   # Tuesday
+            "3": True,   # Wednesday
+            "4": True,   # Thursday
+            "5": True,   # Friday
+            "6": False   # Saturday
+        }
+
+    # Transform steps to include required fields and rename 'wait' to 'delay'
+    transformed_steps = []
+    for step in sequence_steps:
+        # Extract wait time and rename to delay
+        wait_time = step.get('wait', 0)
+
+        # Create new step with required fields
+        transformed_step = {
+            "type": "email",  # Required field
+            "delay": wait_time,  # Renamed from 'wait' to 'delay'
+            "variants": step.get('variants', []),  # Required field, default to empty array
+            **{k: v for k, v in step.items() if k not in ['wait', 'variants']}  # Include all other fields
+        }
+        transformed_steps.append(transformed_step)
+
+    # Build payload
+    payload = {
+        "name": name,
+        "campaign_schedule": {
+            "schedules": [
+                {
+                    "name": schedule_name,
+                    "timing": {
+                        "from": schedule_from,
+                        "to": schedule_to
+                    },
+                    "days": days,
+                    "timezone": timezone
+                }
+            ]
+        },
+        "sequences": [
+            {
+                "steps": transformed_steps
+            }
+        ],
+        "daily_limit": daily_limit,
+        "stop_on_reply": stop_on_reply,
+        "link_tracking": link_tracking,
+        "open_tracking": open_tracking,
+        "text_only": text_only,
+        "first_email_text_only": first_email_text_only
+    }
+
+    # Add email accounts if provided
+    if email_accounts:
+        payload["email_list"] = email_accounts
+
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    # Debug: print error response if request fails
+    if not response.ok:
+        print(f"[Instantly] API Error {response.status_code}: {response.text}")
+
+    response.raise_for_status()
+
+    return response.json()
