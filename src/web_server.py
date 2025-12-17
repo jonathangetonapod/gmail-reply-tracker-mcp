@@ -813,23 +813,50 @@ SETUP_LANDING_HTML = """
                         What Jonathan CAN Access (Full Transparency)
                     </h3>
 
+                    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+                        <h4 style="margin: 0 0 10px 0; color: #1976d2; font-size: 16px;">📌 Important: Default Setup is Fully Private</h4>
+                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>When you run the install script, you get a LOCAL MCP server.</strong> This means Jonathan has ZERO visibility into your usage. The items below only apply if you were to manually connect to the Railway shared server (which is NOT the default setup).</p>
+                    </div>
+
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ Admin Dashboard (ONLY if using Railway shared server)</h4>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>Default install:</strong> You run locally → <span style="color: #4caf50; font-weight: bold;">NO admin visibility</span></p>
+                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>If manually configured to Railway:</strong> Admin dashboard can see usage analytics</p>
+
+                        <div style="background: #f5f5f5; padding: 15px; border-radius: 6px; margin-top: 12px;">
+                            <p style="margin: 0 0 8px 0; color: #333; font-weight: bold;">What Admin Dashboard Shows:</p>
+                            <ul style="margin: 0; padding-left: 20px; color: #555; line-height: 1.8;">
+                                <li>✓ Your email address (for identification)</li>
+                                <li>✓ Which tools you used (e.g., "search_gmail", "create_calendar_event")</li>
+                                <li>✓ When you used them (timestamps)</li>
+                                <li>✓ Success/failure status</li>
+                                <li>✓ Error messages (if tools failed)</li>
+                            </ul>
+
+                            <p style="margin: 12px 0 0 0; color: #d32f2f; font-weight: bold;">What Admin Dashboard CANNOT See:</p>
+                            <ul style="margin: 0; padding-left: 20px; color: #555; line-height: 1.8;">
+                                <li>❌ Actual email content</li>
+                                <li>❌ Search queries you typed</li>
+                                <li>❌ Calendar event details</li>
+                                <li>❌ Any arguments passed to tools</li>
+                                <li>❌ OAuth tokens</li>
+                            </ul>
+                        </div>
+
+                        <p style="margin: 15px 0 0 0; color: #666; font-size: 14px;"><strong>Think of it like web server logs:</strong> The admin can see "User searched Gmail at 3:45pm" but cannot see what they searched for or what results they got.</p>
+                    </div>
+
                     <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
                         <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ Client API Keys (Bison & Instantly)</h4>
                         <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>Location:</strong> Stored in a shared Google Sheet that tracks client campaigns</p>
                         <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>What this means:</strong> Jonathan can create/manage marketing campaigns for clients using Bison and Instantly</p>
-                        <p style="margin: 0; color: #d32f2f; line-height: 1.6; font-size: 14px;"><strong>⚠️ Important:</strong> This is for client work only, not your personal data</p>
-                    </div>
-
-                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
-                        <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ Railway Server Logs</h4>
-                        <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>What's logged:</strong> When someone uses the Railway MCP server (multi-tenant version), connection logs are visible</p>
-                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>What's NOT logged:</strong> Email content, calendar events, or personal data - only connection timestamps and errors</p>
+                        <p style="margin: 0; color: #d32f2f; line-height: 1.6; font-size: 14px;"><strong>⚠️ Important:</strong> This is for client campaign management, not your personal Gmail/Calendar</p>
                     </div>
 
                     <div style="background: white; padding: 20px; border-radius: 8px;">
                         <h4 style="margin: 0 0 12px 0; color: #e65100; font-size: 16px;">✓ This Source Code</h4>
                         <p style="margin: 0 0 10px 0; color: #555; line-height: 1.6;"><strong>What:</strong> The entire MCP server code is on GitHub (open source)</p>
-                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>Why this matters:</strong> You can audit the code yourself to verify privacy claims</p>
+                        <p style="margin: 0; color: #555; line-height: 1.6;"><strong>Why this matters:</strong> You can audit the code yourself to verify these privacy claims</p>
                         <a href="https://github.com/jonathangetonapod/gmail-reply-tracker-mcp" target="_blank" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: #2196f3; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">View Source Code on GitHub</a>
                     </div>
                 </div>
@@ -886,10 +913,13 @@ SETUP_LANDING_HTML = """
                 <div style="background: #f5f5f5; padding: 30px; border-radius: 12px; text-align: center; border: 3px solid #4caf50;">
                     <h3 style="margin: 0 0 15px 0; font-size: 24px; color: #2e7d32;">🎯 Bottom Line</h3>
                     <p style="margin: 0 0 10px 0; font-size: 18px; color: #333; line-height: 1.6;">
-                        Your personal Gmail, Calendar, and Fathom data is <strong>100% private</strong> and stored only on your computer.
+                        <strong>Default Install (Recommended):</strong> Your personal Gmail, Calendar, and Fathom data is <strong>100% private</strong> and stored only on your computer. Jonathan has <strong>ZERO visibility</strong> into your usage.
                     </p>
-                    <p style="margin: 0; font-size: 16px; color: #666; line-height: 1.6;">
-                        Jonathan (the admin) can only access shared client API keys for campaign management - nothing personal.
+                    <p style="margin: 10px 0; font-size: 16px; color: #666; line-height: 1.6;">
+                        If manually configured to use Railway shared server: Jonathan can see usage analytics (which tools, when) but <strong>NOT the actual content</strong> (emails, calendar details, search queries, etc.).
+                    </p>
+                    <p style="margin: 10px 0 0 0; font-size: 16px; color: #666; line-height: 1.6;">
+                        Jonathan can only access shared client API keys for campaign management (Bison/Instantly) - nothing personal.
                     </p>
                 </div>
 
