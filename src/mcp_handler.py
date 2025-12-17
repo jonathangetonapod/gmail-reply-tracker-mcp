@@ -20,6 +20,42 @@ import leads
 logger = logging.getLogger(__name__)
 
 
+def convert_to_bison_placeholders(text: str) -> str:
+    """
+    Convert Instantly-style placeholders to Bison format.
+    {{first_name}} → {FIRST_NAME}
+    {{firstname}} → {FIRST_NAME}
+    {{company}} → {COMPANY_NAME}
+    """
+    import re
+
+    # Map of Instantly → Bison placeholders
+    # Includes all common variations (camelCase, snake_case, no separator)
+    replacements = {
+        r'\{\{first_name\}\}': '{FIRST_NAME}',
+        r'\{\{firstName\}\}': '{FIRST_NAME}',
+        r'\{\{firstname\}\}': '{FIRST_NAME}',
+        r'\{\{last_name\}\}': '{LAST_NAME}',
+        r'\{\{lastName\}\}': '{LAST_NAME}',
+        r'\{\{lastname\}\}': '{LAST_NAME}',
+        r'\{\{company\}\}': '{COMPANY_NAME}',
+        r'\{\{company_name\}\}': '{COMPANY_NAME}',
+        r'\{\{companyName\}\}': '{COMPANY_NAME}',
+        r'\{\{companyname\}\}': '{COMPANY_NAME}',
+        r'\{\{title\}\}': '{TITLE}',
+        r'\{\{job_title\}\}': '{TITLE}',
+        r'\{\{jobTitle\}\}': '{TITLE}',
+        r'\{\{jobtitle\}\}': '{TITLE}',
+        r'\{\{email\}\}': '{EMAIL}',
+    }
+
+    result = text
+    for pattern, replacement in replacements.items():
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+
+    return result
+
+
 class MCPHandler:
     """Handles MCP protocol over HTTP with per-user credentials."""
 
@@ -1766,13 +1802,35 @@ class MCPHandler:
             else:
                 created_campaign = False
 
+            # Convert placeholder variables to Bison format and ensure wait_in_days >= 1
+            steps = kwargs['steps']
+            converted_subjects = []
+            for step in steps:
+                # Default wait_in_days to 3 if missing or < 1 (API requirement)
+                if 'wait_in_days' not in step or step['wait_in_days'] < 1:
+                    step['wait_in_days'] = 3
+
+                # Convert placeholders: {{first_name}} → {FIRST_NAME}
+                if 'email_subject' in step:
+                    original = step['email_subject']
+                    step['email_subject'] = convert_to_bison_placeholders(step['email_subject'])
+                    if original != step['email_subject']:
+                        logger.info("[Bison] Converted subject: %s → %s", original, step['email_subject'])
+                        converted_subjects.append(step['email_subject'])
+
+                if 'email_body' in step:
+                    original = step['email_body']
+                    step['email_body'] = convert_to_bison_placeholders(step['email_body'])
+                    if original != step['email_body']:
+                        logger.info("[Bison] Converted body placeholders")
+
             # Create the sequence
             result = await asyncio.to_thread(
                 bison_client.create_bison_sequence_api,
                 api_key=workspace["api_key"],
                 campaign_id=campaign_id,
                 title=kwargs['sequence_title'],
-                sequence_steps=kwargs['steps']
+                sequence_steps=steps
             )
 
             response = {
@@ -1786,6 +1844,10 @@ class MCPHandler:
             if created_campaign:
                 response["campaign_created"] = True
                 response["campaign_name"] = kwargs.get('campaign_name', kwargs['sequence_title'])
+
+            # Include converted subjects for verification
+            if converted_subjects:
+                response["converted_subjects"] = converted_subjects
 
             return json.dumps(response, indent=2)
         except Exception as e:
