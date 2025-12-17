@@ -326,3 +326,84 @@ def create_instantly_campaign_api(
     response.raise_for_status()
 
     return response.json()
+
+
+def list_instantly_campaigns(api_key: str, status: int = None):
+    """
+    List all campaigns from Instantly API.
+
+    Args:
+        api_key: Instantly API key
+        status: Filter by status (integer) - optional
+            0 = Draft
+            1 = Active
+            2 = Paused
+            3 = Completed
+            4 = Running Subsequences
+            -99 = Account Suspended
+            -1 = Accounts Unhealthy
+            -2 = Bounce Protect
+
+    Returns:
+        List of campaigns:
+        [
+            {
+                "id": str (UUID),
+                "name": str,
+                "status": int,
+                "timestamp_created": str,
+                ...
+            }
+        ]
+    """
+    url = "https://api.instantly.ai/api/v2/campaigns/list"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    params = {}
+    if status is not None:
+        params["status"] = status
+
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def get_instantly_campaign_details(api_key: str, campaign_id: str):
+    """
+    Get campaign details including sequences from Instantly API.
+
+    Args:
+        api_key: Instantly API key
+        campaign_id: Campaign ID (UUID)
+
+    Returns:
+        {
+            "id": str,
+            "name": str,
+            "status": str,
+            "sequences": [
+                {
+                    "steps": [
+                        {
+                            "type": "email",
+                            "delay": int,
+                            "variants": [
+                                {
+                                    "subject": str,
+                                    "body": str
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    """
+    url = f"https://api.instantly.ai/api/v2/campaigns/{campaign_id}"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+
+    return response.json()

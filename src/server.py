@@ -3092,6 +3092,86 @@ async def create_instantly_campaign(
 
 
 @mcp.tool()
+async def check_text_spam(
+    subject: str = "",
+    body: str = ""
+) -> str:
+    """
+    Check any email text for spam without creating a campaign (ad-hoc spam checking).
+
+    Perfect for:
+    - Pre-writing campaign copy review
+    - A/B testing subject line variations
+    - Checking draft email content before sending
+    - Competitive analysis of forwarded emails
+
+    Args:
+        subject: Email subject line to check (optional)
+        body: Email body content to check (optional)
+
+    Returns:
+        JSON string with spam analysis:
+        - is_spam: Whether content is flagged as spam
+        - spam_score: Numeric spam score (higher = more spammy)
+        - spam_words: List of spam trigger words found
+        - number_of_spam_words: Count of spam words
+
+    Example Usage:
+        - "Check this subject line for spam: Get 100% FREE money now!"
+        - "Is this email body spammy? [paste email content]"
+        - "Check both subject and body for spam triggers"
+    """
+    try:
+        # Get EmailGuard API key from environment
+        emailguard_key = os.environ.get('EMAILGUARD_API_KEY')
+        if not emailguard_key:
+            return json.dumps({
+                "success": False,
+                "error": "EmailGuard API key not configured. Please set EMAILGUARD_API_KEY environment variable."
+            }, indent=2)
+
+        if not subject and not body:
+            return json.dumps({
+                "success": False,
+                "error": "Please provide either a subject line or email body to check."
+            }, indent=2)
+
+        # Check the text
+        result = await asyncio.to_thread(
+            spam_checker.check_text_spam,
+            emailguard_key,
+            subject=subject,
+            body=body
+        )
+
+        if "error" in result:
+            return json.dumps({
+                "success": False,
+                "error": result["error"]
+            }, indent=2)
+
+        # Build response
+        response = {
+            "success": True,
+            "result": result,
+            "summary": f"{'⚠️ SPAM DETECTED' if result['is_spam'] else '✅ CLEAN'} - Score: {result['spam_score']:.2f}"
+        }
+
+        if result['spam_words']:
+            response["spam_triggers"] = result['spam_words']
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in check_text_spam: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def check_campaign_spam(
     client_name: str = None,
     platform: str = "bison",
@@ -3106,7 +3186,7 @@ async def check_campaign_spam(
     Args:
         client_name: Optional specific client to check (uses fuzzy matching). If not provided, checks all clients.
         platform: Platform to check - "bison" or "instantly" (default: "bison")
-        status: Campaign status to filter - "active", "launching", etc. (default: "active")
+        status: Campaign status to filter - "active", "launching", "draft", etc. (default: "active")
 
     Returns:
         JSON string with spam analysis:
@@ -3117,8 +3197,9 @@ async def check_campaign_spam(
 
     Example Usage:
         - "Check spam for all active Bison campaigns"
-        - "Check spam for Michael Hernandez's campaigns"
-        - "Scan Brian Bliss's active campaigns for spam words"
+        - "Check spam for Michael Hernandez's draft campaigns"
+        - "Scan Brian Bliss's launching campaigns for spam words"
+        - "Check all Jeff's campaigns regardless of status"
     """
     try:
         # Get EmailGuard API key from environment
@@ -3140,7 +3221,7 @@ async def check_campaign_spam(
         logger.info("Checking campaign spam for platform: %s, status: %s, client: %s",
                    platform, status, client_name or "all")
 
-        # Currently only Bison is implemented
+        # Check campaigns based on platform
         if platform.lower() == "bison":
             results = await asyncio.to_thread(
                 spam_checker.check_all_bison_campaigns_spam,
@@ -3148,10 +3229,17 @@ async def check_campaign_spam(
                 status=status,
                 client_name=client_name
             )
+        elif platform.lower() == "instantly":
+            results = await asyncio.to_thread(
+                spam_checker.check_all_instantly_campaigns_spam,
+                emailguard_key,
+                status=status,
+                client_name=client_name
+            )
         else:
             return json.dumps({
                 "success": False,
-                "error": f"Platform '{platform}' not yet supported. Currently only 'bison' is available."
+                "error": f"Platform '{platform}' not supported. Please use 'bison' or 'instantly'."
             }, indent=2)
 
         # Add summary
