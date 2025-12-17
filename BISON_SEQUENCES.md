@@ -10,16 +10,90 @@ Simply tell Claude to create a sequence for a Bison client. Claude will use the 
 
 ### Example Prompts
 
+**From formatted copy docs:**
+```
+"Upload the Validation Fatigue campaign to Jeff Mikolai's Bison campaign 42"
+
+[Then paste your copy doc]
+```
+
+**From simple instructions:**
 ```
 "Create a 3-step cold outreach sequence for Jeff Mikolai's campaign ID 42"
 
-"Upload this email sequence to Adam Mazel's Bison campaign 15:
-- Step 1: Introduction email with subject 'Quick question about [COMPANY]'
-- Step 2: Follow-up after 3 days
-- Step 3: Final touch after 5 days"
-
 "Add a new sequence titled 'Q1 2025 Outreach' to Derek Hobbs' campaign 8"
 ```
+
+## Working with Your Copy Docs
+
+You can paste your formatted copy docs directly! Here's an example:
+
+### Your Copy Doc Format
+```
+Campaign 1: Validation Fatigue
+Audience: Medical Device QA/Regulatory Leaders
+
+Email 1
+Subject: Your validation cycle: 6 weeks or 6 days?
+Hi [Name],
+Most QA/RA teams spend 4-6 weeks on validation...
+Best,
+
+Email 2
+Subject: Quick question
+Hi [Name],
+Quick question: what's your current timeline...
+Best,
+```
+
+### Just Tell Claude:
+```
+"Upload this Validation Fatigue campaign to Jeff Mikolai's campaign 42,
+set first email to wait 1 day, second email to wait 3 days and reply in thread"
+
+[paste your copy doc above]
+```
+
+Claude will:
+1. Parse your copy doc format
+2. Extract subjects and bodies
+3. Apply the wait times you specified
+4. Configure thread replies
+5. Upload to Bison automatically
+
+## Real Example
+
+**User:** "Upload this to Adam Mazel's campaign 15, first email wait 1 day, second wait 3 days in thread, third wait 5 days in thread"
+
+**Paste:**
+```
+Campaign 2: Disconnected Systems
+Audience: Operations Leaders
+
+Email 1
+Subject: Your ERP and QMS don't talk. Should they?
+Hi [Name],
+I'm guessing your team manually moves data between systems...
+Cheers,
+
+Email 2
+Subject: Re: Your ERP and QMS don't talk. Should they?
+Hi [Name],
+Following up on system integration...
+Best,
+
+Email 3
+Subject: Re: Your ERP and QMS don't talk. Should they?
+Hi [Name],
+Last follow-up...
+Best,
+```
+
+**Claude will create:**
+- Sequence title: "Disconnected Systems"
+- 3 email steps with proper wait times
+- Thread replies configured on emails 2 and 3
+- All uploaded to campaign 15
 
 ## Tool Parameters
 
@@ -44,35 +118,28 @@ Each step in the `steps` array should have:
 | `variant` | boolean | No | Whether this is a variant (default: false) |
 | `variant_from_step` | number | No | Which step this is a variant of |
 
-## Example Sequence Format
+## Example Sequence Format (JSON)
 
-Here's what a typical 3-step cold outreach sequence looks like:
+Here's what gets sent to the Bison API:
 
 ```json
 {
   "client_name": "Jeff Mikolai",
   "campaign_id": 42,
-  "sequence_title": "Cold Outreach - V2",
+  "sequence_title": "Validation Fatigue",
   "steps": [
     {
-      "email_subject": "Quick question about {COMPANY_NAME}",
-      "email_body": "Hi {FIRST_NAME},\n\nI noticed your company is in the [industry] space...\n\nBest,\nJohn",
+      "email_subject": "Your validation cycle: 6 weeks or 6 days?",
+      "email_body": "Hi {FIRST_NAME},\n\nMost QA/RA teams spend 4-6 weeks on validation for every software update...\n\nBest,",
       "order": 1,
       "wait_in_days": 1,
       "thread_reply": false
     },
     {
-      "email_subject": "Re: Quick question about {COMPANY_NAME}",
-      "email_body": "Hi {FIRST_NAME},\n\nJust following up on my previous email...",
+      "email_subject": "Re: Your validation cycle: 6 weeks or 6 days?",
+      "email_body": "Hi {FIRST_NAME},\n\nQuick question: what's your current timeline...\n\nBest,",
       "order": 2,
       "wait_in_days": 3,
-      "thread_reply": true
-    },
-    {
-      "email_subject": "Re: Quick question about {COMPANY_NAME}",
-      "email_body": "Hi {FIRST_NAME},\n\nOne final follow-up before I close this out...",
-      "order": 3,
-      "wait_in_days": 5,
       "thread_reply": true
     }
   ]
@@ -81,40 +148,87 @@ Here's what a typical 3-step cold outreach sequence looks like:
 
 ## Variables in Email Content
 
-You can use Bison variables in your subject lines and email bodies:
+You can use Bison variables in your subject lines and email bodies. Claude will automatically convert common placeholders:
 
+**Your copy docs:**
+- `[Name]` → `{FIRST_NAME}`
+- `[Company]` → `{COMPANY_NAME}`
+- `[Title]` → `{TITLE}`
+
+**Bison variables:**
 - `{FIRST_NAME}` - Lead's first name
 - `{LAST_NAME}` - Lead's last name
 - `{COMPANY_NAME}` - Company name
+- `{TITLE}` - Job title
 - `{CUSTOM_FIELD}` - Any custom field you've set up
 
 ## Thread Replies
 
-- **First email** (`order: 1`): Set `thread_reply: false`
-- **Follow-ups** (`order: 2+`): Set `thread_reply: true` to reply in the same thread
+Claude automatically handles thread replies:
+- **First email** (`order: 1`): `thread_reply: false`
+- **Follow-ups** (`order: 2+`): `thread_reply: true` (if you mention "in thread")
 
-## Variants (A/B Testing)
+## Typical Patterns
 
-To create A/B test variants:
+### Pattern 1: Simple 2-Step
+```
+"Upload this to [client] campaign [ID], first email wait 1 day, second wait 3 days in thread"
+```
 
-```json
-{
-  "steps": [
-    {
-      "email_subject": "Version A subject",
-      "order": 1,
-      "variant": false,
-      ...
-    },
-    {
-      "email_subject": "Version B subject",
-      "order": 1,
-      "variant": true,
-      "variant_from_step": 1,
-      ...
-    }
-  ]
-}
+### Pattern 2: 3-Step Sequence
+```
+"Upload this to [client] campaign [ID]:
+- Email 1: wait 1 day
+- Email 2: wait 3 days, reply in thread
+- Email 3: wait 5 days, reply in thread"
+```
+
+### Pattern 3: Multiple Campaigns
+```
+"Upload the Validation Fatigue campaign to campaign 42"
+"Upload the Disconnected Systems campaign to campaign 43"
+```
+
+## Pro Tips
+
+1. **Copy doc format works as-is**: Just paste your formatted campaigns directly
+2. **Claude handles the parsing**: No need to manually format JSON
+3. **Specify wait times**: Claude needs you to tell it the wait days (1, 3, 5, etc.)
+4. **Thread replies**: Just say "reply in thread" or "in thread" for follow-ups
+5. **Test first**: Upload to a test campaign first to verify formatting
+6. **Batch upload**: You can upload multiple campaigns in one conversation
+
+## Common Use Cases
+
+### 1. Cold Outreach Sequence
+```
+"Upload this cold outreach to Jeff Mikolai campaign 42:
+- Step 1: wait 1 day
+- Step 2: wait 3 days in thread
+- Step 3: wait 5 days in thread"
+
+[paste your 3 emails]
+```
+
+### 2. Multiple Campaigns at Once
+```
+"I have 3 campaigns to upload to Adam Mazel's Bison.
+Campaign 42: Validation Fatigue
+Campaign 43: Disconnected Systems
+Campaign 44: Compliance Burden
+
+For all of them: first email 1 day, second 3 days thread, third 5 days thread"
+
+[paste all your campaigns]
+```
+
+### 3. A/B Testing Different Campaigns
+```
+"Upload both of these as separate sequences to campaign 42:
+- Title the first one 'Version A - Validation Fatigue'
+- Title the second one 'Version B - Validation Fatigue'"
+
+[paste both versions]
 ```
 
 ## Response Format
@@ -123,7 +237,7 @@ Success response:
 ```json
 {
   "success": true,
-  "message": "Successfully created sequence 'Cold Outreach - V2' with 3 steps",
+  "message": "Successfully created sequence 'Validation Fatigue' with 3 steps",
   "sequence_id": 123,
   "steps_created": 3
 }
@@ -137,43 +251,47 @@ Error response:
 }
 ```
 
-## Tips
-
-1. **Test first**: Always test with a small sequence (1-2 steps) before uploading long sequences
-2. **Check campaign ID**: Make sure you have the correct campaign ID from Bison
-3. **Variables**: Use Bison's variable syntax `{VARIABLE_NAME}` in all caps
-4. **Wait times**: Typical wait times are 1-5 days between steps
-5. **Client names**: Use exact client names as they appear in the Bison sheet
-
-## Common Use Cases
-
-### 1. Cold Outreach Sequence
-- Step 1: Initial introduction (wait 1 day)
-- Step 2: Value proposition follow-up (wait 3 days)
-- Step 3: Final breakup email (wait 5 days)
-
-### 2. Warm Follow-up Sequence
-- Step 1: Reference previous conversation (wait 2 days)
-- Step 2: Share case study/resource (wait 4 days)
-
-### 3. Event Invitation Sequence
-- Step 1: Event invitation (wait 1 day)
-- Step 2: Event reminder (wait 2 days)
-- Step 3: Last chance to register (wait 1 day)
-
 ## Troubleshooting
 
 **"Client not found" error:**
 - Check the exact spelling of the client name
 - Try using just the first name: "Jeff" instead of "Jeff Mikolai"
+- Ask Claude: "What Bison clients do we have?" to see the exact names
 
 **"Invalid campaign_id" error:**
 - Verify the campaign ID exists in Bison
 - Check that the campaign belongs to the specified client
+- Campaign IDs are numbers, not names
 
 **"Unauthorized" error:**
 - The client's API key may be expired or invalid
 - Contact admin to update the API key in the Google Sheet
+
+**Formatting issues:**
+- Make sure email subjects are clear (Claude will extract them)
+- If Claude misses something, be more explicit: "Subject line is: X"
+- You can always review what Claude parsed before it uploads
+
+## Full Workflow Example
+
+```
+You: "I need to upload 2 campaigns for Jeff Mikolai"
+
+Claude: "Sure! What are the campaign IDs and what are the sequences?"
+
+You: "Campaign 42 for Validation Fatigue, Campaign 43 for Disconnected Systems.
+For both: first email 1 day, second 3 days thread, third 5 days thread"
+
+[paste your copy docs]
+
+Claude: [Parses both campaigns, shows you the summary, asks for confirmation]
+
+You: "Looks good, upload them"
+
+Claude: [Uploads both sequences]
+"✅ Successfully created 'Validation Fatigue' sequence (3 steps) in campaign 42
+✅ Successfully created 'Disconnected Systems' sequence (3 steps) in campaign 43"
+```
 
 ## Technical Details
 
@@ -184,3 +302,10 @@ This tool:
 4. Returns the sequence ID and confirmation
 
 API Endpoint: `https://send.leadgenjay.com/api/campaigns/v1.1/{campaign_id}/sequence-steps`
+
+## Need Help?
+
+Ask Claude:
+- "Show me all Bison clients" - See available clients
+- "What campaigns does Jeff Mikolai have?" - See campaign IDs (if you have that data)
+- "Can you parse this sequence first before uploading?" - Preview what will be uploaded
