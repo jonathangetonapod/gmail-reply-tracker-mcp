@@ -2,6 +2,7 @@
 Campaign spam checker - scans Bison and Instantly campaigns for spam content.
 """
 
+import requests
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from . import bison_client, instantly_client, emailguard_client, sheets_client
@@ -212,11 +213,24 @@ def _check_single_bison_client(
 
         return client_result
 
+    except requests.exceptions.HTTPError as e:
+        # Capture HTTP error details for debugging
+        error_details = {
+            "client_name": name,
+            "error": f"HTTP {e.response.status_code}: {str(e)}",
+            "status_code": e.response.status_code
+        }
+        try:
+            error_details["api_response"] = e.response.text[:500]  # First 500 chars
+        except:
+            pass
+        return error_details
     except Exception as e:
         # Error logging removed for MCP compatibility
         return {
             "client_name": name,
-            "error": str(e)
+            "error": str(e),
+            "error_type": type(e).__name__
         }
 
 
@@ -432,7 +446,8 @@ def _check_single_instantly_client(
             # Error logging removed for MCP compatibility
             return {
                 "client_name": name,
-                "error": f"Invalid campaigns response type: {type(campaigns)}"
+                "error": f"Invalid campaigns response type: {type(campaigns)}",
+                "raw_response": str(campaigns)[:500]  # First 500 chars for debugging
             }
 
         client_result = {
@@ -468,11 +483,24 @@ def _check_single_instantly_client(
 
         return client_result
 
+    except requests.exceptions.HTTPError as e:
+        # Capture HTTP error details for debugging
+        error_details = {
+            "client_name": name,
+            "error": f"HTTP {e.response.status_code}: {str(e)}",
+            "status_code": e.response.status_code
+        }
+        try:
+            error_details["api_response"] = e.response.text[:500]  # First 500 chars
+        except:
+            pass
+        return error_details
     except Exception as e:
         # Error logging removed for MCP compatibility
         return {
             "client_name": name,
-            "error": str(e)
+            "error": str(e),
+            "error_type": type(e).__name__
         }
 
 
