@@ -404,12 +404,29 @@ fi
 
 print_success "Google account connected!"
 
-# Optional: Fathom API key
+# Configure environment variables
 echo
-print_step "Optional: Fathom Integration"
+print_step "Configuring environment variables"
+
+# Copy .env.example to .env (includes EmailGuard API key)
+if [ -f ".env.example" ]; then
+    cp .env.example .env
+    print_success "Environment variables configured (includes EmailGuard API)"
+else
+    print_warning ".env.example not found, creating minimal .env"
+    touch .env
+fi
+
+# Optional: Add Fathom API key if provided
 if [ -n "$FATHOM_API_KEY" ]; then
-    # Create .env file with Fathom key from parameter
-    echo "FATHOM_API_KEY=$FATHOM_API_KEY" > .env
+    # Update or add FATHOM_API_KEY in .env
+    if grep -q "^FATHOM_API_KEY=" .env; then
+        # Replace existing line
+        sed -i.bak "s|^FATHOM_API_KEY=.*|FATHOM_API_KEY=$FATHOM_API_KEY|" .env && rm .env.bak
+    else
+        # Append new line
+        echo "FATHOM_API_KEY=$FATHOM_API_KEY" >> .env
+    fi
     print_success "Fathom API key configured"
 else
     print_substep "No Fathom key provided (you can add it later if needed)"
