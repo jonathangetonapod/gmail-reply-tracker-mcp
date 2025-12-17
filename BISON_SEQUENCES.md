@@ -20,6 +20,7 @@ Simply tell Claude to create a sequence for a Bison client. Claude will ask to c
 Claude will ask:
 - "I see 3 variations. Should I upload these as separate sequences or as a 3-step sequence?"
 - "What should I name the campaign? (default: 'Speaker Outreach')"
+- If any subject lines are missing: "I need subject lines for these emails. What should they be?"
 
 **From simple instructions:**
 ```
@@ -262,6 +263,26 @@ Error response:
   "error": "Client 'Unknown Client' not found"
 }
 ```
+
+## Missing Subject Lines
+
+If your copy doc doesn't include explicit subject lines, Claude will ask you to provide them:
+
+**Example:**
+```
+You: "Upload this to Michael Hernandez"
+[paste email body without subject]
+
+Claude: "I see the email body, but what subject line should I use?"
+
+You: "Use 'Quick question about speaking gigs'"
+
+Claude: ✅ [uploads with that subject]
+```
+
+**For follow-up emails:**
+- Email 1: Needs unique subject
+- Email 2-3: Can use "Re: [original subject]" or ask for specific subjects
 
 ## Troubleshooting
 
