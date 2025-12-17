@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 34 tools across Gmail, Calendar, Fathom AI, and lead management platforms*
+*Transform Claude into your AI productivity command center with 37 tools across Gmail, Calendar, Fathom AI, lead management, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -66,12 +66,17 @@ Ask Claude things like:
 > - "Show me interested leads from our top performing clients this week"
 > - "Which clients are underperforming and need attention?"
 > - "Get campaign statistics for all Instantly clients this month"
+>
+> **🛡️ Spam Detection**:
+> - "Check spam in Instantly campaigns for Brian Bliss"
+> - "Scan the Bison campaign for Michael Hernandez for spam words"
+> - "Check if this subject line is spammy: 'FREE OFFER - Act Now!!!'"
 
 ---
 
 ## 🎯 Key Features
 
-### 34 Production Tools Across 4 Platforms
+### 37 Production Tools Across 5 Platforms
 
 <table>
 <tr>
@@ -92,6 +97,12 @@ Ask Claude things like:
 - Multi-calendar support
 - Event CRUD operations
 - Quick add with natural language
+
+**🛡️ Spam Detection (3 tools)**
+- Ad-hoc subject & body spam checking
+- Bison campaign sequence scanning
+- Instantly campaign variant scanning
+- EmailGuard API integration with quota detection
 
 </td>
 <td width="50%" valign="top">
@@ -118,13 +129,21 @@ Ask Claude things like:
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.3.1)
+### 🆕 Latest Features (v2.4.0)
+
+- 🛡️ **Spam Checking** - Integrated EmailGuard API for campaign spam detection with 13 comprehensive tests
+- 📊 **100 Unit Tests** - Complete test coverage across all features (27 email analysis, 14 campaign management, 14 lead fetching, 13 spam checking, 18 workspace management, 14 Gmail integration)
+- 💬 **User-Friendly Error Messages** - Clear explanations for API quota limits, rate limiting, and authentication errors
+- 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words in subjects and bodies
+- 🧪 **Enhanced Test Suite** - Comprehensive coverage for leads fetching, campaign management, and workspace loading
+
+### Recent Features (v2.3.1)
 
 - 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
 - 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link with one-click join
 - ⚙️ **Smart Auto-Detection** - Intelligently adds Meet links only when needed (events with attendees)
 
-### Recent Features (v2.3.0)
+### Features (v2.3.0)
 
 - ✨ **Instantly HTML Formatting** - Email bodies display with proper line breaks and paragraph spacing
 - 🔧 **Bison Placeholder Conversion** - Automatic conversion of {{firstname}}, {{company}} to Bison format
@@ -304,7 +323,22 @@ Users just need to:
 - 📧 **Multi-Step Sequences**: Create follow-up sequences with custom wait times
 - 📊 **Performance Tracking**: Monitor reply rates, interested leads, and campaign success
 
-**Total: 34 tools** 🎉
+### 🛡️ Spam Detection Tools (3)
+
+| Tool | Description |
+|------|-------------|
+| `check_text_spam` | Check any subject and body text for spam words with EmailGuard API |
+| `check_bison_campaign_spam` | Scan entire Bison campaign sequences for spam content |
+| `check_instantly_campaign_spam` | Scan Instantly campaigns including all variants for spam detection |
+
+**Spam Detection Features:**
+- 🛡️ **EmailGuard API Integration**: Industry-standard spam detection with scoring
+- 💬 **User-Friendly Error Messages**: Clear explanations for quota limits and rate limiting
+- 📊 **Detailed Reports**: Spam scores, word counts, and specific spam words identified
+- 🔍 **Multi-Variant Support**: Scans all A/B test variants in Instantly campaigns
+- ⚠️ **Smart Error Handling**: Graceful handling of API quota exhaustion
+
+**Total: 37 tools** 🎉
 
 ---
 
@@ -312,16 +346,17 @@ Users just need to:
 
 ### For Developers
 
-- ✅ **18+ unit tests** - Campaign feature test coverage with mocked API calls
+- ✅ **100 unit tests** - Complete test coverage: 27 email analysis, 14 campaign management, 14 lead fetching, 13 spam checking, 18 workspace management, 14 Gmail integration
 - ✅ **Type hints** - Complete type safety across all modules
-- ✅ **Error handling** - Friendly error messages with recovery steps
+- ✅ **Error handling** - Friendly error messages with recovery steps for EmailGuard quota limits, rate limiting, authentication failures
 - ✅ **Rate limiting** - API quota management for Gmail/Calendar
 - ✅ **Logging** - Comprehensive debug logs for troubleshooting
 - ✅ **OAuth 2.0** - Secure authentication with encrypted token storage
 - ✅ **Session management** - Multi-tenant support with SQLite
 - ✅ **SQLite database** - User session and credential storage
-- ✅ **Fuzzy matching** - Client name search with 60% similarity threshold
+- ✅ **Fuzzy matching** - Client name search with 60% similarity threshold using rapidfuzz
 - ✅ **HTML conversion** - Automatic email body formatting for Instantly
+- ✅ **Spam detection** - EmailGuard API integration with intelligent error handling
 
 ### For Users
 
@@ -391,9 +426,9 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 - Multi-tenant from day one
 - Session-based authentication
-- Proper error handling
+- Proper error handling with user-friendly messages
 - Comprehensive logging
-- 41 unit tests
+- 100 unit tests with full coverage
 
 ### 2. Amazing User Experience
 
@@ -414,11 +449,12 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ### 4. Comprehensive Integration
 
-- 34 tools across 4 platforms
+- 37 tools across 5 platforms
 - Lead management with 88 clients
 - Google Sheets as database
-- Campaign analytics
+- Campaign analytics with spam detection
 - Interested lead tracking
+- EmailGuard API for spam checking
 
 ---
 
@@ -481,6 +517,15 @@ This helps your team stay informed about new features and decide when to update!
 
 > 💡 **See full visual timeline**: Visit `/changelog` on your Railway deployment for a beautiful timeline view!
 
+**v2.4.0** (December 17, 2024) - **Spam Detection & Enhanced Testing**
+- 🛡️ **EmailGuard API Integration** - Industry-standard spam detection for campaigns
+- 📊 **100 Unit Tests** - Complete coverage across all features (up from 41)
+- 💬 **User-Friendly Error Messages** - Clear explanations for quota limits, rate limiting, auth failures
+- 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words
+- 🧪 **Comprehensive Test Suite** - Added 14 lead fetching tests, 14 campaign tests, 13 spam checking tests, 18 workspace tests
+- 🛠️ **Technical**: Added spam_checker.py, emailguard_client.py, enhanced error handling with status code parsing
+- 🐛 **Bug Fixes**: Removed print() statements breaking MCP JSON-RPC, fixed Instantly API endpoint from /campaigns/list to /campaigns
+
 **v2.3.1** (December 17, 2024) - **Google Meet Integration**
 - 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
 - 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link for one-click joining
@@ -516,7 +561,7 @@ This helps your team stay informed about new features and decide when to update!
 - ✨ Step-by-step progress indicators (1 of 9, 2 of 9...)
 - 🐛 Fixed Railway Python bytecode caching
 - 🐛 Fixed Google OAuth scope validation
-- 📦 Expanded from 26 to 34 tools
+- 📦 Expanded tool count significantly
 
 **v1.2.0** (December 2024)
 - ✨ Automatic timezone detection
@@ -562,7 +607,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 34 tools**
+**Production-ready multi-tenant MCP server with 37 tools**
 
 ⭐ Star this repo if you found it helpful!
 
