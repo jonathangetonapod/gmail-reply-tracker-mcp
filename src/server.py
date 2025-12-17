@@ -2761,6 +2761,23 @@ async def create_bison_sequence(
     Use this to automate sequence creation instead of manually copying sequences.
     Each step can have subject, body, wait time, and thread reply settings.
 
+    IMPORTANT - A/B Testing / Email Variations:
+    Bison does NOT support A/B test variants in a single campaign like Instantly does.
+    To test multiple email variations (different subjects or copy), you must create
+    SEPARATE CAMPAIGNS for each variation.
+
+    Example: To test 3 subject line variations:
+      ✅ CORRECT: Create 3 separate campaigns:
+         - Campaign "V1 - Neutral" with subject "quick question"
+         - Campaign "V2 - Softer" with subject "speaking question"
+         - Campaign "V3 - Ultra Short" with subject "quick question for you"
+
+      ❌ INCORRECT: Do NOT try to create variants in one campaign
+         - This will fail or create unexpected results
+
+    This is a Bison API limitation. For A/B testing, call this tool multiple times
+    with different campaign names and email copy.
+
     Args:
         client_name: Name of the Bison client (e.g., 'Jeff Mikolai')
         sequence_title: Title for the sequence (e.g., 'Cold Outreach v2')
@@ -2770,8 +2787,6 @@ async def create_bison_sequence(
             - order: Step order (1, 2, 3, etc.)
             - wait_in_days: Days to wait before sending (minimum: 1, default: 3 if not specified)
             - thread_reply: Whether to reply in same thread (default: false)
-            - variant: Whether this is a variant (default: false)
-            - variant_from_step: Which step this is a variant of (if variant=true)
         campaign_id: The Bison campaign ID to add sequences to (optional - if not provided, creates a new campaign)
         campaign_name: Campaign name (required if campaign_id not provided, e.g., 'Speaker Outreach 2025')
 
