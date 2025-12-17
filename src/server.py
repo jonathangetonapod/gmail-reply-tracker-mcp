@@ -2651,6 +2651,68 @@ async def get_lead_weekly_summary() -> str:
 # CAMPAIGN AUTOMATION TOOLS
 # ============================================================================
 
+def convert_to_bison_placeholders(text: str) -> str:
+    """
+    Convert Instantly-style placeholders to Bison format.
+    {{first_name}} → {FIRST_NAME}
+    {{last_name}} → {LAST_NAME}
+    {{company}} → {COMPANY_NAME}
+    {{title}} → {TITLE}
+    """
+    import re
+
+    # Map of Instantly → Bison placeholders
+    replacements = {
+        r'\{\{first_name\}\}': '{FIRST_NAME}',
+        r'\{\{firstName\}\}': '{FIRST_NAME}',
+        r'\{\{last_name\}\}': '{LAST_NAME}',
+        r'\{\{lastName\}\}': '{LAST_NAME}',
+        r'\{\{company\}\}': '{COMPANY_NAME}',
+        r'\{\{company_name\}\}': '{COMPANY_NAME}',
+        r'\{\{companyName\}\}': '{COMPANY_NAME}',
+        r'\{\{title\}\}': '{TITLE}',
+        r'\{\{job_title\}\}': '{TITLE}',
+        r'\{\{jobTitle\}\}': '{TITLE}',
+        r'\{\{email\}\}': '{EMAIL}',
+    }
+
+    result = text
+    for pattern, replacement in replacements.items():
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+
+    return result
+
+
+def convert_to_instantly_placeholders(text: str) -> str:
+    """
+    Convert Bison-style placeholders to Instantly format.
+    {FIRST_NAME} → {{first_name}}
+    {LAST_NAME} → {{last_name}}
+    {COMPANY_NAME} → {{company}}
+    {TITLE} → {{title}}
+    """
+    import re
+
+    # Map of Bison → Instantly placeholders
+    # Use word boundaries and uppercase patterns to avoid re-matching converted placeholders
+    replacements = [
+        (r'\{COMPANY[_\s]NAME\}', '{{company}}'),
+        (r'\{JOB[_\s]TITLE\}', '{{title}}'),
+        (r'\{FIRST[_\s]NAME\}', '{{first_name}}'),
+        (r'\{LAST[_\s]NAME\}', '{{last_name}}'),
+        (r'\{COMPANY\}', '{{company}}'),
+        (r'\{TITLE\}', '{{title}}'),
+        (r'\{EMAIL\}', '{{email}}'),
+    ]
+
+    result = text
+    for pattern, replacement in replacements:
+        # Only match uppercase Bison-style placeholders (no IGNORECASE to avoid re-matching)
+        result = re.sub(pattern, replacement, result)
+
+    return result
+
+
 @mcp.tool()
 async def create_bison_sequence(
     client_name: str,
@@ -2734,9 +2796,16 @@ async def create_bison_sequence(
             logger.info("Created campaign ID: %d", campaign_id)
 
         # Ensure all steps have wait_in_days >= 1 (API requirement), default to 3
+        # Also convert placeholder variables to Bison format
         for step in steps:
             if 'wait_in_days' not in step or step['wait_in_days'] < 1:
                 step['wait_in_days'] = 3  # Default to 3 days
+
+            # Convert placeholders to Bison format: {{first_name}} → {FIRST_NAME}
+            if 'email_subject' in step:
+                step['email_subject'] = convert_to_bison_placeholders(step['email_subject'])
+            if 'email_body' in step:
+                step['email_body'] = convert_to_bison_placeholders(step['email_body'])
 
         # Create the sequence
         logger.info("Creating sequence with %d steps...", len(steps))
@@ -2844,6 +2913,21 @@ async def create_instantly_campaign(
                 "success": False,
                 "error": f"Client '{client_name}' not found in Instantly clients list"
             }, indent=2)
+
+        # Convert placeholders to Instantly format: {FIRST_NAME} → {{first_name}}
+        for step in steps:
+            if 'subject' in step:
+                step['subject'] = convert_to_instantly_placeholders(step['subject'])
+            if 'body' in step:
+                step['body'] = convert_to_instantly_placeholders(step['body'])
+
+            # Also convert in variants if present
+            if 'variants' in step and step['variants']:
+                for variant in step['variants']:
+                    if 'subject' in variant:
+                        variant['subject'] = convert_to_instantly_placeholders(variant['subject'])
+                    if 'body' in variant:
+                        variant['body'] = convert_to_instantly_placeholders(variant['body'])
 
         # Create the campaign with sequences
         logger.info("Creating campaign with %d steps...", len(steps))
