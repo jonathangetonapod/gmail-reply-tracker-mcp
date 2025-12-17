@@ -86,7 +86,8 @@ def get_lead_responses(
     start_date: str = None,
     end_date: str = None,
     days: int = 7,
-    sheet_url: str = DEFAULT_SHEET_URL
+    sheet_url: str = DEFAULT_SHEET_URL,
+    gid: str = None
 ):
     """
     MCP Tool: Get positive lead responses for a specific client/workspace.
@@ -97,6 +98,7 @@ def get_lead_responses(
         end_date: End date in ISO format (optional if using 'days')
         days: Number of days to look back (default: 7)
         sheet_url: Google Sheet URL (optional)
+        gid: Google Sheet GID for specific tab (optional)
 
     Returns:
         {
@@ -115,7 +117,7 @@ def get_lead_responses(
         }
     """
     # Load workspaces from sheet
-    workspaces = load_workspaces_from_sheet(sheet_url)
+    workspaces = load_workspaces_from_sheet(sheet_url, gid=gid)
 
     # Find the workspace by ID or name
     # Try exact match on workspace_id first
@@ -202,7 +204,8 @@ def get_campaign_stats(
     start_date: str = None,
     end_date: str = None,
     days: int = 7,
-    sheet_url: str = DEFAULT_SHEET_URL
+    sheet_url: str = DEFAULT_SHEET_URL,
+    gid: str = None
 ):
     """
     MCP Tool: Get campaign statistics for a specific client/workspace.
@@ -215,6 +218,7 @@ def get_campaign_stats(
         end_date: End date in ISO format (optional)
         days: Number of days to look back (default: 7)
         sheet_url: Google Sheet URL (optional)
+        gid: Google Sheet GID for specific tab (optional)
 
     Returns:
         {
@@ -228,7 +232,7 @@ def get_campaign_stats(
         }
     """
     # Load workspaces
-    workspaces = load_workspaces_from_sheet(sheet_url)
+    workspaces = load_workspaces_from_sheet(sheet_url, gid=gid)
 
     # Find the workspace by ID or name (same logic as get_lead_responses)
     workspace = None
