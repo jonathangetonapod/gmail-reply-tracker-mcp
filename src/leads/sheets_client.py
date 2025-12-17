@@ -143,13 +143,14 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
     Reads Instantly workspaces from Google Sheet tab.
 
     Instantly sheet structure:
-    - Column A: Client Name
+    - Column A: Workspace ID (UUID)
     - Column B: API Key
+    - Column C: Workspace Name
+    - Column D: Client Name (Person Name)
 
     Returns:
         [
-            {"client_name": "ABC Corp", "api_key": "..."},
-            {"client_name": "XYZ Ltd", "api_key": "..."},
+            {"workspace_id": "...", "api_key": "...", "client_name": "Brian Bliss", "workspace_name": "Source 1 Parcel"},
             ...
         ]
     """
@@ -173,24 +174,32 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
     for idx, row in enumerate(rows):
         if len(row) < 2:
             continue
-        raw_name = (row[0] or "").strip()
-        raw_key = (row[1] or "").strip()
+        raw_workspace_id = (row[0] or "").strip()  # Column A
+        raw_api_key = (row[1] or "").strip()       # Column B
+        raw_workspace_name = (row[2] or "").strip() if len(row) > 2 else ""  # Column C
+        raw_client_name = (row[3] or "").strip() if len(row) > 3 else ""     # Column D
 
         # Skip empty
-        if not raw_name or not raw_key:
+        if not raw_workspace_id or not raw_api_key:
             continue
 
         # Skip header row
         if idx == 0 and (
-            "client" in raw_name.lower() or
-            "name" in raw_name.lower() or
-            "api" in raw_key.lower()
+            "workspace" in raw_workspace_id.lower() or
+            "id" in raw_workspace_id.lower() or
+            "api" in raw_api_key.lower()
         ):
             continue
 
+        # Use Client Name (Column D) if available, otherwise Workspace Name (Column C)
+        display_name = raw_client_name or raw_workspace_name or raw_workspace_id
+
         workspaces.append({
-            "client_name": raw_name,
-            "api_key": raw_key
+            "workspace_id": raw_workspace_id,
+            "api_key": raw_api_key,
+            "client_name": display_name,  # For display and matching
+            "workspace_name": raw_workspace_name,  # Column C - for additional search
+            "person_name": raw_client_name,  # Column D - for additional search
         })
 
     print(f"[Instantly] Loaded {len(workspaces)} workspaces")
