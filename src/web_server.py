@@ -334,6 +334,9 @@ SETUP_LANDING_HTML = """
             <button class="info-button" onclick="openTroubleshootingModal()" style="background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);">
                 🔧 Troubleshooting Guide
             </button>
+            <a href="/changelog" class="info-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none;">
+                ✨ What's New (v2.3.0)
+            </a>
         </div>
 
         <div class="requirement">
@@ -1399,6 +1402,194 @@ class WebServer:
         def health():
             """Health check endpoint."""
             return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+
+        @self.app.route('/changelog')
+        def changelog():
+            """Show changelog with visual timeline."""
+            from version import get_all_releases, format_version_badge
+
+            releases = get_all_releases()
+            version_badge = format_version_badge()
+
+            # Build HTML for each release
+            releases_html = ""
+            for release in releases:
+                version = release["version"]
+                changelog_data = release["changelog"]
+
+                # Build highlights HTML
+                highlights_html = ""
+                for highlight in changelog_data.get("highlights", []):
+                    highlights_html += f"""
+                    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <div style="display: flex; align-items: start; gap: 15px;">
+                            <span style="font-size: 32px;">{highlight['icon']}</span>
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                    <span style="background: #e3f2fd; color: #1976d2; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">{highlight['category']}</span>
+                                    <h4 style="margin: 0; color: #333; font-size: 18px;">{highlight['title']}</h4>
+                                </div>
+                                <p style="margin: 8px 0; color: #666; line-height: 1.6;">{highlight['description']}</p>
+                                <p style="margin: 8px 0 0 0; color: #999; font-size: 14px; line-height: 1.5;">{highlight['details']}</p>
+                            </div>
+                        </div>
+                    </div>
+                    """
+
+                # Build breaking changes HTML if any
+                breaking_html = ""
+                if changelog_data.get("breaking_changes"):
+                    breaking_html = "<div style='background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; border-radius: 6px; margin-top: 20px;'>"
+                    breaking_html += "<h4 style='margin: 0 0 10px 0; color: #e65100;'>⚠️ Breaking Changes</h4><ul style='margin: 0; padding-left: 20px;'>"
+                    for change in changelog_data["breaking_changes"]:
+                        breaking_html += f"<li style='color: #666; margin-bottom: 5px;'>{change}</li>"
+                    breaking_html += "</ul></div>"
+
+                # Build technical notes HTML if any
+                technical_html = ""
+                if changelog_data.get("technical_notes"):
+                    technical_html = "<div style='background: #f5f5f5; padding: 15px; border-radius: 6px; margin-top: 20px;'>"
+                    technical_html += "<h4 style='margin: 0 0 10px 0; color: #666;'>🔧 Technical Notes</h4><ul style='margin: 0; padding-left: 20px;'>"
+                    for note in changelog_data["technical_notes"]:
+                        technical_html += f"<li style='color: #666; margin-bottom: 5px;'>{note}</li>"
+                    technical_html += "</ul></div>"
+
+                # Add release to timeline
+                releases_html += f"""
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h2 style="margin: 0; color: #333; font-size: 24px;">v{version}</h2>
+                            <span style="color: #999; font-size: 14px;">{changelog_data['date']}</span>
+                        </div>
+                        <h3 style="margin: 0 0 20px 0; color: #2196f3; font-size: 20px;">{changelog_data['title']}</h3>
+                        <div style="margin-top: 20px;">
+                            {highlights_html}
+                        </div>
+                        {breaking_html}
+                        {technical_html}
+                    </div>
+                </div>
+                """
+
+            # Full page HTML
+            html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>What's New - Gmail Calendar MCP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }}
+        .header {{
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }}
+        .header h1 {{
+            font-size: 42px;
+            margin-bottom: 10px;
+        }}
+        .header p {{
+            font-size: 18px;
+            opacity: 0.9;
+        }}
+        .version-badge {{
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }}
+        .container {{
+            max-width: 900px;
+            margin: 0 auto;
+        }}
+        .timeline {{
+            position: relative;
+            padding: 20px 0;
+        }}
+        .timeline::before {{
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0.3));
+            border-radius: 2px;
+        }}
+        .timeline-item {{
+            position: relative;
+            padding-left: 60px;
+            margin-bottom: 60px;
+        }}
+        .timeline-dot {{
+            position: absolute;
+            left: 8px;
+            top: 0;
+            width: 28px;
+            height: 28px;
+            background: white;
+            border: 4px solid #667eea;
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.3);
+        }}
+        .timeline-content {{
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }}
+        .back-button {{
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            transition: transform 0.2s;
+        }}
+        .back-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✨ What's New</h1>
+            <p>Latest updates and improvements to Gmail Calendar MCP</p>
+            <div class="version-badge">{version_badge}</div>
+        </div>
+
+        <a href="/setup" class="back-button">← Back to Setup</a>
+
+        <div class="timeline">
+            {releases_html}
+        </div>
+
+        <div style="text-align: center; padding: 40px 0;">
+            <a href="/setup" class="back-button">← Back to Setup</a>
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            return html
 
         @self.app.route('/setup')
         def setup_landing():
