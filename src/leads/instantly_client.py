@@ -214,19 +214,29 @@ def create_instantly_campaign_api(
             "6": False   # Saturday
         }
 
-    # Transform steps to include required fields and rename 'wait' to 'delay'
+    # Transform steps to Instantly API format
     transformed_steps = []
     for step in sequence_steps:
         # Extract wait time and rename to delay
         wait_time = step.get('wait', 0)
 
-        # Create new step with required fields
+        # Get variants or create from subject/body
+        variants = step.get('variants', [])
+
+        # If no variants provided, create one from subject/body at step level
+        if not variants and ('subject' in step or 'body' in step):
+            variants = [{
+                "subject": step.get('subject', ''),
+                "body": step.get('body', '')
+            }]
+
+        # Create step with correct Instantly API structure
         transformed_step = {
-            "type": "email",  # Required field
-            "delay": wait_time,  # Renamed from 'wait' to 'delay'
-            "variants": step.get('variants', []),  # Required field, default to empty array
-            **{k: v for k, v in step.items() if k not in ['wait', 'variants']}  # Include all other fields
+            "type": "email",  # Required: must be 'email'
+            "delay": wait_time,  # Days to wait before sending NEXT email
+            "variants": variants  # Array of variant objects with subject/body
         }
+
         transformed_steps.append(transformed_step)
 
     # Build payload
@@ -262,11 +272,16 @@ def create_instantly_campaign_api(
     if email_accounts:
         payload["email_list"] = email_accounts
 
+    # Debug: Print request details
+    import json as json_module
+    print(f"[INSTANTLY] POST {url}")
+    print(f"[INSTANTLY] Payload: {json_module.dumps(payload, indent=2)}")
+
     response = requests.post(url, headers=headers, json=payload, timeout=30)
 
     # Debug: print error response if request fails
     if not response.ok:
-        print(f"[Instantly] API Error {response.status_code}: {response.text}")
+        print(f"[INSTANTLY] API Error {response.status_code}: {response.text}")
 
     response.raise_for_status()
 
