@@ -51,6 +51,14 @@ CHANGELOG = {
                 "details": "Corrected create_bison_sequence tool to show how to properly use variant_from_step parameter. Now Claude creates 1 campaign with 3 A/B variants instead of 3 separate campaigns. Variants use order numbers (variant_from_step=1 means 'variant of step with order=1').",
                 "screenshot": None,
             },
+            {
+                "icon": "⏰",
+                "category": "Enhancement",
+                "title": "Smart Delay Defaults",
+                "description": "Intelligent wait times based on email position for optimal follow-up cadence",
+                "details": "No more manual wait time configuration! Automatic defaults: Bison campaigns use 1→3→5→7 days, Instantly campaigns use 0→72→120→168 hours. Based on industry best practices for maximum response rates while avoiding spam. Users can still override if needed.",
+                "screenshot": None,
+            },
         ],
         "breaking_changes": [],
         "technical_notes": [
@@ -60,6 +68,8 @@ CHANGELOG = {
             "Removed all print() statements that were breaking MCP JSON-RPC protocol",
             "Fixed Instantly API endpoint from /campaigns/list to /campaigns",
             "Fixed create_bison_sequence tool description with correct A/B testing examples",
+            "Implemented smart delay defaults in server.py and bison_client.py",
+            "Position-based wait times: idx==0→1 day, idx==1→3 days, idx==2→5 days, idx>=3→7 days",
             "Added test_bison_variants.py script to verify variant structure",
             "Added tests/test_spam_checker.py with 13 comprehensive tests",
             "Added tests/test_leads_fetching.py with 14 tests",
