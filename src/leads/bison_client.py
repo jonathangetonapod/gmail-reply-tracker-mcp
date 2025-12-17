@@ -246,12 +246,20 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
     """
     # Convert placeholder variables and normalize field names
     converted_steps = []
-    for step in sequence_steps:
+    for idx, step in enumerate(sequence_steps):
         converted_step = step.copy()
 
-        # Ensure wait_in_days is at least 1 (API requirement)
+        # Set smart defaults for wait_in_days based on step position
+        # Pattern: Step 1=1 day (API minimum), Step 2=3 days, Step 3=5 days, Step 4+=7 days
         if 'wait_in_days' not in converted_step or converted_step['wait_in_days'] < 1:
-            converted_step['wait_in_days'] = 3  # Default to 3 days
+            if idx == 0:
+                converted_step['wait_in_days'] = 1  # First step: 1 day (API minimum)
+            elif idx == 1:
+                converted_step['wait_in_days'] = 3  # Second step: 3 days
+            elif idx == 2:
+                converted_step['wait_in_days'] = 5  # Third step: 5 days
+            else:
+                converted_step['wait_in_days'] = 7  # Fourth+ step: 7 days
 
         # Handle both 'email_subject'/'email_body' AND 'subject'/'body' key names
         subject_keys = ['email_subject', 'subject']

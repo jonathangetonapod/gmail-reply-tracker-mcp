@@ -2808,7 +2808,7 @@ async def create_bison_sequence(
             - email_subject: Subject line
             - email_body: Email body content
             - order: Step order (1, 2, 3, etc.) - REQUIRED for variant_from_step to work
-            - wait_in_days: Days to wait before sending (minimum: 1, default: 3 if not specified)
+            - wait_in_days: Days to wait before sending (optional, smart defaults: step 1=1 day, step 2=3 days, step 3=5 days, step 4+=7 days)
             - thread_reply: Whether to reply in same thread (default: false)
             - variant: Whether this is a variant (default: false)
             - variant_from_step: Order number of the step to be a variant of (e.g., 1)
@@ -2884,11 +2884,20 @@ async def create_bison_sequence(
             created_campaign = True
             logger.info("Created campaign ID: %d", campaign_id)
 
-        # Ensure all steps have wait_in_days >= 1 (API requirement), default to 3
+        # Set smart defaults for wait_in_days based on step position
+        # Pattern: Step 1=1 day (API minimum), Step 2=3 days, Step 3=5 days, Step 4+=7 days
         # Also convert placeholder variables to Bison format
-        for step in steps:
+        for idx, step in enumerate(steps):
             if 'wait_in_days' not in step or step['wait_in_days'] < 1:
-                step['wait_in_days'] = 3  # Default to 3 days
+                # Smart defaults based on step position (not including variants)
+                if idx == 0:
+                    step['wait_in_days'] = 1  # First step: 1 day (API minimum)
+                elif idx == 1:
+                    step['wait_in_days'] = 3  # Second step: 3 days
+                elif idx == 2:
+                    step['wait_in_days'] = 5  # Third step: 5 days
+                else:
+                    step['wait_in_days'] = 7  # Fourth+ step: 7 days
 
             # Convert placeholders to Bison format: {{first_name}} → {FIRST_NAME}
             if 'email_subject' in step:
@@ -2964,7 +2973,7 @@ async def create_instantly_campaign(
             - subject: Email subject line
             - body: Email body content. IMPORTANT: Use \\n for line breaks between paragraphs.
               Example: "Hey {{first_name}},\\n\\nI noticed...\\n\\nBest,\\nMike"
-            - wait: Hours to wait before sending (for follow-ups, first email is 0)
+            - wait: Hours to wait before sending (optional, smart defaults: step 1=0 hrs, step 2=72 hrs (3 days), step 3=120 hrs (5 days), step 4+=168 hrs (7 days))
             - variants: Optional array of A/B test variants, each with subject and body
         email_accounts: List of email addresses to send from (optional)
         daily_limit: Daily sending limit per account (default: 50)
@@ -3058,8 +3067,21 @@ async def create_instantly_campaign(
 
             return body
 
+        # Set smart defaults for wait time based on step position
+        # Pattern: Step 1=0 hours, Step 2=72 hours (3 days), Step 3=120 hours (5 days), Step 4+=168 hours (7 days)
         # Convert placeholders to Instantly format: {FIRST_NAME} → {{first_name}}
-        for step in steps:
+        for idx, step in enumerate(steps):
+            # Set default wait times if not specified
+            if 'wait' not in step:
+                if idx == 0:
+                    step['wait'] = 0  # First email: immediate
+                elif idx == 1:
+                    step['wait'] = 72  # Second email: 3 days (72 hours)
+                elif idx == 2:
+                    step['wait'] = 120  # Third email: 5 days (120 hours)
+                else:
+                    step['wait'] = 168  # Fourth+ email: 7 days (168 hours)
+
             # Auto-format body if needed
             if 'body' in step:
                 original_body = step['body']
