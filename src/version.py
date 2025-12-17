@@ -43,6 +43,14 @@ CHANGELOG = {
                 "details": "Scan all sequence steps in Bison campaigns or all A/B test variants in Instantly campaigns. Get detailed reports showing which steps contain spam words and what needs to be fixed.",
                 "screenshot": None,
             },
+            {
+                "icon": "🎯",
+                "category": "Bug Fix",
+                "title": "Bison A/B Testing Support",
+                "description": "Fixed tool documentation to properly create A/B test variants",
+                "details": "Corrected create_bison_sequence tool to show how to properly use variant_from_step parameter. Now Claude creates 1 campaign with 3 A/B variants instead of 3 separate campaigns. Variants use order numbers (variant_from_step=1 means 'variant of step with order=1').",
+                "screenshot": None,
+            },
         ],
         "breaking_changes": [],
         "technical_notes": [
@@ -51,6 +59,8 @@ CHANGELOG = {
             "Enhanced error handling with HTTPError status code parsing",
             "Removed all print() statements that were breaking MCP JSON-RPC protocol",
             "Fixed Instantly API endpoint from /campaigns/list to /campaigns",
+            "Fixed create_bison_sequence tool description with correct A/B testing examples",
+            "Added test_bison_variants.py script to verify variant structure",
             "Added tests/test_spam_checker.py with 13 comprehensive tests",
             "Added tests/test_leads_fetching.py with 14 tests",
             "Added tests/test_campaign_management.py with 14 tests",

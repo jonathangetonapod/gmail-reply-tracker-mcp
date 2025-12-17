@@ -135,6 +135,7 @@ Ask Claude things like:
 - 📊 **100 Unit Tests** - Complete test coverage across all features (27 email analysis, 14 campaign management, 14 lead fetching, 13 spam checking, 18 workspace management, 14 Gmail integration)
 - 💬 **User-Friendly Error Messages** - Clear explanations for API quota limits, rate limiting, and authentication errors
 - 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words in subjects and bodies
+- 🎯 **Bison A/B Testing Fix** - Corrected documentation to properly support A/B test variants using `variant_from_step` parameter
 - 🧪 **Enhanced Test Suite** - Comprehensive coverage for leads fetching, campaign management, and workspace loading
 
 ### Recent Features (v2.3.1)
@@ -522,6 +523,7 @@ This helps your team stay informed about new features and decide when to update!
 - 📊 **100 Unit Tests** - Complete coverage across all features (up from 41)
 - 💬 **User-Friendly Error Messages** - Clear explanations for quota limits, rate limiting, auth failures
 - 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words
+- 🎯 **Bison A/B Testing** - Fixed tool documentation to properly create A/B test variants using `variant_from_step` parameter
 - 🧪 **Comprehensive Test Suite** - Added 14 lead fetching tests, 14 campaign tests, 13 spam checking tests, 18 workspace tests
 - 🛠️ **Technical**: Added spam_checker.py, emailguard_client.py, enhanced error handling with status code parsing
 - 🐛 **Bug Fixes**: Removed print() statements breaking MCP JSON-RPC, fixed Instantly API endpoint from /campaigns/list to /campaigns
