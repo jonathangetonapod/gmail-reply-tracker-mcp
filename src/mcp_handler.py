@@ -519,7 +519,7 @@ class MCPHandler:
             },
             {
                 "name": "create_bison_sequence",
-                "description": "Upload/create email sequence steps for a Bison campaign. Use this to automate sequence creation instead of manually copying sequences. Each step can have subject, body, wait time, and thread reply settings.",
+                "description": "Upload/create email sequence steps for a Bison campaign. If no campaign_id is provided, creates a new campaign automatically. Use this to automate sequence creation instead of manually copying sequences. Each step can have subject, body, wait time, and thread reply settings.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -529,7 +529,11 @@ class MCPHandler:
                         },
                         "campaign_id": {
                             "type": "number",
-                            "description": "The Bison campaign ID to add sequences to"
+                            "description": "The Bison campaign ID to add sequences to (optional - if not provided, creates a new campaign)"
+                        },
+                        "campaign_name": {
+                            "type": "string",
+                            "description": "Campaign name (required if campaign_id not provided, e.g., 'Speaker Outreach 2025')"
                         },
                         "sequence_title": {
                             "type": "string",
@@ -537,7 +541,7 @@ class MCPHandler:
                         },
                         "steps": {
                             "type": "array",
-                            "description": "Array of email sequence steps (2-3 steps typically)",
+                            "description": "Array of email sequence steps (1-3 steps typically)",
                             "items": {
                                 "type": "object",
                                 "properties": {
@@ -553,7 +557,7 @@ class MCPHandler:
                             }
                         }
                     },
-                    "required": ["client_name", "campaign_id", "sequence_title", "steps"]
+                    "required": ["client_name", "sequence_title", "steps"]
                 }
             },
             # Lead Management Tools - Combined
@@ -1645,7 +1649,7 @@ class MCPHandler:
             return json.dumps({"success": False, "error": str(e)}, indent=2)
 
     async def _create_bison_sequence(self, **kwargs) -> str:
-        """Create email sequence for a Bison campaign."""
+        """Create email sequence for a Bison campaign. Auto-creates campaign if needed."""
         try:
             config = Config.from_env()
             from leads import sheets_client, bison_client
@@ -1672,21 +1676,45 @@ class MCPHandler:
                     "error": f"Client '{client_name}' not found"
                 }, indent=2)
 
+            # Get or create campaign
+            campaign_id = kwargs.get('campaign_id')
+
+            if not campaign_id:
+                # Create new campaign
+                campaign_name = kwargs.get('campaign_name', kwargs['sequence_title'])
+                campaign_result = await asyncio.to_thread(
+                    bison_client.create_bison_campaign_api,
+                    api_key=workspace["api_key"],
+                    name=campaign_name,
+                    campaign_type="outbound"
+                )
+                campaign_id = campaign_result['data']['id']
+                created_campaign = True
+            else:
+                created_campaign = False
+
             # Create the sequence
             result = await asyncio.to_thread(
                 bison_client.create_bison_sequence_api,
                 api_key=workspace["api_key"],
-                campaign_id=kwargs['campaign_id'],
+                campaign_id=campaign_id,
                 title=kwargs['sequence_title'],
                 sequence_steps=kwargs['steps']
             )
 
-            return json.dumps({
+            response = {
                 "success": True,
                 "message": f"Successfully created sequence '{kwargs['sequence_title']}' with {len(kwargs['steps'])} steps",
+                "campaign_id": campaign_id,
                 "sequence_id": result['data']['id'],
                 "steps_created": len(result['data']['sequence_steps'])
-            }, indent=2)
+            }
+
+            if created_campaign:
+                response["campaign_created"] = True
+                response["campaign_name"] = kwargs.get('campaign_name', kwargs['sequence_title'])
+
+            return json.dumps(response, indent=2)
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)}, indent=2)
 

@@ -113,6 +113,44 @@ def get_bison_campaign_stats_api(api_key: str, start_date: str, end_date: str):
     return response.json()
 
 
+def create_bison_campaign_api(api_key: str, name: str, campaign_type: str = "outbound"):
+    """
+    Create a new campaign in Bison API.
+
+    Args:
+        api_key: Bison API key
+        name: Campaign name
+        campaign_type: Type of campaign (default: "outbound")
+
+    Returns:
+        {
+            "data": {
+                "id": int,
+                "uuid": str,
+                "name": str,
+                "type": str,
+                "status": str,
+                ...
+            }
+        }
+    """
+    url = "https://send.leadgenjay.com/api/campaigns"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "name": name,
+        "type": campaign_type
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
 def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequence_steps: list):
     """
     Create campaign sequence steps in Bison API.
