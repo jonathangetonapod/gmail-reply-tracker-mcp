@@ -3,6 +3,7 @@ Campaign spam checker - scans Bison and Instantly campaigns for spam content.
 """
 
 from typing import List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from . import bison_client, instantly_client, emailguard_client, sheets_client
 
 
@@ -161,20 +162,81 @@ def check_bison_campaign_spam(
     return results
 
 
+def _check_single_bison_client(
+    client: Dict[str, str],
+    emailguard_key: str,
+    status: str
+) -> Dict[str, Any]:
+    """
+    Helper function to check a single Bison client's campaigns.
+    Designed to be run in parallel.
+    """
+    api_key = client["api_key"]
+    name = client["client_name"]
+
+    print(f"[INFO] Checking campaigns for client: {name}")
+
+    try:
+        # List campaigns for this client
+        campaigns_response = bison_client.list_bison_campaigns(
+            api_key,
+            status=status
+        )
+        campaigns = campaigns_response.get("data", [])
+
+        client_result = {
+            "client_name": name,
+            "total_campaigns": len(campaigns),
+            "spam_campaigns": 0,
+            "campaigns": []
+        }
+
+        # Check each campaign
+        for campaign in campaigns:
+            campaign_id = campaign["id"]
+            campaign_name = campaign["name"]
+
+            print(f"[INFO]   Checking campaign: {campaign_name}")
+
+            spam_check = check_bison_campaign_spam(
+                api_key,
+                emailguard_key,
+                campaign_id,
+                campaign_name
+            )
+
+            if spam_check["spam_steps"] > 0:
+                client_result["spam_campaigns"] += 1
+
+            client_result["campaigns"].append(spam_check)
+
+        return client_result
+
+    except Exception as e:
+        print(f"[ERROR] Failed to check client {name}: {e}")
+        return {
+            "client_name": name,
+            "error": str(e)
+        }
+
+
 def check_all_bison_campaigns_spam(
     emailguard_key: str,
     status: str = "active",
     client_name: Optional[str] = None,
-    max_clients: int = 5
+    max_clients: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Check spam for all Bison campaigns across all clients.
+    Check spam for all Bison campaigns across all clients (in parallel).
+
+    Uses parallel processing to check multiple clients simultaneously,
+    making it safe to scan all 88+ clients without timeout.
 
     Args:
         emailguard_key: EmailGuard API key
         status: Campaign status to filter (default: "active")
         client_name: Optional specific client name to check
-        max_clients: Maximum number of clients to check (default: 5, prevents timeout)
+        max_clients: Optional limit on number of clients (default: None = all clients)
 
     Returns:
         {
@@ -213,8 +275,8 @@ def check_all_bison_campaigns_spam(
                 "spam_campaigns": 0,
                 "clients": []
             }
-    else:
-        # Limit to max_clients to prevent timeout
+    elif max_clients is not None:
+        # Limit to max_clients if specified
         clients = clients[:max_clients]
 
     results = {
@@ -224,57 +286,34 @@ def check_all_bison_campaigns_spam(
         "clients": []
     }
 
-    # Check each client
-    for client in clients:
-        api_key = client["api_key"]
-        name = client["client_name"]
+    # Check clients in parallel (max 10 at a time)
+    print(f"[INFO] Checking {len(clients)} clients in parallel...")
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all client checks
+        future_to_client = {
+            executor.submit(_check_single_bison_client, client, emailguard_key, status): client
+            for client in clients
+        }
 
-        print(f"[INFO] Checking campaigns for client: {name}")
+        # Collect results as they complete
+        for future in as_completed(future_to_client):
+            client = future_to_client[future]
+            try:
+                client_result = future.result()
 
-        try:
-            # List campaigns for this client
-            campaigns_response = bison_client.list_bison_campaigns(
-                api_key,
-                status=status
-            )
-            campaigns = campaigns_response.get("data", [])
+                # Aggregate counts
+                if "error" not in client_result:
+                    results["total_campaigns"] += client_result["total_campaigns"]
+                    results["spam_campaigns"] += client_result["spam_campaigns"]
 
-            client_result = {
-                "client_name": name,
-                "total_campaigns": len(campaigns),
-                "spam_campaigns": 0,
-                "campaigns": []
-            }
+                results["clients"].append(client_result)
 
-            # Check each campaign
-            for campaign in campaigns:
-                campaign_id = campaign["id"]
-                campaign_name = campaign["name"]
-
-                print(f"[INFO]   Checking campaign: {campaign_name}")
-
-                spam_check = check_bison_campaign_spam(
-                    api_key,
-                    emailguard_key,
-                    campaign_id,
-                    campaign_name
-                )
-
-                if spam_check["spam_steps"] > 0:
-                    client_result["spam_campaigns"] += 1
-                    results["spam_campaigns"] += 1
-
-                client_result["campaigns"].append(spam_check)
-                results["total_campaigns"] += 1
-
-            results["clients"].append(client_result)
-
-        except Exception as e:
-            print(f"[ERROR] Failed to check client {name}: {e}")
-            results["clients"].append({
-                "client_name": name,
-                "error": str(e)
-            })
+            except Exception as e:
+                print(f"[ERROR] Unexpected error processing client {client.get('client_name', 'unknown')}: {e}")
+                results["clients"].append({
+                    "client_name": client.get("client_name", "unknown"),
+                    "error": f"Unexpected error: {str(e)}"
+                })
 
     return results
 
@@ -370,14 +409,71 @@ def check_instantly_campaign_spam(
     return results
 
 
+def _check_single_instantly_client(
+    client: Dict[str, str],
+    emailguard_key: str,
+    status_number: int
+) -> Dict[str, Any]:
+    """
+    Helper function to check a single Instantly client's campaigns.
+    Designed to be run in parallel.
+    """
+    api_key = client["api_key"]
+    name = client["client_name"]
+
+    print(f"[INFO] Checking campaigns for client: {name}")
+
+    try:
+        # List campaigns for this client
+        campaigns = instantly_client.list_instantly_campaigns(api_key, status=status_number)
+
+        client_result = {
+            "client_name": name,
+            "total_campaigns": len(campaigns),
+            "spam_campaigns": 0,
+            "campaigns": []
+        }
+
+        # Check each campaign
+        for campaign in campaigns:
+            campaign_id = campaign["id"]
+            campaign_name = campaign["name"]
+
+            print(f"[INFO]   Checking campaign: {campaign_name}")
+
+            spam_check = check_instantly_campaign_spam(
+                api_key,
+                emailguard_key,
+                campaign_id,
+                campaign_name
+            )
+
+            if spam_check["spam_steps"] > 0:
+                client_result["spam_campaigns"] += 1
+
+            client_result["campaigns"].append(spam_check)
+
+        return client_result
+
+    except Exception as e:
+        print(f"[ERROR] Failed to check client {name}: {e}")
+        return {
+            "client_name": name,
+            "error": str(e)
+        }
+
+
 def check_all_instantly_campaigns_spam(
     emailguard_key: str,
     status: str = "active",
     client_name: Optional[str] = None,
-    max_clients: int = 5
+    max_clients: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Check spam for all Instantly campaigns across all clients.
+    Check spam for all Instantly campaigns across all clients (in parallel).
+
+    Uses parallel processing to check multiple clients simultaneously,
+    making it safe to scan all 88+ clients without timeout.
 
     Args:
         emailguard_key: EmailGuard API key
@@ -385,7 +481,7 @@ def check_all_instantly_campaigns_spam(
             Can be string: "draft", "active", "paused", "completed"
             Or number: 0 (Draft), 1 (Active), 2 (Paused), 3 (Completed)
         client_name: Optional specific client name to check
-        max_clients: Maximum number of clients to check (default: 5, prevents timeout)
+        max_clients: Optional limit on number of clients (default: None = all clients)
 
     Returns:
         {
@@ -435,8 +531,8 @@ def check_all_instantly_campaigns_spam(
                 "spam_campaigns": 0,
                 "clients": []
             }
-    else:
-        # Limit to max_clients to prevent timeout
+    elif max_clients is not None:
+        # Limit to max_clients if specified
         clients = clients[:max_clients]
 
     results = {
@@ -446,52 +542,33 @@ def check_all_instantly_campaigns_spam(
         "clients": []
     }
 
-    # Check each client
-    for client in clients:
-        api_key = client["api_key"]
-        name = client["client_name"]
+    # Check clients in parallel (max 10 at a time)
+    print(f"[INFO] Checking {len(clients)} clients in parallel...")
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all client checks
+        future_to_client = {
+            executor.submit(_check_single_instantly_client, client, emailguard_key, status_number): client
+            for client in clients
+        }
 
-        print(f"[INFO] Checking campaigns for client: {name}")
+        # Collect results as they complete
+        for future in as_completed(future_to_client):
+            client = future_to_client[future]
+            try:
+                client_result = future.result()
 
-        try:
-            # List campaigns for this client
-            campaigns = instantly_client.list_instantly_campaigns(api_key, status=status_number)
+                # Aggregate counts
+                if "error" not in client_result:
+                    results["total_campaigns"] += client_result["total_campaigns"]
+                    results["spam_campaigns"] += client_result["spam_campaigns"]
 
-            client_result = {
-                "client_name": name,
-                "total_campaigns": len(campaigns),
-                "spam_campaigns": 0,
-                "campaigns": []
-            }
+                results["clients"].append(client_result)
 
-            # Check each campaign
-            for campaign in campaigns:
-                campaign_id = campaign["id"]
-                campaign_name = campaign["name"]
-
-                print(f"[INFO]   Checking campaign: {campaign_name}")
-
-                spam_check = check_instantly_campaign_spam(
-                    api_key,
-                    emailguard_key,
-                    campaign_id,
-                    campaign_name
-                )
-
-                if spam_check["spam_steps"] > 0:
-                    client_result["spam_campaigns"] += 1
-                    results["spam_campaigns"] += 1
-
-                client_result["campaigns"].append(spam_check)
-                results["total_campaigns"] += 1
-
-            results["clients"].append(client_result)
-
-        except Exception as e:
-            print(f"[ERROR] Failed to check client {name}: {e}")
-            results["clients"].append({
-                "client_name": name,
-                "error": str(e)
-            })
+            except Exception as e:
+                print(f"[ERROR] Unexpected error processing client {client.get('client_name', 'unknown')}: {e}")
+                results["clients"].append({
+                    "client_name": client.get("client_name", "unknown"),
+                    "error": f"Unexpected error: {str(e)}"
+                })
 
     return results
