@@ -129,8 +129,32 @@ def check_bison_campaign_spam(
         body = step.get("email_body", "")
         order = step.get("order", 0)
 
+        # Skip if both subject and body are empty
+        if not subject.strip() and not body.strip():
+            results["steps"].append({
+                "step_order": order,
+                "subject": subject,
+                "is_spam": False,
+                "spam_score": 0,
+                "spam_words": [],
+                "skipped": "Empty content - no subject or body"
+            })
+            continue
+
         # Combine subject and body for spam check
         content = f"Subject: {subject}\n\n{body}"
+
+        # Validate content has minimum length
+        if len(content.strip()) < 3:
+            results["steps"].append({
+                "step_order": order,
+                "subject": subject,
+                "is_spam": False,
+                "spam_score": 0,
+                "spam_words": [],
+                "skipped": "Content too short for spam check"
+            })
+            continue
 
         try:
             # Check with EmailGuard
@@ -387,8 +411,34 @@ def check_instantly_campaign_spam(
                 body_text = re.sub(r'<[^>]+>', '', body)
                 body_text = re.sub(r'\s+', ' ', body_text).strip()
 
+                # Skip if both subject and body are empty
+                if not subject.strip() and not body_text.strip():
+                    results["steps"].append({
+                        "step_order": step_idx + 1,
+                        "variant": variant_idx + 1 if len(variants) > 1 else None,
+                        "subject": subject,
+                        "is_spam": False,
+                        "spam_score": 0,
+                        "spam_words": [],
+                        "skipped": "Empty content - no subject or body"
+                    })
+                    continue
+
                 # Combine subject and body for spam check
                 content = f"Subject: {subject}\n\n{body_text}"
+
+                # Validate content has minimum length (at least 3 characters)
+                if len(content.strip()) < 3:
+                    results["steps"].append({
+                        "step_order": step_idx + 1,
+                        "variant": variant_idx + 1 if len(variants) > 1 else None,
+                        "subject": subject,
+                        "is_spam": False,
+                        "spam_score": 0,
+                        "spam_words": [],
+                        "skipped": "Content too short for spam check"
+                    })
+                    continue
 
                 try:
                     # Check with EmailGuard
