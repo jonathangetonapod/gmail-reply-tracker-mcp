@@ -4,6 +4,8 @@ These will be the tools exposed to Claude via MCP.
 """
 
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Any, List
 
 # Import from our modular files
 from .date_utils import validate_and_parse_dates
@@ -876,6 +878,7 @@ def get_all_clients(sheet_url: str = DEFAULT_SHEET_URL):
 def get_all_platform_stats(days: int = 7, sheet_url: str = DEFAULT_SHEET_URL):
     """
     MCP Tool: Get aggregated statistics from BOTH Instantly and Bison platforms.
+    OPTIMIZED: Uses parallel processing to fetch stats from all clients simultaneously.
 
     Args:
         days: Number of days to look back (default: 7)
@@ -899,7 +902,7 @@ def get_all_platform_stats(days: int = 7, sheet_url: str = DEFAULT_SHEET_URL):
             }
         }
     """
-    print(f"[Analytics] Fetching aggregated stats for last {days} days...")
+    # Progress logging removed for MCP compatibility
 
     # Calculate date range
     end = datetime.now()
@@ -917,20 +920,26 @@ def get_all_platform_stats(days: int = 7, sheet_url: str = DEFAULT_SHEET_URL):
     instantly_total_opportunities = 0
     instantly_clients_processed = 0
 
-    for workspace in instantly_workspaces:
-        try:
-            stats = get_campaign_stats(
-                workspace_id=workspace["workspace_id"],
-                days=days,
-                sheet_url=sheet_url
-            )
-            instantly_total_emails += stats.get("emails_sent", 0)
-            instantly_total_replies += stats.get("replies", 0)
-            instantly_total_opportunities += stats.get("opportunities", 0)
-            instantly_clients_processed += 1
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch Instantly stats for {workspace['workspace_id']}: {e}")
-            continue
+    # PARALLEL PROCESSING: Fetch Instantly stats for all clients simultaneously
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        # Submit all Instantly client fetches
+        future_to_workspace = {
+            executor.submit(get_campaign_stats, workspace["workspace_id"], days=days, sheet_url=sheet_url): workspace
+            for workspace in instantly_workspaces
+        }
+
+        # Collect results as they complete
+        for future in as_completed(future_to_workspace):
+            workspace = future_to_workspace[future]
+            try:
+                stats = future.result()
+                instantly_total_emails += stats.get("emails_sent", 0)
+                instantly_total_replies += stats.get("replies", 0)
+                instantly_total_opportunities += stats.get("opportunities", 0)
+                instantly_clients_processed += 1
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                continue
 
     # Bison aggregated stats
     bison_total_emails = 0
@@ -938,20 +947,26 @@ def get_all_platform_stats(days: int = 7, sheet_url: str = DEFAULT_SHEET_URL):
     bison_total_interested = 0
     bison_clients_processed = 0
 
-    for workspace in bison_workspaces:
-        try:
-            stats = get_bison_campaign_stats(
-                client_name=workspace["client_name"],
-                days=days,
-                sheet_url=sheet_url
-            )
-            bison_total_emails += stats.get("emails_sent", 0)
-            bison_total_replies += stats.get("unique_replies_per_contact", 0)
-            bison_total_interested += stats.get("interested", 0)
-            bison_clients_processed += 1
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch Bison stats for {workspace['client_name']}: {e}")
-            continue
+    # PARALLEL PROCESSING: Fetch Bison stats for all clients simultaneously
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        # Submit all Bison client fetches
+        future_to_workspace = {
+            executor.submit(get_bison_campaign_stats, workspace["client_name"], days=days, sheet_url=sheet_url): workspace
+            for workspace in bison_workspaces
+        }
+
+        # Collect results as they complete
+        for future in as_completed(future_to_workspace):
+            workspace = future_to_workspace[future]
+            try:
+                stats = future.result()
+                bison_total_emails += stats.get("emails_sent", 0)
+                bison_total_replies += stats.get("unique_replies_per_contact", 0)
+                bison_total_interested += stats.get("interested", 0)
+                bison_clients_processed += 1
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                continue
 
     # Calculate combined totals
     total_emails_sent = instantly_total_emails + bison_total_emails
@@ -998,6 +1013,7 @@ def get_top_performing_clients(
 ):
     """
     MCP Tool: Get top performing clients across both platforms.
+    OPTIMIZED: Uses parallel processing to fetch all client stats simultaneously.
 
     Args:
         limit: Number of top clients to return (default: 10)
@@ -1020,7 +1036,7 @@ def get_top_performing_clients(
             ]
         }
     """
-    print(f"[Analytics] Finding top {limit} clients by {metric}...")
+    # Progress logging removed for MCP compatibility
 
     # Get all clients
     instantly_workspaces = load_workspaces_from_sheet(sheet_url)
@@ -1028,63 +1044,59 @@ def get_top_performing_clients(
 
     all_client_stats = []
 
-    # Fetch Instantly client stats
-    for workspace in instantly_workspaces:
-        try:
-            stats = get_campaign_stats(
-                workspace_id=workspace["workspace_id"],
-                days=days,
-                sheet_url=sheet_url
-            )
+    # Helper function to fetch and parse Instantly stats
+    def fetch_instantly_stats(workspace):
+        stats = get_campaign_stats(workspace_id=workspace["workspace_id"], days=days, sheet_url=sheet_url)
+        metric_value = 0
+        if metric == "interested_leads":
+            metric_value = stats.get("opportunities", 0)
+        elif metric == "emails_sent":
+            metric_value = stats.get("emails_sent", 0)
+        elif metric == "replies":
+            metric_value = stats.get("replies", 0)
+        elif metric == "reply_rate":
+            metric_value = stats.get("reply_rate", 0)
+        return {
+            "client_name": workspace["client_name"],
+            "platform": "instantly",
+            "metric_value": metric_value,
+            "stats": stats
+        }
 
-            metric_value = 0
-            if metric == "interested_leads":
-                metric_value = stats.get("opportunities", 0)
-            elif metric == "emails_sent":
-                metric_value = stats.get("emails_sent", 0)
-            elif metric == "replies":
-                metric_value = stats.get("replies", 0)
-            elif metric == "reply_rate":
-                metric_value = stats.get("reply_rate", 0)
+    # Helper function to fetch and parse Bison stats
+    def fetch_bison_stats(workspace):
+        stats = get_bison_campaign_stats(client_name=workspace["client_name"], days=days, sheet_url=sheet_url)
+        metric_value = 0
+        if metric == "interested_leads":
+            metric_value = stats.get("interested", 0)
+        elif metric == "emails_sent":
+            metric_value = stats.get("emails_sent", 0)
+        elif metric == "replies":
+            metric_value = stats.get("unique_replies_per_contact", 0)
+        elif metric == "reply_rate":
+            metric_value = stats.get("unique_replies_per_contact_percentage", 0)
+        return {
+            "client_name": workspace["client_name"],
+            "platform": "bison",
+            "metric_value": metric_value,
+            "stats": stats
+        }
 
-            all_client_stats.append({
-                "client_name": workspace["client_name"],
-                "platform": "instantly",
-                "metric_value": metric_value,
-                "stats": stats
-            })
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch stats for {workspace['client_name']}: {e}")
-            continue
+    # PARALLEL PROCESSING: Fetch ALL client stats simultaneously
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        # Submit all tasks
+        futures = []
+        futures.extend([executor.submit(fetch_instantly_stats, ws) for ws in instantly_workspaces])
+        futures.extend([executor.submit(fetch_bison_stats, ws) for ws in bison_workspaces])
 
-    # Fetch Bison client stats
-    for workspace in bison_workspaces:
-        try:
-            stats = get_bison_campaign_stats(
-                client_name=workspace["client_name"],
-                days=days,
-                sheet_url=sheet_url
-            )
-
-            metric_value = 0
-            if metric == "interested_leads":
-                metric_value = stats.get("interested", 0)
-            elif metric == "emails_sent":
-                metric_value = stats.get("emails_sent", 0)
-            elif metric == "replies":
-                metric_value = stats.get("unique_replies_per_contact", 0)
-            elif metric == "reply_rate":
-                metric_value = stats.get("unique_replies_per_contact_percentage", 0)
-
-            all_client_stats.append({
-                "client_name": workspace["client_name"],
-                "platform": "bison",
-                "metric_value": metric_value,
-                "stats": stats
-            })
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch stats for {workspace['client_name']}: {e}")
-            continue
+        # Collect results as they complete
+        for future in as_completed(futures):
+            try:
+                client_stat = future.result()
+                all_client_stats.append(client_stat)
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                continue
 
     # Sort by metric value (descending)
     all_client_stats.sort(key=lambda x: x["metric_value"], reverse=True)
@@ -1116,6 +1128,7 @@ def get_underperforming_clients(
 ):
     """
     MCP Tool: Get underperforming clients across both platforms.
+    OPTIMIZED: Uses parallel processing to fetch all client stats simultaneously.
 
     Args:
         threshold: Minimum value for the metric - clients below this are considered underperforming (default: 5)
@@ -1138,7 +1151,7 @@ def get_underperforming_clients(
             ]
         }
     """
-    print(f"[Analytics] Finding clients with {metric} below {threshold}...")
+    # Progress logging removed for MCP compatibility
 
     # Get all clients
     instantly_workspaces = load_workspaces_from_sheet(sheet_url)
@@ -1146,65 +1159,66 @@ def get_underperforming_clients(
 
     underperforming = []
 
-    # Check Instantly clients
-    for workspace in instantly_workspaces:
-        try:
-            stats = get_campaign_stats(
-                workspace_id=workspace["workspace_id"],
-                days=days,
-                sheet_url=sheet_url
-            )
+    # Helper function to check Instantly client
+    def check_instantly_client(workspace):
+        stats = get_campaign_stats(workspace_id=workspace["workspace_id"], days=days, sheet_url=sheet_url)
+        metric_value = 0
+        if metric == "interested_leads":
+            metric_value = stats.get("opportunities", 0)
+        elif metric == "emails_sent":
+            metric_value = stats.get("emails_sent", 0)
+        elif metric == "replies":
+            metric_value = stats.get("replies", 0)
+        elif metric == "reply_rate":
+            metric_value = stats.get("reply_rate", 0)
 
-            metric_value = 0
-            if metric == "interested_leads":
-                metric_value = stats.get("opportunities", 0)
-            elif metric == "emails_sent":
-                metric_value = stats.get("emails_sent", 0)
-            elif metric == "replies":
-                metric_value = stats.get("replies", 0)
-            elif metric == "reply_rate":
-                metric_value = stats.get("reply_rate", 0)
+        if metric_value < threshold:
+            return {
+                "client_name": workspace["client_name"],
+                "platform": "instantly",
+                "metric_value": metric_value,
+                "stats": stats
+            }
+        return None
 
-            if metric_value < threshold:
-                underperforming.append({
-                    "client_name": workspace["client_name"],
-                    "platform": "instantly",
-                    "metric_value": metric_value,
-                    "stats": stats
-                })
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch stats for {workspace['client_name']}: {e}")
-            continue
+    # Helper function to check Bison client
+    def check_bison_client(workspace):
+        stats = get_bison_campaign_stats(client_name=workspace["client_name"], days=days, sheet_url=sheet_url)
+        metric_value = 0
+        if metric == "interested_leads":
+            metric_value = stats.get("interested", 0)
+        elif metric == "emails_sent":
+            metric_value = stats.get("emails_sent", 0)
+        elif metric == "replies":
+            metric_value = stats.get("unique_replies_per_contact", 0)
+        elif metric == "reply_rate":
+            metric_value = stats.get("unique_replies_per_contact_percentage", 0)
 
-    # Check Bison clients
-    for workspace in bison_workspaces:
-        try:
-            stats = get_bison_campaign_stats(
-                client_name=workspace["client_name"],
-                days=days,
-                sheet_url=sheet_url
-            )
+        if metric_value < threshold:
+            return {
+                "client_name": workspace["client_name"],
+                "platform": "bison",
+                "metric_value": metric_value,
+                "stats": stats
+            }
+        return None
 
-            metric_value = 0
-            if metric == "interested_leads":
-                metric_value = stats.get("interested", 0)
-            elif metric == "emails_sent":
-                metric_value = stats.get("emails_sent", 0)
-            elif metric == "replies":
-                metric_value = stats.get("unique_replies_per_contact", 0)
-            elif metric == "reply_rate":
-                metric_value = stats.get("unique_replies_per_contact_percentage", 0)
+    # PARALLEL PROCESSING: Check ALL clients simultaneously
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        # Submit all tasks
+        futures = []
+        futures.extend([executor.submit(check_instantly_client, ws) for ws in instantly_workspaces])
+        futures.extend([executor.submit(check_bison_client, ws) for ws in bison_workspaces])
 
-            if metric_value < threshold:
-                underperforming.append({
-                    "client_name": workspace["client_name"],
-                    "platform": "bison",
-                    "metric_value": metric_value,
-                    "stats": stats
-                })
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch stats for {workspace['client_name']}: {e}")
-            continue
+        # Collect results as they complete
+        for future in as_completed(futures):
+            try:
+                result = future.result()
+                if result:  # Only add if client is underperforming
+                    underperforming.append(result)
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                continue
 
     # Sort by metric value (ascending - worst performers first)
     underperforming.sort(key=lambda x: x["metric_value"])
@@ -1235,7 +1249,7 @@ def get_weekly_summary(sheet_url: str = DEFAULT_SHEET_URL):
             "insights": [...]
         }
     """
-    print("[Analytics] Generating optimized weekly summary...")
+    # Progress logging removed for MCP compatibility
 
     days = 7
 
@@ -1249,7 +1263,7 @@ def get_weekly_summary(sheet_url: str = DEFAULT_SHEET_URL):
     instantly_workspaces = load_workspaces_from_sheet(sheet_url)
     bison_workspaces = load_bison_workspaces_from_sheet(sheet_url)
 
-    # FETCH ALL STATS ONCE (instead of 3 times)
+    # FETCH ALL STATS ONCE (instead of 3 times) - NOW WITH PARALLEL PROCESSING
     all_client_stats = []
 
     instantly_total_emails = 0
@@ -1257,58 +1271,66 @@ def get_weekly_summary(sheet_url: str = DEFAULT_SHEET_URL):
     instantly_total_opportunities = 0
     instantly_clients_processed = 0
 
-    print(f"[Analytics] Fetching stats from {len(instantly_workspaces)} Instantly clients...")
-    for workspace in instantly_workspaces:
-        try:
-            stats = get_campaign_stats(
-                workspace_id=workspace["workspace_id"],
-                days=days,
-                sheet_url=sheet_url
-            )
-            instantly_total_emails += stats.get("emails_sent", 0)
-            instantly_total_replies += stats.get("replies", 0)
-            instantly_total_opportunities += stats.get("opportunities", 0)
-            instantly_clients_processed += 1
+    # Helper function to fetch Instantly stats
+    def fetch_instantly_stats_for_summary(workspace):
+        stats = get_campaign_stats(workspace_id=workspace["workspace_id"], days=days, sheet_url=sheet_url)
+        return {
+            "client_name": workspace["client_name"],
+            "platform": "instantly",
+            "interested_leads": stats.get("opportunities", 0),
+            "emails_sent": stats.get("emails_sent", 0),
+            "replies": stats.get("replies", 0),
+            "stats": stats
+        }
 
-            # Store for ranking
-            all_client_stats.append({
-                "client_name": workspace["client_name"],
-                "platform": "instantly",
-                "interested_leads": stats.get("opportunities", 0),
-                "stats": stats
-            })
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch Instantly stats for {workspace['workspace_id']}: {e}")
-            continue
+    # PARALLEL PROCESSING: Fetch all Instantly stats simultaneously
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        futures = [executor.submit(fetch_instantly_stats_for_summary, ws) for ws in instantly_workspaces]
+
+        for future in as_completed(futures):
+            try:
+                client_data = future.result()
+                instantly_total_emails += client_data["emails_sent"]
+                instantly_total_replies += client_data["replies"]
+                instantly_total_opportunities += client_data["interested_leads"]
+                instantly_clients_processed += 1
+                all_client_stats.append(client_data)
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                continue
 
     bison_total_emails = 0
     bison_total_replies = 0
     bison_total_interested = 0
     bison_clients_processed = 0
 
-    print(f"[Analytics] Fetching stats from {len(bison_workspaces)} Bison clients...")
-    for workspace in bison_workspaces:
-        try:
-            stats = get_bison_campaign_stats(
-                client_name=workspace["client_name"],
-                days=days,
-                sheet_url=sheet_url
-            )
-            bison_total_emails += stats.get("emails_sent", 0)
-            bison_total_replies += stats.get("unique_replies_per_contact", 0)
-            bison_total_interested += stats.get("interested", 0)
-            bison_clients_processed += 1
+    # Helper function to fetch Bison stats
+    def fetch_bison_stats_for_summary(workspace):
+        stats = get_bison_campaign_stats(client_name=workspace["client_name"], days=days, sheet_url=sheet_url)
+        return {
+            "client_name": workspace["client_name"],
+            "platform": "bison",
+            "interested_leads": stats.get("interested", 0),
+            "emails_sent": stats.get("emails_sent", 0),
+            "replies": stats.get("unique_replies_per_contact", 0),
+            "stats": stats
+        }
 
-            # Store for ranking
-            all_client_stats.append({
-                "client_name": workspace["client_name"],
-                "platform": "bison",
-                "interested_leads": stats.get("interested", 0),
-                "stats": stats
-            })
-        except Exception as e:
-            print(f"[Analytics] Warning: Failed to fetch Bison stats for {workspace['client_name']}: {e}")
-            continue
+    # PARALLEL PROCESSING: Fetch all Bison stats simultaneously
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        futures = [executor.submit(fetch_bison_stats_for_summary, ws) for ws in bison_workspaces]
+
+        for future in as_completed(futures):
+            try:
+                client_data = future.result()
+                bison_total_emails += client_data["emails_sent"]
+                bison_total_replies += client_data["replies"]
+                bison_total_interested += client_data["interested_leads"]
+                bison_clients_processed += 1
+                all_client_stats.append(client_data)
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                continue
 
     # Calculate combined totals
     total_emails_sent = instantly_total_emails + bison_total_emails
