@@ -151,6 +151,58 @@ def create_bison_campaign_api(api_key: str, name: str, campaign_type: str = "out
     return response.json()
 
 
+def _convert_to_bison_placeholders(text: str) -> str:
+    """
+    Convert any placeholder format to Bison format.
+    Handles: {{first_name}}, {{firstname}}, {{firstName}}, {first_name}, [first_name], etc.
+    Converts to: {FIRST_NAME}, {LAST_NAME}, {COMPANY_NAME}, {TITLE}, {EMAIL}
+    """
+    import re
+
+    if not text:
+        return text
+
+    conversions = [
+        # First name variations
+        (r'\{\{?\s*first[_\s]?name\s*\}?\}', '{FIRST_NAME}'),
+        (r'\{\{?\s*firstName\s*\}?\}', '{FIRST_NAME}'),
+        (r'\{\{?\s*firstname\s*\}?\}', '{FIRST_NAME}'),
+        (r'\{\{?\s*first\s*\}?\}', '{FIRST_NAME}'),
+        (r'\[\s*first[_\s]?name\s*\]', '{FIRST_NAME}'),
+        # Last name variations
+        (r'\{\{?\s*last[_\s]?name\s*\}?\}', '{LAST_NAME}'),
+        (r'\{\{?\s*lastName\s*\}?\}', '{LAST_NAME}'),
+        (r'\{\{?\s*lastname\s*\}?\}', '{LAST_NAME}'),
+        (r'\{\{?\s*last\s*\}?\}', '{LAST_NAME}'),
+        (r'\[\s*last[_\s]?name\s*\]', '{LAST_NAME}'),
+        # Company variations
+        (r'\{\{?\s*company[_\s]?name\s*\}?\}', '{COMPANY_NAME}'),
+        (r'\{\{?\s*companyName\s*\}?\}', '{COMPANY_NAME}'),
+        (r'\{\{?\s*companyname\s*\}?\}', '{COMPANY_NAME}'),
+        (r'\{\{?\s*company\s*\}?\}', '{COMPANY_NAME}'),
+        (r'\[\s*company[_\s]?name\s*\]', '{COMPANY_NAME}'),
+        (r'\[\s*company\s*\]', '{COMPANY_NAME}'),
+        # Title/job title variations
+        (r'\{\{?\s*job[_\s]?title\s*\}?\}', '{TITLE}'),
+        (r'\{\{?\s*jobTitle\s*\}?\}', '{TITLE}'),
+        (r'\{\{?\s*jobtitle\s*\}?\}', '{TITLE}'),
+        (r'\{\{?\s*title\s*\}?\}', '{TITLE}'),
+        (r'\[\s*job[_\s]?title\s*\]', '{TITLE}'),
+        (r'\[\s*title\s*\]', '{TITLE}'),
+        # Email variations
+        (r'\{\{?\s*email[_\s]?address\s*\}?\}', '{EMAIL}'),
+        (r'\{\{?\s*emailAddress\s*\}?\}', '{EMAIL}'),
+        (r'\{\{?\s*email\s*\}?\}', '{EMAIL}'),
+        (r'\[\s*email\s*\]', '{EMAIL}'),
+    ]
+
+    result = text
+    for pattern, replacement in conversions:
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+
+    return result
+
+
 def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequence_steps: list):
     """
     Create campaign sequence steps in Bison API.
@@ -191,6 +243,53 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
             }
         }
     """
+    # Convert placeholder variables and normalize field names
+    converted_steps = []
+    for step in sequence_steps:
+        converted_step = step.copy()
+
+        # Ensure wait_in_days is at least 1 (API requirement)
+        if 'wait_in_days' not in converted_step or converted_step['wait_in_days'] < 1:
+            converted_step['wait_in_days'] = 3  # Default to 3 days
+
+        # Handle both 'email_subject'/'email_body' AND 'subject'/'body' key names
+        subject_keys = ['email_subject', 'subject']
+        body_keys = ['email_body', 'body']
+
+        # Convert subject placeholders
+        for key in subject_keys:
+            if key in converted_step and converted_step[key]:
+                original = converted_step[key]
+                converted = _convert_to_bison_placeholders(converted_step[key])
+
+                # Normalize to 'email_subject'
+                if key == 'subject':
+                    converted_step['email_subject'] = converted
+                    del converted_step['subject']
+                else:
+                    converted_step[key] = converted
+
+                if original != converted:
+                    print(f"[BISON] Converted subject: '{original}' → '{converted}'")
+
+        # Convert body placeholders
+        for key in body_keys:
+            if key in converted_step and converted_step[key]:
+                original = converted_step[key]
+                converted = _convert_to_bison_placeholders(converted_step[key])
+
+                # Normalize to 'email_body'
+                if key == 'body':
+                    converted_step['email_body'] = converted
+                    del converted_step['body']
+                else:
+                    converted_step[key] = converted
+
+                if original != converted:
+                    print(f"[BISON] Converted body: '{original[:100]}...' → '{converted[:100]}...'")
+
+        converted_steps.append(converted_step)
+
     url = f"https://send.leadgenjay.com/api/campaigns/v1.1/{campaign_id}/sequence-steps"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -199,7 +298,7 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
 
     payload = {
         "title": title,
-        "sequence_steps": sequence_steps
+        "sequence_steps": converted_steps
     }
 
     # Debug: Print request details
