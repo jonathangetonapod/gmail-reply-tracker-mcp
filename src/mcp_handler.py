@@ -517,6 +517,45 @@ class MCPHandler:
                     "required": ["client_name"]
                 }
             },
+            {
+                "name": "create_bison_sequence",
+                "description": "Upload/create email sequence steps for a Bison campaign. Use this to automate sequence creation instead of manually copying sequences. Each step can have subject, body, wait time, and thread reply settings.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "client_name": {
+                            "type": "string",
+                            "description": "Name of the Bison client (e.g., 'Jeff Mikolai')"
+                        },
+                        "campaign_id": {
+                            "type": "number",
+                            "description": "The Bison campaign ID to add sequences to"
+                        },
+                        "sequence_title": {
+                            "type": "string",
+                            "description": "Title for the sequence (e.g., 'Cold Outreach v2')"
+                        },
+                        "steps": {
+                            "type": "array",
+                            "description": "Array of email sequence steps (2-3 steps typically)",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "email_subject": {"type": "string"},
+                                    "email_body": {"type": "string"},
+                                    "order": {"type": "number", "description": "Step order (1, 2, 3, etc.)"},
+                                    "wait_in_days": {"type": "number", "description": "Days to wait before sending"},
+                                    "thread_reply": {"type": "boolean", "description": "Whether to reply in same thread (default: false)"},
+                                    "variant": {"type": "boolean", "description": "Whether this is a variant (default: false)"},
+                                    "variant_from_step": {"type": "number", "description": "Which step this is a variant of"}
+                                },
+                                "required": ["email_subject", "email_body", "order", "wait_in_days"]
+                            }
+                        }
+                    },
+                    "required": ["client_name", "campaign_id", "sequence_title", "steps"]
+                }
+            },
             # Lead Management Tools - Combined
             {
                 "name": "get_all_lead_clients",
@@ -658,6 +697,8 @@ class MCPHandler:
                 result = await self._get_bison_leads(**arguments)
             elif tool_name == 'get_bison_stats':
                 result = await self._get_bison_stats(**arguments)
+            elif tool_name == 'create_bison_sequence':
+                result = await self._create_bison_sequence(**arguments)
             # Lead Management tools - Combined
             elif tool_name == 'get_all_lead_clients':
                 result = await self._get_all_lead_clients(**arguments)
@@ -1600,6 +1641,52 @@ class MCPHandler:
                 end_date=kwargs.get('end_date')
             )
             return json.dumps({"success": True, **result}, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)}, indent=2)
+
+    async def _create_bison_sequence(self, **kwargs) -> str:
+        """Create email sequence for a Bison campaign."""
+        try:
+            config = Config.from_env()
+            from leads import sheets_client, bison_client
+
+            # Get client's API key from sheet
+            client_name = kwargs['client_name']
+            workspaces = await asyncio.to_thread(
+                sheets_client.load_bison_workspaces_from_sheet,
+                config.lead_sheets_url,
+                config.lead_sheets_gid_bison
+            )
+
+            # Find workspace by client name
+            workspace = None
+            search_term = client_name.lower()
+            for ws in workspaces:
+                if search_term in ws["client_name"].lower():
+                    workspace = ws
+                    break
+
+            if not workspace:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Client '{client_name}' not found"
+                }, indent=2)
+
+            # Create the sequence
+            result = await asyncio.to_thread(
+                bison_client.create_bison_sequence_api,
+                api_key=workspace["api_key"],
+                campaign_id=kwargs['campaign_id'],
+                title=kwargs['sequence_title'],
+                sequence_steps=kwargs['steps']
+            )
+
+            return json.dumps({
+                "success": True,
+                "message": f"Successfully created sequence '{kwargs['sequence_title']}' with {len(kwargs['steps'])} steps",
+                "sequence_id": result['data']['id'],
+                "steps_created": len(result['data']['sequence_steps'])
+            }, indent=2)
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)}, indent=2)
 

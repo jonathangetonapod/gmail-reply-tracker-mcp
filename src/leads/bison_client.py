@@ -111,3 +111,60 @@ def get_bison_campaign_stats_api(api_key: str, start_date: str, end_date: str):
     response.raise_for_status()
 
     return response.json()
+
+
+def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequence_steps: list):
+    """
+    Create campaign sequence steps in Bison API.
+
+    Args:
+        api_key: Bison API key
+        campaign_id: The ID of the campaign
+        title: The title for the sequence
+        sequence_steps: List of sequence step dictionaries, each containing:
+            - email_subject (str, required): Subject line
+            - email_subject_variables (list, optional): Variables like ["{FIRST_NAME}"]
+            - order (int, required): Step order (1, 2, 3, etc.)
+            - email_body (str, required): Email body content
+            - wait_in_days (int, required): Days to wait before sending
+            - variant (bool, optional): Whether this is a variant step (default: False)
+            - variant_from_step (int, optional): Which step this is a variant of
+            - thread_reply (bool, optional): Whether to reply in thread (default: False)
+
+    Returns:
+        {
+            "data": {
+                "id": int,
+                "type": "Campaign sequence",
+                "title": str,
+                "sequence_steps": [
+                    {
+                        "id": int,
+                        "email_subject": str,
+                        "order": int,
+                        "email_body": str,
+                        "wait_in_days": int,
+                        "variant": bool,
+                        "variant_from_step_id": int or None,
+                        "attachments": str or None,
+                        "thread_reply": bool
+                    }
+                ]
+            }
+        }
+    """
+    url = f"https://send.leadgenjay.com/api/campaigns/v1.1/{campaign_id}/sequence-steps"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "title": title,
+        "sequence_steps": sequence_steps
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
