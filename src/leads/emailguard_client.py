@@ -37,6 +37,18 @@ def check_content_spam(api_key: str, content: str):
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=30)
-    response.raise_for_status()
+
+    # Capture error details before raising
+    if not response.ok:
+        error_details = {
+            "status_code": response.status_code,
+            "error_text": response.text,
+            "url": url,
+            "content_length": len(content)
+        }
+        # Create detailed error message
+        error_msg = f"{response.status_code} Client Error: {response.reason} for url: {url}"
+        error_msg += f" | Response: {response.text[:200]}"  # First 200 chars of error
+        raise requests.exceptions.HTTPError(error_msg, response=response)
 
     return response.json()
