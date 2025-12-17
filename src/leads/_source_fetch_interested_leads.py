@@ -43,7 +43,7 @@ def fetch_interested_leads(
     all_leads = []
     starting_after = None
 
-    print(f"Fetching interested leads from {start_date} to {end_date}...")
+    # Progress logging removed for MCP compatibility
 
     while True:
         # Build params
@@ -62,13 +62,13 @@ def fetch_interested_leads(
             response = requests.get(url, headers=headers, params=params, timeout=30)
 
             if not response.ok:
-                print(f"Error: {response.status_code} - {response.text}")
+                # Error logging removed for MCP compatibility
                 break
 
             data = response.json()
             items = data.get("items", [])
 
-            print(f"   Fetched {len(items)} emails...")
+            # Progress logging removed for MCP compatibility
 
             # Process each email
             for email in items:
@@ -106,13 +106,13 @@ def fetch_interested_leads(
                 break
 
         except Exception as e:
-            print(f"Exception: {e}")
+            # Exception logging removed for MCP compatibility
             break
 
     # De-duplicate by email (keep most recent)
     unique_leads = _deduplicate_leads(all_leads)
 
-    print(f"Found {len(all_leads)} total replies from {len(unique_leads)} unique leads")
+    # Progress logging removed for MCP compatibility
 
     return {
         "total_count": len(unique_leads),
