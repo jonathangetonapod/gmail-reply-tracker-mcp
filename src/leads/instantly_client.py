@@ -223,25 +223,52 @@ def create_instantly_campaign_api(
         # Get variants or create from subject/body
         variants = step.get('variants', [])
 
+        # Helper function to convert plain text to Instantly HTML format
+        def convert_to_instantly_html(text: str) -> str:
+            """Convert plain text with newlines to Instantly's HTML div format."""
+            if not text:
+                return text
+
+            # If already has HTML tags, return as-is
+            if '<div>' in text or '<br />' in text:
+                return text
+
+            # Split by double newlines to get paragraphs
+            paragraphs = text.split('\n\n')
+
+            # Wrap each paragraph in <div> tags
+            html_parts = []
+            for para in paragraphs:
+                # Handle single newlines within paragraphs (treat as line breaks)
+                para = para.replace('\n', '<br />')
+                html_parts.append(f'<div>{para}</div>')
+
+            # Join with <div><br /></div> for spacing between paragraphs
+            html_body = '<div><br /></div>'.join(html_parts)
+
+            return html_body
+
         # If no variants provided, create one from subject/body at step level
         if not variants and ('subject' in step or 'body' in step):
             body = step.get('body', '')
-            # Convert newlines to HTML breaks for Instantly
-            if body and '\n' in body:
-                original_newlines = body.count('\n')
-                body = body.replace('\n', '<br>')
-                print(f"[Instantly] Converted {original_newlines} newlines to <br> tags")
+            # Convert to Instantly HTML format
+            if body:
+                original_body = body
+                body = convert_to_instantly_html(body)
+                if original_body != body:
+                    print(f"[Instantly] Converted plain text to HTML div format")
             variants = [{
                 "subject": step.get('subject', ''),
                 "body": body
             }]
         else:
-            # If variants were provided, also convert their newlines to <br> tags
+            # If variants were provided, also convert their bodies to HTML
             for variant in variants:
-                if 'body' in variant and variant['body'] and '\n' in variant['body']:
-                    original_newlines = variant['body'].count('\n')
-                    variant['body'] = variant['body'].replace('\n', '<br>')
-                    print(f"[Instantly] Converted {original_newlines} newlines to <br> tags in variant")
+                if 'body' in variant and variant['body']:
+                    original_body = variant['body']
+                    variant['body'] = convert_to_instantly_html(variant['body'])
+                    if original_body != variant['body']:
+                        print(f"[Instantly] Converted variant body to HTML div format")
 
         # Create step with correct Instantly API structure
         transformed_step = {
