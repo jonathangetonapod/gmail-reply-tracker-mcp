@@ -682,7 +682,8 @@ async def create_calendar_event(
     description: str = None,
     location: str = None,
     attendees: str = None,
-    time_zone: str = None
+    time_zone: str = None,
+    add_meet_link: bool = None
 ) -> str:
     """
     Create a new calendar event.
@@ -693,12 +694,13 @@ async def create_calendar_event(
         end_time: Event end time (ISO 8601 format: YYYY-MM-DDTHH:MM:SS)
         calendar_id: Calendar ID (default: 'primary')
         description: Event description
-        location: Event location
+        location: Event location (can be a Zoom link or physical location)
         attendees: Comma-separated list of attendee emails
         time_zone: Time zone (default: auto-detect from system, or 'America/Bogota')
+        add_meet_link: Add Google Meet link (default: True if attendees present, False otherwise)
 
     Returns:
-        JSON string with created event details
+        JSON string with created event details including Google Meet link if added
     """
     try:
         initialize_clients()
@@ -727,6 +729,10 @@ async def create_calendar_event(
         if attendees:
             attendee_list = [email.strip() for email in attendees.split(',')]
 
+        # Auto-add Google Meet if attendees present (unless explicitly disabled)
+        if add_meet_link is None:
+            add_meet_link = bool(attendee_list)  # True if there are attendees
+
         # Create event
         event = calendar_client.create_event(
             summary=summary,
@@ -736,10 +742,20 @@ async def create_calendar_event(
             description=description,
             location=location,
             attendees=attendee_list,
-            time_zone=time_zone
+            time_zone=time_zone,
+            add_meet_link=add_meet_link
         )
 
         logger.info("Created event: %s (ID: %s)", summary, event['id'])
+
+        # Extract Google Meet link if present
+        meet_link = None
+        if 'conferenceData' in event:
+            entry_points = event['conferenceData'].get('entryPoints', [])
+            for entry in entry_points:
+                if entry.get('entryPointType') == 'video':
+                    meet_link = entry.get('uri')
+                    break
 
         # Send email notifications to all attendees
         if attendee_list:
@@ -753,6 +769,10 @@ async def create_calendar_event(
 
             if location:
                 email_body += f"Location: {location}\n"
+
+            # Add Google Meet link prominently if present
+            if meet_link:
+                email_body += f"\n🎥 Google Meet: {meet_link}\n"
 
             if description:
                 email_body += f"\nDetails:\n{description}\n"
@@ -772,14 +792,22 @@ async def create_calendar_event(
                 except Exception as e:
                     logger.warning("Failed to send email notification to %s: %s", attendee_email, str(e))
 
-        return json.dumps({
+        # Build response
+        response = {
             "success": True,
             "event_id": event['id'],
             "summary": event.get('summary'),
             "start": event.get('start', {}).get('dateTime'),
             "end": event.get('end', {}).get('dateTime'),
             "html_link": event.get('htmlLink', '')
-        }, indent=2)
+        }
+
+        # Add Meet link to response if present
+        if meet_link:
+            response['meet_link'] = meet_link
+            logger.info("Google Meet link added: %s", meet_link)
+
+        return json.dumps(response, indent=2)
 
     except ValueError as e:
         error_msg = f"Invalid datetime format: {str(e)}. Use ISO 8601 format (YYYY-MM-DDTHH:MM:SS)"

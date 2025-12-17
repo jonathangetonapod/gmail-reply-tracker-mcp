@@ -244,7 +244,8 @@ class CalendarClient:
         description: Optional[str] = None,
         location: Optional[str] = None,
         attendees: Optional[List[str]] = None,
-        time_zone: str = 'UTC'
+        time_zone: str = 'UTC',
+        add_meet_link: bool = False
     ) -> Dict[str, Any]:
         """
         Create a new calendar event.
@@ -258,6 +259,7 @@ class CalendarClient:
             location: Event location
             attendees: List of attendee email addresses
             time_zone: Time zone (default: 'UTC')
+            add_meet_link: If True, automatically add a Google Meet link (default: False)
 
         Returns:
             Created event object
@@ -286,14 +288,36 @@ class CalendarClient:
         if attendees:
             event['attendees'] = [{'email': email} for email in attendees]
 
-        request = self.service.events().insert(
-            calendarId=calendar_id,
-            body=event,
-            sendUpdates='all'  # Send email notifications to all attendees
-        )
+        # Add Google Meet conference if requested
+        if add_meet_link:
+            event['conferenceData'] = {
+                'createRequest': {
+                    'requestId': f"{summary}-{int(start_time.timestamp())}",  # Unique ID for this request
+                    'conferenceSolutionKey': {'type': 'hangoutsMeet'}
+                }
+            }
+
+        request_params = {
+            'calendarId': calendar_id,
+            'body': event,
+            'sendUpdates': 'all'  # Send email notifications to all attendees
+        }
+
+        # If adding Meet link, need to set conferenceDataVersion
+        if add_meet_link:
+            request_params['conferenceDataVersion'] = 1
+
+        request = self.service.events().insert(**request_params)
 
         created_event = self._execute_with_retry(request)
-        logger.info("Created event: %s (ID: %s)", summary, created_event['id'])
+
+        # Log Google Meet link if present
+        if add_meet_link and 'conferenceData' in created_event:
+            meet_link = created_event['conferenceData'].get('entryPoints', [{}])[0].get('uri', 'N/A')
+            logger.info("Created event: %s (ID: %s) with Google Meet: %s", summary, created_event['id'], meet_link)
+        else:
+            logger.info("Created event: %s (ID: %s)", summary, created_event['id'])
+
         return created_event
 
     def update_event(
