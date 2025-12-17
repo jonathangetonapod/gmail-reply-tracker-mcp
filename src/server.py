@@ -2647,6 +2647,239 @@ async def get_lead_weekly_summary() -> str:
         }, indent=2)
 
 
+# ============================================================================
+# CAMPAIGN AUTOMATION TOOLS
+# ============================================================================
+
+@mcp.tool()
+async def create_bison_sequence(
+    client_name: str,
+    sequence_title: str,
+    steps: list,
+    campaign_id: int = None,
+    campaign_name: str = None
+) -> str:
+    """
+    Upload/create email sequence steps for a Bison campaign.
+
+    If no campaign_id is provided, creates a new campaign automatically.
+    Use this to automate sequence creation instead of manually copying sequences.
+    Each step can have subject, body, wait time, and thread reply settings.
+
+    Args:
+        client_name: Name of the Bison client (e.g., 'Jeff Mikolai')
+        sequence_title: Title for the sequence (e.g., 'Cold Outreach v2')
+        steps: Array of email sequence steps (1-3 steps typically). Each step should have:
+            - email_subject: Subject line
+            - email_body: Email body content
+            - order: Step order (1, 2, 3, etc.)
+            - wait_in_days: Days to wait before sending
+            - thread_reply: Whether to reply in same thread (default: false)
+            - variant: Whether this is a variant (default: false)
+            - variant_from_step: Which step this is a variant of (if variant=true)
+        campaign_id: The Bison campaign ID to add sequences to (optional - if not provided, creates a new campaign)
+        campaign_name: Campaign name (required if campaign_id not provided, e.g., 'Speaker Outreach 2025')
+
+    Returns:
+        JSON string with creation result
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        from leads import sheets_client, bison_client
+
+        logger.info("Creating Bison sequence for client '%s'...", client_name)
+
+        # Get client's API key from sheet
+        workspaces = await asyncio.to_thread(
+            sheets_client.load_bison_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_bison
+        )
+
+        # Find workspace by client name
+        workspace = None
+        search_term = client_name.lower()
+        for ws in workspaces:
+            if search_term in ws["client_name"].lower():
+                workspace = ws
+                break
+
+        if not workspace:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Bison clients list"
+            }, indent=2)
+
+        # Get or create campaign
+        created_campaign = False
+        if not campaign_id:
+            # Create new campaign
+            if not campaign_name:
+                campaign_name = sequence_title
+
+            logger.info("Creating new Bison campaign '%s'...", campaign_name)
+            campaign_result = await asyncio.to_thread(
+                bison_client.create_bison_campaign_api,
+                api_key=workspace["api_key"],
+                name=campaign_name,
+                campaign_type="outbound"
+            )
+            campaign_id = campaign_result['data']['id']
+            created_campaign = True
+            logger.info("Created campaign ID: %d", campaign_id)
+
+        # Create the sequence
+        logger.info("Creating sequence with %d steps...", len(steps))
+        result = await asyncio.to_thread(
+            bison_client.create_bison_sequence_api,
+            api_key=workspace["api_key"],
+            campaign_id=campaign_id,
+            title=sequence_title,
+            sequence_steps=steps
+        )
+
+        response = {
+            "success": True,
+            "message": f"Successfully created sequence '{sequence_title}' with {len(steps)} steps",
+            "client_name": workspace["client_name"],
+            "campaign_id": campaign_id,
+            "sequence_id": result['data']['id'],
+            "steps_created": len(result['data']['sequence_steps'])
+        }
+
+        if created_campaign:
+            response["campaign_created"] = True
+            response["campaign_name"] = campaign_name
+
+        logger.info("Bison sequence created successfully")
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in create_bison_sequence: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def create_instantly_campaign(
+    client_name: str,
+    campaign_name: str,
+    steps: list,
+    email_accounts: list = None,
+    daily_limit: int = 50,
+    timezone: str = "America/Chicago",
+    schedule_from: str = "09:00",
+    schedule_to: str = "17:00",
+    stop_on_reply: bool = True,
+    text_only: bool = False
+) -> str:
+    """
+    Create an Instantly.ai campaign with email sequences.
+
+    Automatically sets up campaign with scheduling, tracking, and sequences.
+    Use this to automate campaign creation instead of manually setting up in Instantly UI.
+
+    Args:
+        client_name: Name of the Instantly client (e.g., 'Jeff Mikolai')
+        campaign_name: Campaign name (e.g., 'Speaker Outreach 2025')
+        steps: Array of email sequence steps (1-3 steps typically). Each step should have:
+            - subject: Email subject line
+            - body: Email body content
+            - wait: Hours to wait before sending (for follow-ups, first email is 0)
+            - variants: Optional array of A/B test variants, each with subject and body
+        email_accounts: List of email addresses to send from (optional)
+        daily_limit: Daily sending limit per account (default: 50)
+        timezone: Timezone for schedule (default: 'America/Chicago'). Must be exact timezone from Instantly API.
+            Valid options include: America/Chicago, America/Detroit, America/Boise, Asia/Tokyo, Europe/London, etc.
+        schedule_from: Start time HH:MM (default: '09:00')
+        schedule_to: End time HH:MM (default: '17:00')
+        stop_on_reply: Stop campaign when lead replies (default: True)
+        text_only: Send all emails as text only (default: False)
+
+    Returns:
+        JSON string with creation result
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        from leads import sheets_client, instantly_client
+
+        logger.info("Creating Instantly campaign '%s' for client '%s'...", campaign_name, client_name)
+
+        # Get client's API key from sheet
+        workspaces = await asyncio.to_thread(
+            sheets_client.load_instantly_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_instantly
+        )
+
+        # Find workspace by client name
+        workspace = None
+        search_term = client_name.lower()
+        for ws in workspaces:
+            if search_term in ws["client_name"].lower():
+                workspace = ws
+                break
+
+        if not workspace:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Instantly clients list"
+            }, indent=2)
+
+        # Create the campaign with sequences
+        logger.info("Creating campaign with %d steps...", len(steps))
+        result = await asyncio.to_thread(
+            instantly_client.create_instantly_campaign_api,
+            api_key=workspace["api_key"],
+            name=campaign_name,
+            sequence_steps=steps,
+            email_accounts=email_accounts,
+            daily_limit=daily_limit,
+            timezone=timezone,
+            schedule_from=schedule_from,
+            schedule_to=schedule_to,
+            stop_on_reply=stop_on_reply,
+            text_only=text_only
+        )
+
+        response = {
+            "success": True,
+            "message": f"Successfully created campaign '{campaign_name}' with {len(steps)} steps",
+            "client_name": workspace["client_name"],
+            "campaign_id": result.get('id'),
+            "campaign_name": result.get('name'),
+            "steps_created": len(steps),
+            "timezone": timezone,
+            "schedule": f"{schedule_from} - {schedule_to}"
+        }
+
+        logger.info("Instantly campaign created successfully")
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in create_instantly_campaign: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
 def main():
     """Main entry point for MCP server."""
     try:
