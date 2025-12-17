@@ -490,7 +490,8 @@ env_vars = {
     'GMAIL_OAUTH_SCOPES': 'https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/userinfo.email',
     'LEAD_SHEETS_URL': 'https://docs.google.com/spreadsheets/d/1CNejGg-egkp28ItSRfW7F_CkBXgYevjzstJ1QlrAyAY/edit',
     'LEAD_SHEETS_GID_INSTANTLY': '928115249',
-    'LEAD_SHEETS_GID_BISON': '1631680229'
+    'LEAD_SHEETS_GID_BISON': '1631680229',
+    'EMAILGUARD_API_KEY': '55483|lebMfPQndeLapfcsDTMpWBe6ff1cuzftnVSGdxfC6a437dd0'
 }
 
 # Add Fathom API key if provided
