@@ -2960,20 +2960,33 @@ async def create_instantly_campaign(
         # Auto-format email bodies that are missing line breaks
         def auto_format_email_body(body: str) -> str:
             """Add line breaks to email body if missing."""
-            if not body or '\n' in body:
-                # Already has newlines, don't modify
+            if not body:
+                return body
+
+            # Check if body already has newlines
+            if '\n' in body:
+                logger.info("[Instantly] Body already has newlines, keeping as-is")
                 return body
 
             import re
 
+            logger.info("[Instantly] Body has no newlines, adding auto-formatting...")
+            logger.info("[Instantly] Original body: %s", body[:80])
+
             # Add double newline before common email closings
             closings = ['Best,', 'Thanks,', 'Regards,', 'Sincerely,', 'Cheers,']
             for closing in closings:
-                body = body.replace(f' {closing}', f'\n\n{closing}')
+                if f' {closing}' in body:
+                    body = body.replace(f' {closing}', f'\n\n{closing}')
+                    logger.info("[Instantly] Added newline before '%s'", closing)
 
             # Add double newline after sentence endings followed by capital letter
             # This catches paragraph breaks like: "...referrals. Asking because..."
             body = re.sub(r'([.!?]) ([A-Z])', r'\1\n\n\2', body)
+
+            newline_count = body.count('\n')
+            logger.info("[Instantly] Formatted body now has %d newlines", newline_count)
+            logger.info("[Instantly] Formatted body preview: %s", body[:80])
 
             return body
 
@@ -2981,7 +2994,10 @@ async def create_instantly_campaign(
         for step in steps:
             # Auto-format body if needed
             if 'body' in step:
+                original_body = step['body']
                 step['body'] = auto_format_email_body(step['body'])
+                if original_body != step['body']:
+                    logger.info("[Instantly] ✓ Auto-formatting applied to email body")
             if 'subject' in step:
                 original = step['subject']
                 step['subject'] = convert_to_instantly_placeholders(step['subject'])
