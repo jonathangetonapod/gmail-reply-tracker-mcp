@@ -66,7 +66,6 @@ def get_client_list(sheet_url: str = DEFAULT_SHEET_URL, include_details: bool = 
         # If include_details is True and client_name is same as workspace_id,
         # fetch the actual workspace name from API
         if include_details and w["client_name"] == w["workspace_id"]:
-            print(f"[API] Fetching details for {w['workspace_id'][:8]}...")
             details = fetch_workspace_details(w["api_key"])
             if details:
                 client_entry["workspace_name"] = details.get("name", w["workspace_id"])
@@ -169,7 +168,6 @@ def get_lead_responses(
             f"Use get_client_list() to see all {len(workspaces)} clients."
         )
 
-    print(f"[MCP] Found workspace: {workspace['workspace_id']}")
 
     # Validate and parse dates with safeguards
     # Note: Instantly API uses ISO format with T and Z, so we need to convert
@@ -287,7 +285,6 @@ def get_campaign_stats(
     start_date, end_date, warnings = validate_and_parse_dates(start_date, end_date, days)
 
     # Call Instantly analytics API
-    print(f"[MCP] Fetching campaign stats for {workspace['workspace_id']}...")
 
     data = get_instantly_campaign_stats(
         api_key=workspace["api_key"],
@@ -379,7 +376,6 @@ def get_workspace_info(
     if not workspace:
         raise ValueError(f"Workspace '{workspace_id}' not found.")
 
-    print(f"[MCP] Fetching workspace info for {workspace['workspace_id']}...")
 
     # Fetch workspace details from API
     details = fetch_workspace_details(workspace["api_key"])
@@ -539,14 +535,12 @@ def get_bison_lead_responses(
             f"Use get_bison_client_list() to see all {len(workspaces)} clients."
         )
 
-    print(f"[Bison] Found client: {workspace['client_name']}")
 
     # Validate and parse dates with safeguards
     start_date, end_date, warnings = validate_and_parse_dates(start_date, end_date, days)
 
     # Call Bison API to get replies
     # Use folder='all' to get both unreplied and replied-to interested leads
-    print(f"[Bison] Fetching interested replies for {workspace['client_name']}...")
 
     data = get_bison_lead_replies(
         api_key=workspace["api_key"],
@@ -581,7 +575,6 @@ def get_bison_lead_responses(
     # Fetch additional replies for leads without incoming interested replies
     additional_replies = {}
     if leads_needing_contact_info:
-        print(f"[Bison] Fetching contact info for {len(leads_needing_contact_info)} leads...")
         all_data = get_bison_lead_replies(
             api_key=workspace["api_key"],
             status=None,  # No status filter to get all replies
@@ -628,7 +621,6 @@ def get_bison_lead_responses(
             }
 
     # Fetch conversation threads for each lead
-    print(f"[Bison] Fetching conversation threads for {len(leads_by_id)} leads...")
     for lead_id, lead_data in leads_by_id.items():
         reply_id = lead_data["reply_id"]
 
@@ -684,7 +676,6 @@ def get_bison_lead_responses(
             lead_data["thread_message_count"] = len(thread)
 
         except Exception as e:
-            print(f"[Bison] Warning: Could not fetch thread for lead {lead_id}: {e}")
             lead_data["conversation_thread"] = []
             lead_data["thread_message_count"] = 0
 
@@ -781,7 +772,6 @@ def get_bison_campaign_stats(
     start_date, end_date, warnings = validate_and_parse_dates(start_date, end_date, days)
 
     # Call Bison stats API
-    print(f"[Bison] Fetching campaign stats for {workspace['client_name']}...")
 
     response = get_bison_campaign_stats_api(
         api_key=workspace["api_key"],
@@ -1430,9 +1420,7 @@ def get_weekly_summary(sheet_url: str = DEFAULT_SHEET_URL):
 
 # Test the functions
 if __name__ == "__main__":
-    print("="*80)
     print("TESTING MCP FUNCTIONS")
-    print("="*80)
 
     # Test 1: Get client list
     print("\n1. Getting client list...")
