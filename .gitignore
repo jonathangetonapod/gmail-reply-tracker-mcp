@@ -67,3 +67,13 @@ dmypy.json
 # pyenv
 .python-version
 test_*.py
+
+# Test scripts
+create_speaker_campaign.py
+final_test_campaign.py
+verify_campaign_139.py
+test_conversion_with_logging.py
+test_placeholder_conversion.py
+test_live_conversion.py
+test_bison_conversion_live.py
+check_campaign.py
