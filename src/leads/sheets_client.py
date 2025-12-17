@@ -147,10 +147,19 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
     - Column B: API Key
     - Column C: Workspace Name
     - Column D: Client Name (Person Name)
+    - Column E: Client Email
+    - Column F: Action/Status
 
     Returns:
         [
-            {"workspace_id": "...", "api_key": "...", "client_name": "Brian Bliss", "workspace_name": "Source 1 Parcel"},
+            {
+                "workspace_id": "...",
+                "api_key": "...",
+                "workspace_name": "Source 1 Parcel",
+                "client_name": "Brian Bliss",
+                "client_email": "brian@example.com",
+                "action": "..."
+            },
             ...
         ]
     """
@@ -174,10 +183,14 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
     for idx, row in enumerate(rows):
         if len(row) < 2:
             continue
+
+        # Read all columns
         raw_workspace_id = (row[0] or "").strip()  # Column A
         raw_api_key = (row[1] or "").strip()       # Column B
         raw_workspace_name = (row[2] or "").strip() if len(row) > 2 else ""  # Column C
         raw_client_name = (row[3] or "").strip() if len(row) > 3 else ""     # Column D
+        raw_client_email = (row[4] or "").strip() if len(row) > 4 else ""    # Column E
+        raw_action = (row[5] or "").strip() if len(row) > 5 else ""          # Column F
 
         # Skip empty
         if not raw_workspace_id or not raw_api_key:
@@ -195,11 +208,13 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
         display_name = raw_client_name or raw_workspace_name or raw_workspace_id
 
         workspaces.append({
-            "workspace_id": raw_workspace_id,
-            "api_key": raw_api_key,
-            "client_name": display_name,  # For display and matching
-            "workspace_name": raw_workspace_name,  # Column C - for additional search
-            "person_name": raw_client_name,  # Column D - for additional search
+            "workspace_id": raw_workspace_id,      # Column A
+            "api_key": raw_api_key,                # Column B
+            "workspace_name": raw_workspace_name,  # Column C
+            "client_name": display_name,           # Column D (or fallback)
+            "person_name": raw_client_name,        # Column D (original)
+            "client_email": raw_client_email,      # Column E
+            "action": raw_action,                  # Column F
         })
 
     print(f"[Instantly] Loaded {len(workspaces)} workspaces")
