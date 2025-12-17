@@ -41,15 +41,30 @@ A **production-ready multi-tenant MCP server** that connects Claude to your enti
 
 Ask Claude things like:
 
-> **📧 Email**: "Show me unreplied emails from the last 3 days"
+> **📧 Email Management**:
+> - "Show me unreplied emails from the last 3 days"
+> - "Reply to the thread from john@company.com about the proposal"
+> - "Create a draft email to sarah@example.com about the meeting"
 >
-> **📅 Calendar**: "Schedule a meeting with sarah@company.com tomorrow at 2pm and send invites"
+> **📅 Calendar & Scheduling**:
+> - "Schedule a meeting with sarah@company.com tomorrow at 2pm and send invites"
+> - "What do I have on my calendar this week?"
+> - "Create a recurring meeting every Monday at 10am"
 >
-> **🎙️ Meetings**: "What were the action items from yesterday's client call?"
+> **🎙️ Meeting Intelligence**:
+> - "What were the action items from yesterday's client call?"
+> - "Summarize the meeting with [Client Name] from last week"
+> - "Show me all meetings where we discussed pricing"
 >
-> **🎯 Leads**: "Show me interested leads from our top performing clients this week"
+> **🎯 Campaign Creation**:
+> - "Create a Bison campaign for Michael Hernandez with a 3-step sequence"
+> - "Set up an Instantly campaign for Brian Bliss targeting speakers"
+> - "Use fuzzy matching to find client 'source 1 parcel' and create a campaign"
 >
-> **📊 Analytics**: "Which clients are underperforming and need attention?"
+> **📊 Lead Analytics**:
+> - "Show me interested leads from our top performing clients this week"
+> - "Which clients are underperforming and need attention?"
+> - "Get campaign statistics for all Instantly clients this month"
 
 ---
 
@@ -62,40 +77,54 @@ Ask Claude things like:
 <td width="50%" valign="top">
 
 **📧 Gmail (13 tools)**
-- Unreplied email detection
-- Thread context & search
-- Send emails & replies
+- Unreplied email detection with smart filtering
+- Thread context & conversation history
+- Send emails & reply to threads
 - Draft management
-- Inbox analytics
+- Inbox analytics & label management
+- Search with Gmail query syntax
 
 **📅 Google Calendar (7 tools)**
-- Natural language scheduling
-- Auto timezone detection
-- Email invitations
+- Natural language scheduling ("tomorrow at 2pm")
+- Automatic timezone detection
+- Email invitations sent to attendees
 - Multi-calendar support
 - Event CRUD operations
+- Quick add with natural language
 
 </td>
 <td width="50%" valign="top">
 
 **🎙️ Fathom AI (6 tools)**
-- Meeting transcripts
-- AI summaries
+- Meeting transcripts with timestamps
+- AI-generated summaries
 - Action item extraction
-- Search & analytics
-- Calendar cross-reference
+- Search by title or attendee
+- Calendar event cross-reference
+- Meeting analytics
 
-**🎯 Lead Management (8 tools)**
-- Track 88 clients total
-  - 64 Instantly.ai clients
-  - 24 Bison clients
-- Campaign analytics
-- Interested lead tracking
-- Performance reports
+**🎯 Campaign Management (8 tools)**
+- **Bison** & **Instantly** integrations
+- Create email campaigns with sequences
+- Auto-convert placeholders ({{firstname}} → {FIRST_NAME})
+- HTML email formatting for Instantly
+- Campaign analytics & performance tracking
+- Interested lead identification
+- Fuzzy client name matching
+- Track 88+ clients across both platforms
 
 </td>
 </tr>
 </table>
+
+### 🆕 Latest Features (v2.3.0)
+
+- ✨ **Instantly HTML Formatting** - Email bodies display with proper line breaks and paragraph spacing
+- 🔧 **Bison Placeholder Conversion** - Automatic conversion of {{firstname}}, {{company}} to Bison format
+- 🔍 **Fuzzy Client Name Matching** - Tolerates typos and partial names ("brian blis" finds "Brian Bliss")
+- 🔒 **Privacy & Security Modal** - Crystal-clear explanation of data access on setup page
+- 🧪 **Unit Test Suite** - 18 comprehensive tests covering all campaign features
+- 📊 **Visual Feature Timeline** - Beautiful "What's New" page showing all updates
 
 ---
 
@@ -248,18 +277,25 @@ Users just need to:
 | `search_fathom_meetings_by_title` | Search by title |
 | `search_fathom_meetings_by_attendee` | Search by attendee |
 
-### 🎯 Lead Management Tools (8)
+### 🎯 Campaign Management Tools (8)
 
 | Tool | Description |
 |------|-------------|
-| `get_all_clients` | All 88 clients (Instantly + Bison) |
-| `get_instantly_clients` | 64 Instantly.ai clients |
-| `get_bison_clients` | 24 Bison clients |
-| `get_client_campaigns` | Campaign data for client |
-| `get_interested_leads` | Fetch interested responses |
-| `get_top_clients` | Top performers by metric |
-| `get_underperforming_clients` | Clients needing attention |
-| `get_weekly_summary` | Weekly analytics dashboard |
+| `get_all_clients` | All 88+ clients (Instantly + Bison) with fuzzy name matching |
+| `get_instantly_clients` | 64 Instantly.ai clients with workspace IDs and API keys |
+| `get_bison_clients` | 24 Bison clients with API credentials |
+| `create_bison_campaign` | Create email sequence with automatic placeholder conversion |
+| `create_instantly_campaign` | Create campaign with HTML formatting and sequences |
+| `get_client_campaigns` | Fetch campaign analytics and performance metrics |
+| `get_interested_leads` | Identify and track positive lead responses |
+| `get_campaign_statistics` | Weekly/monthly analytics dashboard |
+
+**Campaign Creation Features:**
+- 🔄 **Auto Placeholder Conversion**: `{{firstname}}`, `{{company}}` → `{FIRST_NAME}`, `{COMPANY_NAME}`
+- 🎨 **HTML Email Formatting**: Converts plain text to proper `<div>` structure for Instantly
+- 🔍 **Fuzzy Client Matching**: Find clients with typos ("michael hernandex" → "Michael Hernandez")
+- 📧 **Multi-Step Sequences**: Create follow-up sequences with custom wait times
+- 📊 **Performance Tracking**: Monitor reply rates, interested leads, and campaign success
 
 **Total: 34 tools** 🎉
 
@@ -269,14 +305,16 @@ Users just need to:
 
 ### For Developers
 
-- ✅ **41 unit tests** - Full test coverage
-- ✅ **Type hints** - Complete type safety
-- ✅ **Error handling** - Friendly error messages
-- ✅ **Rate limiting** - API quota management
-- ✅ **Logging** - Comprehensive debug logs
-- ✅ **OAuth 2.0** - Secure authentication
-- ✅ **Session management** - Multi-tenant support
-- ✅ **SQLite database** - User session storage
+- ✅ **18+ unit tests** - Campaign feature test coverage with mocked API calls
+- ✅ **Type hints** - Complete type safety across all modules
+- ✅ **Error handling** - Friendly error messages with recovery steps
+- ✅ **Rate limiting** - API quota management for Gmail/Calendar
+- ✅ **Logging** - Comprehensive debug logs for troubleshooting
+- ✅ **OAuth 2.0** - Secure authentication with encrypted token storage
+- ✅ **Session management** - Multi-tenant support with SQLite
+- ✅ **SQLite database** - User session and credential storage
+- ✅ **Fuzzy matching** - Client name search with 60% similarity threshold
+- ✅ **HTML conversion** - Automatic email body formatting for Instantly
 
 ### For Users
 
@@ -384,6 +422,17 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 - **[Testing Guide](TESTING.md)** - Running tests
 - **[Contributing Guide](CONTRIBUTING.md)** - For contributors
 
+### 🆕 What's New Feature
+
+Visit `/changelog` on your Railway deployment to see a beautiful visual timeline of all updates:
+- Version history with release dates
+- Feature highlights with icons and descriptions
+- Breaking changes warnings
+- Technical notes for developers
+- Accessible from setup page via "✨ What's New" button
+
+This helps your team stay informed about new features and decide when to update!
+
 ---
 
 ## 🔒 Security & Privacy
@@ -423,15 +472,34 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ## 📝 Changelog
 
-**v2.0.0** (December 2024)
-- 🎉 **Major**: Multi-tenant Railway deployment
+> 💡 **See full visual timeline**: Visit `/changelog` on your Railway deployment for a beautiful timeline view!
+
+**v2.3.0** (December 17, 2024) - **Campaign Automation & Privacy Enhancements**
+- ✨ **Instantly HTML Formatting** - Email bodies now display with proper line breaks and paragraph spacing
+- 🔧 **Bison Placeholder Conversion** - Placeholders like `{{firstname}}` correctly convert to `{FIRST_NAME}` format
+- 🔍 **Fuzzy Client Name Matching** - Search for "brian blis" and find "Brian Bliss" (60% similarity threshold)
+- 🔒 **Privacy & Security Modal** - Crystal-clear explanation of what admin can/cannot access
+- 🧪 **Unit Test Suite** - 18 comprehensive tests covering all campaign features
+- 📊 **Visual Feature Timeline** - Beautiful "What's New" page showing all updates
+- 🐛 **Technical**: Added rapidfuzz>=3.0.0 dependency, HTML `<div>` structure for Instantly campaigns
+
+**v2.2.0** (December 10, 2024) - **Multi-Client Campaign Management**
+- 🎯 **Bison & Instantly Integration** - Create campaigns for 88+ clients across both platforms
+- 📊 **Campaign Analytics** - Track performance with reply rates and interested leads
+- 📧 **Google Sheets as Database** - Multi-column CSV export for client management
+
+**v2.1.0** (November 28, 2024) - **Fathom AI Integration**
+- 🎙️ **Meeting Intelligence** - 6 tools for transcripts, summaries, and action items
+- 🔍 **Meeting Search** - Search by title or attendee
+- 📅 **Calendar Cross-Reference** - Link Fathom meetings to calendar events
+
+**v2.0.0** (November 15, 2024) - **Multi-Tenant Railway Deployment**
+- 🎉 **Major**: Multi-tenant Railway deployment with web OAuth flow
 - 🎉 **Major**: Lead management integration (8 tools)
 - ✨ One-command installation with beautiful UX
 - ✨ 88 clients tracked (64 Instantly + 24 Bison)
-- ✨ Enhanced OAuth flow
 - ✨ Auto-detect and close Claude Desktop
-- ✨ Step-by-step progress indicators
-- ✨ Friendly error messages
+- ✨ Step-by-step progress indicators (1 of 9, 2 of 9...)
 - 🐛 Fixed Railway Python bytecode caching
 - 🐛 Fixed Google OAuth scope validation
 - 📦 Expanded from 26 to 34 tools
@@ -443,7 +511,7 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 **v1.0.0** (December 2024)
 - 🎉 Initial release
-- ✨ Gmail + Calendar + Fathom
+- ✨ Gmail + Calendar + Fathom (26 tools)
 
 ---
 
