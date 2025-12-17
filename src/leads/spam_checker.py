@@ -164,7 +164,8 @@ def check_bison_campaign_spam(
 def check_all_bison_campaigns_spam(
     emailguard_key: str,
     status: str = "active",
-    client_name: Optional[str] = None
+    client_name: Optional[str] = None,
+    max_clients: int = 5
 ) -> Dict[str, Any]:
     """
     Check spam for all Bison campaigns across all clients.
@@ -173,6 +174,7 @@ def check_all_bison_campaigns_spam(
         emailguard_key: EmailGuard API key
         status: Campaign status to filter (default: "active")
         client_name: Optional specific client name to check
+        max_clients: Maximum number of clients to check (default: 5, prevents timeout)
 
     Returns:
         {
@@ -211,6 +213,9 @@ def check_all_bison_campaigns_spam(
                 "spam_campaigns": 0,
                 "clients": []
             }
+    else:
+        # Limit to max_clients to prevent timeout
+        clients = clients[:max_clients]
 
     results = {
         "total_clients": len(clients),
@@ -368,7 +373,8 @@ def check_instantly_campaign_spam(
 def check_all_instantly_campaigns_spam(
     emailguard_key: str,
     status: str = "active",
-    client_name: Optional[str] = None
+    client_name: Optional[str] = None,
+    max_clients: int = 5
 ) -> Dict[str, Any]:
     """
     Check spam for all Instantly campaigns across all clients.
@@ -379,6 +385,7 @@ def check_all_instantly_campaigns_spam(
             Can be string: "draft", "active", "paused", "completed"
             Or number: 0 (Draft), 1 (Active), 2 (Paused), 3 (Completed)
         client_name: Optional specific client name to check
+        max_clients: Maximum number of clients to check (default: 5, prevents timeout)
 
     Returns:
         {
@@ -428,6 +435,9 @@ def check_all_instantly_campaigns_spam(
                 "spam_campaigns": 0,
                 "clients": []
             }
+    else:
+        # Limit to max_clients to prevent timeout
+        clients = clients[:max_clients]
 
     results = {
         "total_clients": len(clients),
