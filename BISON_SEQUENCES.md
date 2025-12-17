@@ -145,7 +145,7 @@ Here's what gets sent to the Bison API:
       "email_subject": "Your validation cycle: 6 weeks or 6 days?",
       "email_body": "Hi {FIRST_NAME},\n\nMost QA/RA teams spend 4-6 weeks on validation for every software update...\n\nBest,",
       "order": 1,
-      "wait_in_days": 1,
+      "wait_in_days": 1,  // IMPORTANT: Minimum 1 day (API requirement)
       "thread_reply": false
     },
     {

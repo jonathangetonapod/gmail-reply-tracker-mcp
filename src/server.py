@@ -2673,7 +2673,7 @@ async def create_bison_sequence(
             - email_subject: Subject line
             - email_body: Email body content
             - order: Step order (1, 2, 3, etc.)
-            - wait_in_days: Days to wait before sending
+            - wait_in_days: Days to wait before sending (minimum: 1, even for first email)
             - thread_reply: Whether to reply in same thread (default: false)
             - variant: Whether this is a variant (default: false)
             - variant_from_step: Which step this is a variant of (if variant=true)

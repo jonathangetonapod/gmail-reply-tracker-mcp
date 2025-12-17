@@ -202,7 +202,18 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
         "sequence_steps": sequence_steps
     }
 
+    # Debug: Print request details
+    import json as json_module
+    print(f"[DEBUG] POST {url}")
+    print(f"[DEBUG] Payload: {json_module.dumps(payload, indent=2)}")
+
     response = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    # Debug: Print response details if error
+    if not response.ok:
+        print(f"[DEBUG] Response Status: {response.status_code}")
+        print(f"[DEBUG] Response Body: {response.text}")
+
     response.raise_for_status()
 
     return response.json()
