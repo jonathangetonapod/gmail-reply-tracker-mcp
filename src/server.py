@@ -3136,6 +3136,8 @@ async def check_text_spam(
                 "error": "Please provide either a subject line or email body to check."
             }, indent=2)
 
+        from leads import spam_checker
+
         # Check the text
         result = await asyncio.to_thread(
             spam_checker.check_text_spam,
