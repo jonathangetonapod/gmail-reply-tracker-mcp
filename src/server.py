@@ -2803,9 +2803,15 @@ async def create_bison_sequence(
 
             # Convert placeholders to Bison format: {{first_name}} → {FIRST_NAME}
             if 'email_subject' in step:
+                original_subject = step['email_subject']
                 step['email_subject'] = convert_to_bison_placeholders(step['email_subject'])
+                if original_subject != step['email_subject']:
+                    logger.info(f"Converted subject: '{original_subject}' → '{step['email_subject']}'")
             if 'email_body' in step:
+                original_body = step['email_body']
                 step['email_body'] = convert_to_bison_placeholders(step['email_body'])
+                if original_body != step['email_body']:
+                    logger.info(f"Converted body: '{original_body[:50]}...' → '{step['email_body'][:50]}...'")
 
         # Create the sequence
         logger.info("Creating sequence with %d steps...", len(steps))
@@ -2917,17 +2923,29 @@ async def create_instantly_campaign(
         # Convert placeholders to Instantly format: {FIRST_NAME} → {{first_name}}
         for step in steps:
             if 'subject' in step:
+                original = step['subject']
                 step['subject'] = convert_to_instantly_placeholders(step['subject'])
+                if original != step['subject']:
+                    logger.info(f"Converted subject: '{original}' → '{step['subject']}'")
             if 'body' in step:
+                original = step['body']
                 step['body'] = convert_to_instantly_placeholders(step['body'])
+                if original != step['body']:
+                    logger.info(f"Converted body: '{original[:50]}...' → '{step['body'][:50]}...'")
 
             # Also convert in variants if present
             if 'variants' in step and step['variants']:
                 for variant in step['variants']:
                     if 'subject' in variant:
+                        original = variant['subject']
                         variant['subject'] = convert_to_instantly_placeholders(variant['subject'])
+                        if original != variant['subject']:
+                            logger.info(f"Converted variant subject: '{original}' → '{variant['subject']}'")
                     if 'body' in variant:
+                        original = variant['body']
                         variant['body'] = convert_to_instantly_placeholders(variant['body'])
+                        if original != variant['body']:
+                            logger.info(f"Converted variant body: '{original[:50]}...' → '{variant['body'][:50]}...'")
 
         # Create the campaign with sequences
         logger.info("Creating campaign with %d steps...", len(steps))
