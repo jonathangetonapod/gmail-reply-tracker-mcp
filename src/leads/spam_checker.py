@@ -65,6 +65,30 @@ def check_text_spam(
             "body": body
         }
 
+    except requests.exceptions.HTTPError as e:
+        # Parse EmailGuard API errors for user-friendly messages
+        error_msg = str(e)
+        user_friendly_msg = error_msg
+
+        # Check for quota/rate limit errors
+        if "limit" in error_msg.lower() or "quota" in error_msg.lower():
+            user_friendly_msg = "EmailGuard API quota limit reached - please wait for reset or upgrade plan"
+        elif e.response.status_code == 429:
+            user_friendly_msg = "EmailGuard API rate limit exceeded - too many requests"
+        elif e.response.status_code == 401:
+            user_friendly_msg = "EmailGuard API authentication failed - check API key"
+        elif e.response.status_code == 403:
+            user_friendly_msg = "EmailGuard API access forbidden - check permissions"
+
+        return {
+            "error": user_friendly_msg,
+            "raw_error": error_msg[:200],
+            "is_spam": False,
+            "spam_score": 0,
+            "spam_words": [],
+            "subject": subject,
+            "body": body
+        }
     except Exception as e:
         return {
             "error": str(e),
@@ -176,6 +200,27 @@ def check_bison_campaign_spam(
                 "spam_words": spam_words
             })
 
+        except requests.exceptions.HTTPError as e:
+            # Parse EmailGuard API errors for user-friendly messages
+            error_msg = str(e)
+            user_friendly_msg = error_msg
+
+            # Check for quota/rate limit errors
+            if "limit" in error_msg.lower() or "quota" in error_msg.lower():
+                user_friendly_msg = "EmailGuard API quota limit reached - please wait for reset or upgrade plan"
+            elif e.response.status_code == 429:
+                user_friendly_msg = "EmailGuard API rate limit exceeded - too many requests"
+            elif e.response.status_code == 401:
+                user_friendly_msg = "EmailGuard API authentication failed - check API key"
+            elif e.response.status_code == 403:
+                user_friendly_msg = "EmailGuard API access forbidden - check permissions"
+
+            results["steps"].append({
+                "step_order": order,
+                "subject": subject,
+                "error": user_friendly_msg,
+                "raw_error": error_msg[:200]  # First 200 chars for debugging
+            })
         except Exception as e:
             # Error logging removed for MCP compatibility
             results["steps"].append({
@@ -461,6 +506,28 @@ def check_instantly_campaign_spam(
                         "spam_words": spam_words
                     })
 
+                except requests.exceptions.HTTPError as e:
+                    # Parse EmailGuard API errors for user-friendly messages
+                    error_msg = str(e)
+                    user_friendly_msg = error_msg
+
+                    # Check for quota/rate limit errors
+                    if "limit" in error_msg.lower() or "quota" in error_msg.lower():
+                        user_friendly_msg = "EmailGuard API quota limit reached - please wait for reset or upgrade plan"
+                    elif e.response.status_code == 429:
+                        user_friendly_msg = "EmailGuard API rate limit exceeded - too many requests"
+                    elif e.response.status_code == 401:
+                        user_friendly_msg = "EmailGuard API authentication failed - check API key"
+                    elif e.response.status_code == 403:
+                        user_friendly_msg = "EmailGuard API access forbidden - check permissions"
+
+                    results["steps"].append({
+                        "step_order": step_idx + 1,
+                        "variant": variant_idx + 1 if len(variants) > 1 else None,
+                        "subject": subject,
+                        "error": user_friendly_msg,
+                        "raw_error": error_msg[:200]  # First 200 chars for debugging
+                    })
                 except Exception as e:
                     # Error logging removed for MCP compatibility
                     results["steps"].append({
