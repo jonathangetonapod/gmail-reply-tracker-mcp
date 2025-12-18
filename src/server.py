@@ -3067,16 +3067,19 @@ async def find_missed_opportunities(
                        len(all_replies_raw), len(interested_replies_raw))
 
             # Normalize Bison replies to match Instantly format
-            # Filter out client's own outbound emails (Bison API bug workaround)
-            client_domains = ["leadgenjay.com", "fluxa.dev", "fluxadev"]  # Common client/agency domains
-
+            # Filter out client's own outbound emails using 'type' field
             for reply in all_replies_raw:
-                from_email = reply.get("from_email_address", "").lower()
+                reply_type = reply.get("type", "").lower()
+                from_email = reply.get("from_email_address", "")
 
-                # Skip if email is from client/agency domains (these are outbound emails, not replies)
-                if any(domain in from_email for domain in client_domains):
-                    logger.debug(f"Skipping outbound email from {from_email}")
+                # Skip if this is an outbound/sent email (not a received reply from a lead)
+                # Only process "received" or "inbound" types
+                if reply_type in ["sent", "outbound", "out"]:
+                    logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
                     continue
+
+                # Log the type for debugging
+                logger.debug(f"Processing reply type={reply_type} from {from_email}")
 
                 all_replies.append({
                     "email": reply.get("from_email_address", "Unknown"),
@@ -3089,11 +3092,12 @@ async def find_missed_opportunities(
                 })
 
             for reply in interested_replies_raw:
-                from_email = reply.get("from_email_address", "").lower()
+                reply_type = reply.get("type", "").lower()
+                from_email = reply.get("from_email_address", "")
 
-                # Skip if email is from client/agency domains
-                if any(domain in from_email for domain in client_domains):
-                    logger.debug(f"Skipping outbound email from {from_email}")
+                # Skip outbound emails
+                if reply_type in ["sent", "outbound", "out"]:
+                    logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
                     continue
 
                 already_interested.append({
