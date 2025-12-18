@@ -323,11 +323,13 @@ async def search_emails(query: str, max_results: int = 20) -> str:
         # Search messages
         message_infos = gmail_client.list_messages(query, max_results)
 
-        # Fetch message details
-        results = []
-        for msg_info in message_infos:
-            msg = gmail_client.get_message(msg_info['id'])
+        # Fetch message details in parallel using batch_get_messages
+        message_ids = [msg_info['id'] for msg_info in message_infos]
+        messages = gmail_client.batch_get_messages(message_ids)
 
+        # Process results
+        results = []
+        for msg in messages:
             headers = email_analyzer.parse_headers(
                 msg.get('payload', {}).get('headers', [])
             )
