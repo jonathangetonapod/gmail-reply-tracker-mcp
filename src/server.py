@@ -2553,7 +2553,7 @@ async def find_missed_opportunities(
         from leads._source_fetch_interested_leads import fetch_all_campaign_replies
         from leads.interest_analyzer import categorize_leads
         from leads.sheets_client import load_workspaces_from_sheet
-        from leads.date_utils import calculate_date_range
+        from leads.date_utils import validate_and_parse_dates
 
         if not config.lead_sheets_url:
             return json.dumps({
@@ -2565,7 +2565,7 @@ async def find_missed_opportunities(
                    client_name, days, use_claude)
 
         # Calculate date range
-        start_date, end_date = calculate_date_range(days)
+        start_date, end_date, warnings = validate_and_parse_dates(days=days)
 
         # Try to find client in Instantly workspaces first
         from leads.sheets_client import load_bison_workspaces_from_sheet
