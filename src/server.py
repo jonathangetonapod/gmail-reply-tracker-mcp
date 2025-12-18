@@ -3067,7 +3067,17 @@ async def find_missed_opportunities(
                        len(all_replies_raw), len(interested_replies_raw))
 
             # Normalize Bison replies to match Instantly format
+            # Filter out client's own outbound emails (Bison API bug workaround)
+            client_domains = ["leadgenjay.com", "fluxa.dev", "fluxadev"]  # Common client/agency domains
+
             for reply in all_replies_raw:
+                from_email = reply.get("from_email_address", "").lower()
+
+                # Skip if email is from client/agency domains (these are outbound emails, not replies)
+                if any(domain in from_email for domain in client_domains):
+                    logger.debug(f"Skipping outbound email from {from_email}")
+                    continue
+
                 all_replies.append({
                     "email": reply.get("from_email_address", "Unknown"),
                     "reply_body": reply.get("text_body", ""),
@@ -3079,6 +3089,13 @@ async def find_missed_opportunities(
                 })
 
             for reply in interested_replies_raw:
+                from_email = reply.get("from_email_address", "").lower()
+
+                # Skip if email is from client/agency domains
+                if any(domain in from_email for domain in client_domains):
+                    logger.debug(f"Skipping outbound email from {from_email}")
+                    continue
+
                 already_interested.append({
                     "email": reply.get("from_email_address", "Unknown"),
                     "reply_body": reply.get("text_body", ""),
