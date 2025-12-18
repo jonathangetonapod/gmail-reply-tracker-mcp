@@ -2935,7 +2935,9 @@ async def find_missed_opportunities(
                    client_name, days, use_claude, exclude_auto_replies)
 
         # Calculate date range
+        logger.info("Step 1/7: Calculating date range...")
         start_date, end_date, warnings = validate_and_parse_dates(days=days)
+        logger.info("Date range: %s to %s", start_date, end_date)
 
         # Try to find client in Instantly workspaces first
         from leads.sheets_client import load_bison_workspaces_from_sheet
@@ -2945,10 +2947,12 @@ async def find_missed_opportunities(
         all_replies = []
         already_interested = []
 
+        logger.info("Step 2/7: Loading Instantly workspaces...")
         instantly_workspaces = load_workspaces_from_sheet(
             config.lead_sheets_url,
             gid=config.lead_sheets_gid_instantly
         )
+        logger.info("Loaded %d Instantly workspaces", len(instantly_workspaces))
 
         matching_instantly_workspace = next(
             (ws for ws in instantly_workspaces
@@ -2970,30 +2974,37 @@ async def find_missed_opportunities(
             platform_used = "instantly"
 
             # Step 1: Fetch ALL campaign replies (no i_status filter)
+            logger.info("Step 3/7: Fetching all Instantly replies...")
             all_replies_result = fetch_all_campaign_replies(
                 api_key=api_key,
                 start_date=start_date,
                 end_date=end_date,
                 i_status=None  # Fetch ALL replies
             )
+            logger.info("Fetched %d total replies", all_replies_result.get("total_count", 0))
 
             # Step 2: Fetch replies already marked as interested
+            logger.info("Step 4/7: Fetching interested Instantly replies...")
             interested_replies_result = fetch_all_campaign_replies(
                 api_key=api_key,
                 start_date=start_date,
                 end_date=end_date,
                 i_status=1  # Only interested
             )
+            logger.info("Fetched %d interested replies", interested_replies_result.get("total_count", 0))
 
             all_replies = all_replies_result.get("leads", [])
             already_interested = interested_replies_result.get("leads", [])
 
         # If not found in Instantly, try Bison
         if not matching_instantly_workspace:
+            logger.info("Client not found in Instantly, checking Bison...")
+            logger.info("Step 3/7: Loading Bison workspaces...")
             bison_workspaces = load_bison_workspaces_from_sheet(
                 config.lead_sheets_url,
                 gid=config.lead_sheets_gid_bison
             )
+            logger.info("Loaded %d Bison workspaces", len(bison_workspaces))
 
             matching_bison_workspace = next(
                 (ws for ws in bison_workspaces
@@ -3002,9 +3013,20 @@ async def find_missed_opportunities(
             )
 
             if not matching_bison_workspace:
+                # Show similar client names to help with debugging
+                all_client_names = [ws.get("client_name", "") for ws in bison_workspaces]
+                similar_names = [name for name in all_client_names if client_name.lower() in name.lower() or name.lower() in client_name.lower()]
+
+                error_msg = f"Client '{client_name}' not found in either Instantly or Bison workspaces."
+                if similar_names:
+                    error_msg += f"\n\nDid you mean one of these?\n" + "\n".join(f"  - {name}" for name in similar_names[:10])
+                else:
+                    error_msg += f"\n\nAvailable Bison clients (first 10):\n" + "\n".join(f"  - {name}" for name in all_client_names[:10])
+
                 return json.dumps({
                     "success": False,
-                    "error": f"Client '{client_name}' not found in either Instantly or Bison workspaces."
+                    "error": error_msg,
+                    "suggestion": "Use get_bison_clients() or get_instantly_clients() to see all available clients"
                 }, indent=2)
 
             api_key = matching_bison_workspace.get("api_key")
@@ -3019,19 +3041,23 @@ async def find_missed_opportunities(
 
             # Step 1: Fetch ALL campaign replies (excluding auto-replies if requested)
             # Use status="not_automated_reply" to exclude OOO messages and other auto-replies
+            logger.info("Step 4/7: Fetching all Bison replies...")
             all_replies_status = "not_automated_reply" if exclude_auto_replies else None
             all_replies_result = get_bison_lead_replies(
                 api_key=api_key,
                 status=all_replies_status,
                 folder="all"
             )
+            logger.info("Fetched %d total Bison replies", len(all_replies_result.get("data", [])))
 
             # Step 2: Fetch replies already marked as interested
+            logger.info("Step 5/7: Fetching interested Bison replies...")
             interested_replies_result = get_bison_lead_replies(
                 api_key=api_key,
                 status="interested",
                 folder="all"
             )
+            logger.info("Fetched %d interested Bison replies", len(interested_replies_result.get("data", [])))
 
             # Convert Bison format to standard format
             all_replies_raw = all_replies_result.get("data", [])
@@ -3064,6 +3090,7 @@ async def find_missed_opportunities(
                 })
 
         # Create set of already-interested email addresses
+        logger.info("Step 6/7: Filtering replies...")
         already_interested_emails = {lead["email"].lower() for lead in already_interested}
 
         # Step 3: Filter to get ONLY the non-interested replies
@@ -3089,8 +3116,11 @@ async def find_missed_opportunities(
             }, indent=2)
 
         # Step 4: AI analyze the non-interested replies
-        logger.info("Analyzing %d non-interested replies with AI...", len(non_interested_replies))
+        logger.info("Step 7/7: AI analyzing %d non-interested replies (use_claude=%s)...",
+                   len(non_interested_replies), use_claude)
+        logger.info("This may take 30-60 seconds for 100+ replies with Claude API enabled...")
         categorized = categorize_leads(non_interested_replies, use_claude=use_claude)
+        logger.info("AI analysis complete!")
 
         # Hidden gems = HOT + WARM leads from the non-interested bucket
         hidden_gems = categorized["hot"] + categorized["warm"]
