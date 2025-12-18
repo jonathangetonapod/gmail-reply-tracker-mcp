@@ -3993,9 +3993,16 @@ async def create_bison_sequence(
             # Convert placeholders to Bison format: {{first_name}} → {FIRST_NAME}
             if 'email_subject' in step:
                 original_subject = step['email_subject']
-                step['email_subject'] = convert_to_bison_placeholders(step['email_subject'])
-                if original_subject != step['email_subject']:
-                    logger.info(f"Converted subject: '{original_subject}' → '{step['email_subject']}'")
+
+                # Handle empty subjects for thread replies
+                if not original_subject and step.get('thread_reply', False):
+                    # Bison API requires non-empty subject, use placeholder for thread replies
+                    step['email_subject'] = 'Re:'
+                    logger.info("Thread reply with empty subject, using 'Re:' placeholder")
+                else:
+                    step['email_subject'] = convert_to_bison_placeholders(step['email_subject'])
+                    if original_subject != step['email_subject']:
+                        logger.info(f"Converted subject: '{original_subject}' → '{step['email_subject']}'")
             if 'email_body' in step:
                 original_body = step['email_body']
                 step['email_body'] = convert_to_bison_placeholders(step['email_body'])
