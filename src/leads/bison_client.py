@@ -304,17 +304,32 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
         body_keys = ['email_body', 'body']
 
         # Convert subject placeholders
+        # For thread replies with empty subjects, use a space placeholder
         for key in subject_keys:
-            if key in converted_step and converted_step[key]:
-                original = converted_step[key]
-                converted = _convert_to_bison_placeholders(converted_step[key])
+            if key in converted_step:
+                subject_value = converted_step[key]
 
-                # Normalize to 'email_subject'
-                if key == 'subject':
-                    converted_step['email_subject'] = converted
-                    del converted_step['subject']
+                # If empty string and this is a thread reply, use space as placeholder
+                if not subject_value and converted_step.get('thread_reply', False):
+                    # Bison API requires email_subject field, use space for thread replies
+                    converted_step['email_subject'] = ' '
+                    # Remove alternate 'subject' key if present
+                    converted_step.pop('subject', None)
+                elif subject_value:
+                    # Non-empty subject: convert placeholders
+                    converted = _convert_to_bison_placeholders(subject_value)
+
+                    # Normalize to 'email_subject'
+                    if key == 'subject':
+                        converted_step['email_subject'] = converted
+                        del converted_step['subject']
+                    else:
+                        converted_step['email_subject'] = converted
                 else:
-                    converted_step[key] = converted
+                    # Empty subject but NOT a thread reply: keep as-is
+                    if key == 'subject':
+                        converted_step['email_subject'] = subject_value
+                        del converted_step['subject']
 
                 # Conversion logging removed for MCP compatibility
 
@@ -352,7 +367,14 @@ def create_bison_sequence_api(api_key: str, campaign_id: int, title: str, sequen
 
     # Error logging removed for MCP compatibility
     if not response.ok:
-        pass  # Error response logging removed for MCP compatibility
+        # Print error details for debugging
+        try:
+            error_data = response.json()
+            print(f"Bison API Error: {response.status_code}")
+            print(f"Error details: {error_data}")
+        except:
+            print(f"Bison API Error: {response.status_code}")
+            print(f"Response text: {response.text}")
 
     response.raise_for_status()
 
@@ -445,3 +467,81 @@ def get_bison_campaign_sequences(api_key: str, campaign_id: int):
     response.raise_for_status()
 
     return response.json()
+
+
+def create_bison_campaign_with_sequences(
+    client_name: str,
+    campaign_name: str,
+    sequence_title: str,
+    steps: list,
+    campaign_type: str = "outbound",
+    sheet_url: str = None,
+    gid: str = None
+):
+    """
+    High-level function to create a Bison campaign with sequences in one call.
+
+    This function:
+    1. Loads client configuration from Google Sheet
+    2. Creates a new campaign
+    3. Creates sequence steps for the campaign
+
+    Args:
+        client_name: The client name (e.g., "Rick Ables")
+        campaign_name: Name for the campaign (e.g., "Insurance Agency")
+        sequence_title: Title for the sequence (e.g., "Insurance Agency Campaign - Lead Follow-Up Gap")
+        steps: List of sequence step dictionaries (same format as create_bison_sequence_api)
+        campaign_type: Type of campaign (default: "outbound")
+        sheet_url: Optional Google Sheet URL (uses default if not provided)
+        gid: Optional Google Sheet GID for Bison tab (uses default if not provided)
+
+    Returns:
+        {
+            "campaign": {...},  # Campaign creation response
+            "sequence": {...}   # Sequence creation response
+        }
+    """
+    from .sheets_client import load_bison_workspaces_from_sheet, DEFAULT_SHEET_URL, SHEET_GID_BISON
+
+    # Use defaults if not provided
+    if sheet_url is None:
+        sheet_url = DEFAULT_SHEET_URL
+    if gid is None:
+        gid = SHEET_GID_BISON
+
+    # Load client configurations from sheet
+    workspaces = load_bison_workspaces_from_sheet(sheet_url, gid=gid)
+
+    # Find the client
+    client = None
+    for workspace in workspaces:
+        if workspace["client_name"].lower() == client_name.lower():
+            client = workspace
+            break
+
+    if not client:
+        raise ValueError(f"Client '{client_name}' not found in Bison clients sheet")
+
+    api_key = client["api_key"]
+
+    # Step 1: Create the campaign
+    campaign_result = create_bison_campaign_api(
+        api_key=api_key,
+        name=campaign_name,
+        campaign_type=campaign_type
+    )
+
+    campaign_id = campaign_result["data"]["id"]
+
+    # Step 2: Create the sequence steps
+    sequence_result = create_bison_sequence_api(
+        api_key=api_key,
+        campaign_id=campaign_id,
+        title=sequence_title,
+        sequence_steps=steps
+    )
+
+    return {
+        "campaign": campaign_result,
+        "sequence": sequence_result
+    }
