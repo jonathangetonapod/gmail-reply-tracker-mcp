@@ -2347,8 +2347,7 @@ async def get_all_clients_with_positive_replies(
                     return {
                         "client_name": client_name,
                         "platform": platform_name,
-                        "total_replies": total_leads,
-                        "leads": result.get("leads", [])[:5]  # First 5 leads as preview
+                        "total_replies": total_leads
                     }
             except Exception as e:
                 logger.debug(f"Error fetching leads for {workspace.get('client_name', 'unknown')}: {e}")
@@ -2381,6 +2380,13 @@ async def get_all_clients_with_positive_replies(
 
         total_replies = sum(c["total_replies"] for c in clients_with_replies)
 
+        # Calculate platform breakdown
+        instantly_clients = [c for c in clients_with_replies if c["platform"] == "instantly"]
+        bison_clients = [c for c in clients_with_replies if c["platform"] == "bison"]
+
+        instantly_replies = sum(c["total_replies"] for c in instantly_clients)
+        bison_replies = sum(c["total_replies"] for c in bison_clients)
+
         logger.info("Found %d clients with positive replies (total: %d replies)",
                    len(clients_with_replies), total_replies)
 
@@ -2388,14 +2394,127 @@ async def get_all_clients_with_positive_replies(
             "success": True,
             "period": f"Last {days} days",
             "platform": platform,
-            "total_clients_with_replies": len(clients_with_replies),
-            "total_positive_replies": total_replies,
-            "clients": clients_with_replies
+            "summary": {
+                "total_clients_with_replies": len(clients_with_replies),
+                "total_positive_replies": total_replies,
+                "average_replies_per_client": round(total_replies / len(clients_with_replies), 1) if clients_with_replies else 0
+            },
+            "platform_breakdown": {
+                "instantly": {
+                    "clients": len(instantly_clients),
+                    "replies": instantly_replies,
+                    "percentage": round(instantly_replies / total_replies * 100, 1) if total_replies > 0 else 0
+                },
+                "bison": {
+                    "clients": len(bison_clients),
+                    "replies": bison_replies,
+                    "percentage": round(bison_replies / total_replies * 100, 1) if total_replies > 0 else 0
+                }
+            },
+            "top_10_performers": clients_with_replies[:10],
+            "all_clients_summary": clients_with_replies,
+            "note": "Use get_client_lead_details(client_name) to see individual lead responses for any client"
         }, indent=2)
 
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in get_all_clients_with_positive_replies: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_client_lead_details(client_name: str, days: int = 7) -> str:
+    """
+    Get detailed lead responses for a specific client.
+
+    Use this after get_all_clients_with_positive_replies() to drill down into
+    individual client performance and see the actual lead responses.
+
+    Args:
+        client_name: Name of the client (from the all_clients_summary)
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        JSON string with detailed lead responses including email, status, and reply content
+
+    Example:
+        get_client_lead_details("Rick Pendrick", 7)
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching detailed leads for client: %s (days=%d)", client_name, days)
+
+        # Try to find the client in both platforms
+        result = None
+        platform_used = None
+
+        # Try Instantly first
+        try:
+            instantly_workspaces = load_workspaces_from_sheet(
+                config.lead_sheets_url,
+                gid=config.lead_sheets_gid_instantly
+            )
+            matching_workspace = next(
+                (ws for ws in instantly_workspaces
+                 if ws.get("client_name", "").lower() == client_name.lower() or
+                    ws.get("workspace_id", "").lower() == client_name.lower()),
+                None
+            )
+
+            if matching_workspace:
+                workspace_id = matching_workspace.get("workspace_id") or matching_workspace.get("client_name")
+                result = get_lead_responses(
+                    workspace_id=workspace_id,
+                    days=days,
+                    sheet_url=config.lead_sheets_url,
+                    gid=config.lead_sheets_gid_instantly
+                )
+                platform_used = "instantly"
+        except Exception as e:
+            logger.debug(f"Client not found in Instantly: {e}")
+
+        # Try Bison if not found in Instantly
+        if not result or result.get("total_leads", 0) == 0:
+            try:
+                from leads.lead_functions import get_bison_lead_responses
+                result = get_bison_lead_responses(
+                    client_name=client_name,
+                    days=days,
+                    sheet_url=config.lead_sheets_url,
+                    gid=config.lead_sheets_gid_bison
+                )
+                platform_used = "bison"
+            except Exception as e:
+                logger.debug(f"Client not found in Bison: {e}")
+
+        if not result or result.get("total_leads", 0) == 0:
+            return json.dumps({
+                "success": False,
+                "error": f"No lead data found for client '{client_name}' in the last {days} days. "
+                        f"Check that the client name matches exactly (case-insensitive)."
+            }, indent=2)
+
+        return json.dumps({
+            "success": True,
+            "client_name": client_name,
+            "platform": platform_used,
+            "period": f"Last {days} days",
+            "total_leads": result.get("total_leads", 0),
+            "leads": result.get("leads", []),
+            "summary": result.get("summary", "")
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_client_lead_details: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg
