@@ -2651,19 +2651,22 @@ async def find_missed_opportunities(
             all_replies_result = get_bison_lead_replies(
                 api_key=api_key,
                 status=None,  # Fetch ALL replies
-                folder="inbox"
+                folder="all"
             )
 
             # Step 2: Fetch replies already marked as interested
             interested_replies_result = get_bison_lead_replies(
                 api_key=api_key,
                 status="interested",
-                folder="inbox"
+                folder="all"
             )
 
             # Convert Bison format to standard format
             all_replies_raw = all_replies_result.get("data", [])
             interested_replies_raw = interested_replies_result.get("data", [])
+
+            logger.info("Bison raw counts - All replies: %d, Interested replies: %d",
+                       len(all_replies_raw), len(interested_replies_raw))
 
             # Normalize Bison replies to match Instantly format
             for reply in all_replies_raw:
