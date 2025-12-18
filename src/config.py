@@ -104,7 +104,7 @@ class Config:
 
         max_requests_per_minute = int(os.getenv(
             "GMAIL_API_MAX_REQUESTS_PER_MINUTE",
-            "60"
+            "250"  # Gmail API allows 250 quota units/second (15,000/minute)
         ))
 
         return cls(

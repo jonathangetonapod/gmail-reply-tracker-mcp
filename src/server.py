@@ -154,7 +154,7 @@ async def get_unreplied_emails(
         logger.info("Searching for unreplied emails: query=%s, max_results=%d", query, max_results)
 
         # Fetch threads (over-fetch to account for filtering)
-        thread_infos = gmail_client.list_threads(query, max_results * 2)
+        thread_infos = gmail_client.list_threads(query, int(max_results * 1.5))
 
         # Get user email
         user_email = gmail_client.get_user_email()
@@ -394,7 +394,7 @@ async def get_inbox_summary() -> str:
         logger.info("Generating inbox summary...")
 
         # Get unreplied emails from last 30 days
-        result_json = await get_unreplied_emails(days_back=30, max_results=100, exclude_automated=True)
+        result_json = await get_unreplied_emails(days_back=30, max_results=50, exclude_automated=True)
         result = json.loads(result_json)
 
         if not result.get('success'):
