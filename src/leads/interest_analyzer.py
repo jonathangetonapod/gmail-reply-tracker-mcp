@@ -90,25 +90,39 @@ NEGATIVE_KEYWORDS = [
     r'\bplease stop\b',  # catch generic "please stop"
 ]
 
-# Auto-reply indicators
+# Auto-reply indicators (expanded to catch more patterns)
 AUTO_REPLY_KEYWORDS = [
     r'\bout of office\b',
-    r'\bautomatic reply\b',
+    r'\bautomated? reply\b',
     r'\bauto.{0,5}reply\b',
+    r'\bautomated? response\b',
+    r'\bauto.{0,5}response\b',
     r'\bvacation\b',
     r'\bmaternity leave\b',
     r'\bparental leave\b',
     r'\bon leave\b',
     r'\breturning.*\d+/\d+\b',  # "returning 12/25"
+    r'\bleft.{0,20}(organization|organisation|company|role|position)\b',  # "I have left the organization"
+    r'\bno longer (with|at|working)\b',  # "no longer with the company"
+    r'\bretired from\b',  # "has retired from"
+    r'\bunmonitored (mailbox|email)\b',  # "unmonitored mailbox"
+    r'\bnot.*monitor(ed|ing)\b',  # "not being monitored"
+    r'\bmailbox.{0,20}not accepting\b',  # "mailbox is not accepting messages"
+    r'\bthank you for.{0,30}(automatic|automated)\b',  # "Thank you for your email. This is an automatic"
+    r'\b(am|is|are) (currently )?out\b',  # "I am currently out"
+    r'\bwill (respond|reply).{0,30}(return|back)\b',  # "will respond when I return"
+    r'\bstandard response time\b',  # "standard response time of X days"
+    r'\bmember of the team will follow up\b',  # auto-forwarding message
 ]
 
 
-def analyze_reply_with_keywords(reply_text: str) -> Dict:
+def analyze_reply_with_keywords(reply_text: str, subject: str = "") -> Dict:
     """
     Fast keyword-based analysis to categorize email replies.
 
     Args:
         reply_text: The email reply body text
+        subject: The email subject line (optional, helps detect auto-replies)
 
     Returns:
         {
@@ -127,9 +141,17 @@ def analyze_reply_with_keywords(reply_text: str) -> Dict:
         }
 
     text_lower = reply_text.lower()
+    subject_lower = subject.lower() if subject else ""
 
     # Check for auto-replies first (highest priority)
+    # Check BOTH subject line and body
     auto_matches = []
+
+    # Check subject line for auto-reply indicators
+    if subject_lower and ("automatic reply" in subject_lower or "auto reply" in subject_lower or "out of office" in subject_lower):
+        auto_matches.append("subject:automatic_reply")
+
+    # Check body for auto-reply patterns
     for pattern in AUTO_REPLY_KEYWORDS:
         if re.search(pattern, text_lower, re.IGNORECASE):
             auto_matches.append(pattern)
@@ -271,13 +293,21 @@ Respond in JSON format:
         # Parse Claude's response
         response_text = response.content[0].text.strip()
 
-        # Extract JSON (Claude sometimes wraps in markdown)
+        # Extract JSON (Claude sometimes wraps in markdown or adds extra text)
         if "```json" in response_text:
             response_text = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:
             response_text = response_text.split("```")[1].split("```")[0].strip()
 
+        # Try to find JSON object boundaries
         import json
+        import re
+
+        # Look for JSON object pattern {..."category": ...}
+        json_match = re.search(r'\{[^{}]*"category"[^{}]*\}', response_text, re.DOTALL)
+        if json_match:
+            response_text = json_match.group(0)
+
         result = json.loads(response_text)
 
         logger.debug("Claude analysis: %s (confidence: %d%%)", result["category"], result["confidence"])
@@ -385,8 +415,8 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: in
         reply_text = lead.get("reply_body", "")
         subject = lead.get("subject", "")
 
-        # Try keyword analysis first
-        keyword_result = analyze_reply_with_keywords(reply_text)
+        # Try keyword analysis first (pass subject to detect auto-replies)
+        keyword_result = analyze_reply_with_keywords(reply_text, subject=subject)
 
         # If confident (>70%) or not using Claude, finalize with keywords
         if keyword_result["confidence"] >= 70 or not use_claude:
