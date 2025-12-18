@@ -2731,7 +2731,7 @@ async def find_missed_opportunities(
         # Sort by confidence
         hidden_gems.sort(key=lambda x: x["ai_confidence"], reverse=True)
 
-        # Build detailed report
+        # Build detailed report for hidden gems
         hidden_gems_report = []
         for gem in hidden_gems:
             hidden_gems_report.append({
@@ -2744,6 +2744,20 @@ async def find_missed_opportunities(
                 "subject": gem["subject"],
                 "timestamp": gem["timestamp"],
                 "analysis_method": gem["ai_method"]
+            })
+
+        # Also build report for unclear leads (for manual review)
+        unclear_report = []
+        for unclear_lead in categorized["unclear"]:
+            unclear_report.append({
+                "email": unclear_lead["email"],
+                "confidence": unclear_lead["ai_confidence"],
+                "reason": unclear_lead["ai_reason"],
+                "reply_summary": unclear_lead["reply_summary"],
+                "full_reply": unclear_lead["reply_body"][:500] + "..." if len(unclear_lead["reply_body"]) > 500 else unclear_lead["reply_body"],
+                "subject": unclear_lead["subject"],
+                "timestamp": unclear_lead["timestamp"],
+                "analysis_method": unclear_lead["ai_method"]
             })
 
         logger.info("Found %d hidden gems (hot: %d, warm: %d)",
@@ -2770,6 +2784,7 @@ async def find_missed_opportunities(
                 }
             },
             "hidden_gems": hidden_gems_report[:20],  # Limit to top 20
+            "unclear_leads": unclear_report[:20],  # Include unclear leads for manual review
             "message": f"Found {len(hidden_gems)} potential missed opportunities! "
                       f"These replies look interested but weren't marked by {platform_name} AI.",
             "note": f"Review these leads and consider marking them as interested in {platform_name}!"
