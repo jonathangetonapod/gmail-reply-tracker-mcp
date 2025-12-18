@@ -35,6 +35,9 @@ class RateLimiter:
 
     def wait_if_needed(self):
         """Wait if rate limit would be exceeded. Thread-safe."""
+        wait_time = 0
+
+        # Check if we need to wait (hold lock only for checking)
         with self.lock:
             now = time.time()
 
@@ -48,17 +51,20 @@ class RateLimiter:
                 oldest_request = self.requests[0]
                 wait_time = (oldest_request + self.window) - now
 
-                if wait_time > 0:
-                    logger.warning(
-                        "Rate limit reached. Waiting %.2f seconds...",
-                        wait_time
-                    )
-                    time.sleep(wait_time)
+        # Sleep OUTSIDE the lock to avoid blocking other threads
+        if wait_time > 0:
+            logger.warning(
+                "Rate limit reached. Waiting %.2f seconds...",
+                wait_time
+            )
+            time.sleep(wait_time)
 
-                    # Clean up after waiting
-                    now = time.time()
-                    while self.requests and self.requests[0] < now - self.window:
-                        self.requests.popleft()
+        # Now record this request (acquire lock again)
+        with self.lock:
+            # Clean up after waiting
+            now = time.time()
+            while self.requests and self.requests[0] < now - self.window:
+                self.requests.popleft()
 
             # Record this request
             self.requests.append(time.time())
