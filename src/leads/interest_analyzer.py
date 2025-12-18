@@ -67,6 +67,9 @@ NEGATIVE_KEYWORDS = [
     r'\bno thank\b',
     r'\bunsubscribe\b',
     r'\bremove me\b',
+    r'\bremove.*from.*list\b',  # "remove from distribution list", "remove from your list"
+    r'\bremove.*from.*distribution\b',  # "remove from distribution"
+    r'\bplease remove\b',  # "please remove from..."
     r'\bstop.*email\b',
     r'\bstop.*contact\b',  # "stop contacting me"
     r'\bstop emailing\b',
