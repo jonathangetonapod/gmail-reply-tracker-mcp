@@ -2311,18 +2311,30 @@ async def get_all_clients_with_positive_replies(
         # Helper function to fetch leads for a single workspace
         def fetch_workspace_leads(workspace, platform_name, gid):
             try:
-                workspace_id = workspace.get("workspace_id") or workspace.get("client_name")
-                result = get_lead_responses(
-                    sheet_url=config.lead_sheets_url,
-                    gid=gid,
-                    workspace_id=workspace_id,
-                    days=days
-                )
+                # Call appropriate function based on platform
+                if platform_name == "bison":
+                    from leads.lead_functions import get_bison_lead_responses
+                    client_name = workspace.get("client_name")
+                    result = get_bison_lead_responses(
+                        client_name=client_name,
+                        days=days,
+                        sheet_url=config.lead_sheets_url,
+                        gid=gid
+                    )
+                else:  # instantly
+                    workspace_id = workspace.get("workspace_id") or workspace.get("client_name")
+                    result = get_lead_responses(
+                        workspace_id=workspace_id,
+                        days=days,
+                        sheet_url=config.lead_sheets_url,
+                        gid=gid
+                    )
 
                 total_leads = result.get("total_leads", 0)
                 if total_leads > 0:
+                    client_name = workspace.get("client_name") or workspace.get("workspace_id", "unknown")
                     return {
-                        "client_name": workspace.get("client_name", workspace_id),
+                        "client_name": client_name,
                         "platform": platform_name,
                         "total_replies": total_leads,
                         "leads": result.get("leads", [])[:5]  # First 5 leads as preview
