@@ -2556,6 +2556,251 @@ async def get_active_instantly_clients(days: int = 14) -> str:
 
 
 @mcp.tool()
+async def get_active_bison_clients(days: int = 14) -> str:
+    """
+    FAST: Get all Bison clients that have sent emails in the specified time period.
+
+    Uses parallel processing to check campaign activity across all Bison workspaces
+    simultaneously. Perfect for queries like "which Bison clients sent emails this week?"
+
+    Args:
+        days: Number of days to look back (default: 14)
+
+    Returns:
+        JSON with list of Bison clients that have campaign activity, sorted by emails sent
+
+    Example:
+        get_active_bison_clients(14)  # Get clients with activity in last 14 days
+    """
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from leads.date_utils import validate_and_parse_dates
+        from leads.sheets_client import load_bison_workspaces_from_sheet
+        from leads.bison_client import get_bison_campaign_stats_api
+
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching active Bison clients (last %d days)...", days)
+
+        # Calculate date range
+        start_date, end_date, warnings = validate_and_parse_dates(days=days)
+
+        # Load all Bison workspaces
+        bison_workspaces = load_bison_workspaces_from_sheet(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_bison
+        )
+
+        logger.info("Checking %d Bison workspaces for campaign activity...", len(bison_workspaces))
+
+        def check_client_activity(workspace):
+            """Check if client has sent emails"""
+            try:
+                client_name = workspace.get("client_name", workspace.get("workspace_name", "Unknown"))
+                api_key = workspace["api_key"]
+
+                # Get campaign stats from Bison API
+                response = get_bison_campaign_stats_api(
+                    api_key=api_key,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+
+                data = response.get("data", {})
+
+                # Check if any emails were sent
+                emails_sent = data.get("emails_sent", 0)
+
+                if emails_sent > 0:
+                    return {
+                        "client_name": client_name,
+                        "emails_sent": emails_sent,
+                        "total_leads_contacted": data.get("total_leads_contacted", 0),
+                        "opened": data.get("opened", 0),
+                        "opened_percentage": data.get("opened_percentage", 0),
+                        "replied": data.get("unique_replies_per_contact", 0),
+                        "reply_percentage": data.get("unique_replies_per_contact_percentage", 0),
+                        "bounced": data.get("bounced", 0),
+                        "bounced_percentage": data.get("bounced_percentage", 0),
+                        "interested": data.get("interested", 0),
+                        "interested_percentage": data.get("interested_percentage", 0),
+                        "unsubscribed": data.get("unsubscribed", 0)
+                    }
+                return None
+
+            except Exception as e:
+                logger.warning("Error checking Bison client %s: %s", client_name, str(e))
+                return None
+
+        # Use parallel processing to check all clients simultaneously
+        active_clients = []
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = {executor.submit(check_client_activity, ws): ws for ws in bison_workspaces}
+
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    active_clients.append(result)
+
+        # Sort by emails sent (descending)
+        active_clients.sort(key=lambda x: x["emails_sent"], reverse=True)
+
+        # Calculate summary stats
+        total_emails = sum(c["emails_sent"] for c in active_clients)
+        total_opened = sum(c["opened"] for c in active_clients)
+        total_replied = sum(c["replied"] for c in active_clients)
+        total_interested = sum(c["interested"] for c in active_clients)
+
+        logger.info("Found %d active Bison clients with %d emails sent",
+                   len(active_clients), total_emails)
+
+        return json.dumps({
+            "success": True,
+            "period": f"Last {days} days",
+            "date_range": {
+                "start_date": start_date,
+                "end_date": end_date
+            },
+            "summary": {
+                "total_bison_workspaces": len(bison_workspaces),
+                "active_clients": len(active_clients),
+                "inactive_clients": len(bison_workspaces) - len(active_clients),
+                "total_emails_sent": total_emails,
+                "total_opened": total_opened,
+                "total_replied": total_replied,
+                "total_interested": total_interested,
+                "average_emails_per_client": round(total_emails / len(active_clients), 1) if active_clients else 0,
+                "average_reply_rate": round(sum(c["reply_percentage"] for c in active_clients) / len(active_clients), 1) if active_clients else 0
+            },
+            "active_clients": active_clients[:50],  # Limit to top 50
+            "note": "Clients sorted by emails sent (highest first)"
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_active_bison_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_all_active_clients(days: int = 14, platform: str = "all") -> str:
+    """
+    FAST: Get all active clients across both Instantly and Bison platforms.
+
+    Combines results from both platforms using parallel processing. Perfect for
+    overview queries like "show me all clients that sent emails this week"
+
+    Args:
+        days: Number of days to look back (default: 14)
+        platform: Which platform to check - "all", "instantly", or "bison" (default: "all")
+
+    Returns:
+        JSON with combined list of active clients from both platforms
+
+    Example:
+        get_all_active_clients(14)  # All platforms, last 14 days
+        get_all_active_clients(7, "instantly")  # Only Instantly
+    """
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        results = {}
+
+        def fetch_instantly():
+            """Fetch Instantly clients"""
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(get_active_instantly_clients(days))
+                return ("instantly", json.loads(result))
+            except Exception as e:
+                logger.error("Error fetching Instantly clients: %s", str(e))
+                return ("instantly", {"success": False, "error": str(e)})
+
+        def fetch_bison():
+            """Fetch Bison clients"""
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(get_active_bison_clients(days))
+                return ("bison", json.loads(result))
+            except Exception as e:
+                logger.error("Error fetching Bison clients: %s", str(e))
+                return ("bison", {"success": False, "error": str(e)})
+
+        # Fetch both platforms in parallel
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = []
+
+            if platform in ["all", "instantly"]:
+                futures.append(executor.submit(fetch_instantly))
+
+            if platform in ["all", "bison"]:
+                futures.append(executor.submit(fetch_bison))
+
+            for future in as_completed(futures):
+                platform_name, data = future.result()
+                results[platform_name] = data
+
+        # Combine results
+        combined_clients = []
+        total_emails = 0
+        total_opened = 0
+        total_replied = 0
+
+        for platform_name, data in results.items():
+            if data.get("success"):
+                clients = data.get("active_clients", [])
+                for client in clients:
+                    client["platform"] = platform_name
+                    combined_clients.append(client)
+
+                summary = data.get("summary", {})
+                total_emails += summary.get("total_emails_sent", 0)
+                total_opened += summary.get("total_opened", 0)
+                total_replied += summary.get("total_replied", 0)
+
+        # Sort by emails sent
+        combined_clients.sort(key=lambda x: x.get("emails_sent", 0), reverse=True)
+
+        return json.dumps({
+            "success": True,
+            "period": f"Last {days} days",
+            "summary": {
+                "total_active_clients": len(combined_clients),
+                "total_emails_sent": total_emails,
+                "total_opened": total_opened,
+                "total_replied": total_replied,
+                "instantly_clients": len([c for c in combined_clients if c["platform"] == "instantly"]),
+                "bison_clients": len([c for c in combined_clients if c["platform"] == "bison"])
+            },
+            "active_clients": combined_clients[:50],  # Top 50
+            "platform_details": {
+                "instantly": results.get("instantly", {}).get("summary", {}),
+                "bison": results.get("bison", {}).get("summary", {})
+            },
+            "note": "Clients from both platforms sorted by emails sent"
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_all_active_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def get_client_lead_details(client_name: str, days: int = 7) -> str:
     """
     Get detailed lead responses for a specific client.
