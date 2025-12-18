@@ -302,6 +302,7 @@ def fetch_all_campaign_replies(
     all_leads = []
     starting_after = None
     page_num = 0
+    seen_emails = set()  # Track emails to detect duplicate pages
 
     while True:
         page_num += 1
@@ -335,6 +336,8 @@ def fetch_all_campaign_replies(
 
             # Process each email
             processed = 0
+            page_emails = set()  # Track emails on this specific page
+
             for email in items:
                 # IMPORTANT: Only process received emails (replies from leads)
                 # Not sent emails from our team
@@ -362,12 +365,30 @@ def fetch_all_campaign_replies(
                     "i_status": email.get("i_status")  # Include the status
                 }
                 all_leads.append(lead_data)
+                page_emails.add(from_email)
                 processed += 1
 
             logger.info(f"   Processed {processed} valid replies from page {page_num}")
 
+            # SAFETY CHECK: Detect if we're seeing the exact same emails as before
+            if page_num > 1 and page_emails and page_emails.issubset(seen_emails):
+                logger.warning(f"   ⚠️  All {len(page_emails)} emails on this page were already seen!")
+                logger.warning(f"   Infinite loop detected - breaking pagination")
+                break
+
+            seen_emails.update(page_emails)
+
             # Check for next page
-            starting_after = data.get("next_starting_after")
+            next_starting_after = data.get("next_starting_after")
+            logger.info(f"   next_starting_after: {next_starting_after}")
+
+            # SAFETY CHECK: Detect infinite loop (same data repeating)
+            if next_starting_after == starting_after:
+                logger.warning(f"   ⚠️  Infinite loop detected! next_starting_after unchanged: {starting_after}")
+                logger.info(f"   Breaking pagination to prevent timeout")
+                break
+
+            starting_after = next_starting_after
 
             # Break if no more pages OR if we got fewer items than limit (last page)
             if not starting_after or len(items) < limit:
