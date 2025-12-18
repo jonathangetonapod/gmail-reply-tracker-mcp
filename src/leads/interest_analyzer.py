@@ -64,7 +64,7 @@ MODERATE_INTEREST_KEYWORDS = [
 # Negative indicators (definitely not interested)
 NEGATIVE_KEYWORDS = [
     r'\bnot interested\b',
-    r'\bno thank\b',
+    r'\bno thanks?\b',  # Matches "no thank" or "no thanks"
     r'\bunsubscribe\b',
     r'\bremove me\b',
     r'\bremove.*from.*list\b',  # "remove from distribution list", "remove from your list"
@@ -103,9 +103,12 @@ AUTO_REPLY_KEYWORDS = [
     r'\bon leave\b',
     r'\breturning.*\d+/\d+\b',  # "returning 12/25"
     r'\bleft.{0,20}(organization|organisation|company|role|position)\b',  # "I have left the organization"
+    r'\bhas left\b',  # "has left"
+    r'\bhave left\b',  # "I have left"
     r'\bno longer (with|at|working)\b',  # "no longer with the company"
     r'\bretired from\b',  # "has retired from"
     r'\bunmonitored (mailbox|email)\b',  # "unmonitored mailbox"
+    r'\bun-monitored (mailbox|email)\b',  # "un-monitored mailbox" (with hyphen)
     r'\bnot.*monitor(ed|ing)\b',  # "not being monitored"
     r'\bmailbox.{0,20}not accepting\b',  # "mailbox is not accepting messages"
     r'\bthank you for.{0,30}(automatic|automated)\b',  # "Thank you for your email. This is an automatic"
@@ -113,6 +116,8 @@ AUTO_REPLY_KEYWORDS = [
     r'\bwill (respond|reply).{0,30}(return|back)\b',  # "will respond when I return"
     r'\bstandard response time\b',  # "standard response time of X days"
     r'\bmember of the team will follow up\b',  # auto-forwarding message
+    r'\ball[- ]day meeting\b',  # "all day meeting" or "all-day meeting"
+    r'\bnot expected to (check|respond)\b',  # "not expected to check or respond to emails"
 ]
 
 
