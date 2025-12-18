@@ -2,9 +2,12 @@
 Simple function to fetch interested leads from Instantly API.
 """
 
+import logging
 import requests
 from datetime import datetime
 from typing import List, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def mark_instantly_lead_as_interested(
@@ -298,8 +301,12 @@ def fetch_all_campaign_replies(
 
     all_leads = []
     starting_after = None
+    page_num = 0
 
     while True:
+        page_num += 1
+        logger.info(f"   Fetching page {page_num} (i_status={i_status})...")
+
         # Build params
         params = {
             "min_timestamp_created": start_date,
@@ -319,12 +326,15 @@ def fetch_all_campaign_replies(
             response = requests.get(url, headers=headers, params=params, timeout=30)
 
             if not response.ok:
+                logger.warning(f"   API returned status {response.status_code}, stopping pagination")
                 break
 
             data = response.json()
             items = data.get("items", [])
+            logger.info(f"   Received {len(items)} items on page {page_num}")
 
             # Process each email
+            processed = 0
             for email in items:
                 # IMPORTANT: Only process received emails (replies from leads)
                 # Not sent emails from our team
@@ -352,15 +362,20 @@ def fetch_all_campaign_replies(
                     "i_status": email.get("i_status")  # Include the status
                 }
                 all_leads.append(lead_data)
+                processed += 1
+
+            logger.info(f"   Processed {processed} valid replies from page {page_num}")
 
             # Check for next page
             starting_after = data.get("next_starting_after")
 
             # Break if no more pages OR if we got fewer items than limit (last page)
             if not starting_after or len(items) < limit:
+                logger.info(f"   Pagination complete after {page_num} pages")
                 break
 
         except Exception as e:
+            logger.error(f"   Error fetching page {page_num}: {e}")
             break
 
     # De-duplicate by email (keep most recent)
