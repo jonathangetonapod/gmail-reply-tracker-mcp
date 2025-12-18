@@ -2522,6 +2522,185 @@ async def get_client_lead_details(client_name: str, days: int = 7) -> str:
 
 
 @mcp.tool()
+async def find_missed_opportunities(
+    client_name: str,
+    days: int = 7,
+    use_claude: bool = True
+) -> str:
+    """
+    Find "hidden gems" - interested leads that Instantly/Bison AI didn't categorize correctly.
+
+    This tool fetches ALL campaign replies (not just marked-as-interested), excludes the ones
+    already marked, and uses AI to analyze the remaining replies to find missed opportunities.
+
+    Perfect for quality assurance on lead categorization!
+
+    Args:
+        client_name: Name of the client to analyze
+        days: Number of days to look back (default: 7)
+        use_claude: Use Claude API for unclear cases (default: True, requires ANTHROPIC_API_KEY)
+
+    Returns:
+        JSON with hidden gems report showing missed interested leads
+
+    Example:
+        find_missed_opportunities("Rick Pendrick", 7, True)
+    """
+    try:
+        from leads._source_fetch_interested_leads import fetch_all_campaign_replies
+        from leads.interest_analyzer import categorize_leads
+        from leads.sheets_client import load_workspaces_from_sheet
+        from leads.date_utils import calculate_date_range
+
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Finding missed opportunities for %s (days=%d, use_claude=%s)",
+                   client_name, days, use_claude)
+
+        # Calculate date range
+        start_date, end_date = calculate_date_range(days)
+
+        # Try to find client in Instantly workspaces
+        instantly_workspaces = load_workspaces_from_sheet(
+            config.lead_sheets_url,
+            gid=config.lead_sheets_gid_instantly
+        )
+
+        matching_workspace = next(
+            (ws for ws in instantly_workspaces
+             if ws.get("client_name", "").lower() == client_name.lower() or
+                ws.get("workspace_id", "").lower() == client_name.lower()),
+            None
+        )
+
+        if not matching_workspace:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Instantly workspaces. "
+                        f"Note: This feature currently only supports Instantly. Bison support coming soon!"
+            }, indent=2)
+
+        # Get API key
+        api_key = matching_workspace.get("api_key")
+        if not api_key:
+            return json.dumps({
+                "success": False,
+                "error": f"No API key found for client '{client_name}'"
+            }, indent=2)
+
+        # Step 1: Fetch ALL campaign replies (no i_status filter)
+        logger.info("Fetching all campaign replies...")
+        all_replies_result = fetch_all_campaign_replies(
+            api_key=api_key,
+            start_date=start_date,
+            end_date=end_date,
+            i_status=None  # Fetch ALL replies
+        )
+
+        # Step 2: Fetch replies already marked as interested
+        logger.info("Fetching already-marked interested leads...")
+        interested_replies_result = fetch_all_campaign_replies(
+            api_key=api_key,
+            start_date=start_date,
+            end_date=end_date,
+            i_status=1  # Only interested
+        )
+
+        all_replies = all_replies_result.get("leads", [])
+        already_interested = interested_replies_result.get("leads", [])
+
+        # Create set of already-interested email addresses
+        already_interested_emails = {lead["email"].lower() for lead in already_interested}
+
+        # Step 3: Filter to get ONLY the non-interested replies
+        non_interested_replies = [
+            lead for lead in all_replies
+            if lead["email"].lower() not in already_interested_emails
+        ]
+
+        logger.info("Total replies: %d, Already interested: %d, Not marked interested: %d",
+                   len(all_replies), len(already_interested), len(non_interested_replies))
+
+        if not non_interested_replies:
+            return json.dumps({
+                "success": True,
+                "client_name": client_name,
+                "period": f"Last {days} days",
+                "total_replies": len(all_replies),
+                "already_marked_interested": len(already_interested),
+                "analyzed_replies": 0,
+                "hidden_gems_found": 0,
+                "message": "All replies have already been marked as interested! No hidden gems to find.",
+                "hidden_gems": []
+            }, indent=2)
+
+        # Step 4: AI analyze the non-interested replies
+        logger.info("Analyzing %d non-interested replies with AI...", len(non_interested_replies))
+        categorized = categorize_leads(non_interested_replies, use_claude=use_claude)
+
+        # Hidden gems = HOT + WARM leads from the non-interested bucket
+        hidden_gems = categorized["hot"] + categorized["warm"]
+
+        # Sort by confidence
+        hidden_gems.sort(key=lambda x: x["ai_confidence"], reverse=True)
+
+        # Build detailed report
+        hidden_gems_report = []
+        for gem in hidden_gems:
+            hidden_gems_report.append({
+                "email": gem["email"],
+                "category": gem["ai_category"],
+                "confidence": gem["ai_confidence"],
+                "reason": gem["ai_reason"],
+                "reply_summary": gem["reply_summary"],
+                "full_reply": gem["reply_body"][:500] + "..." if len(gem["reply_body"]) > 500 else gem["reply_body"],
+                "subject": gem["subject"],
+                "timestamp": gem["timestamp"],
+                "analysis_method": gem["ai_method"]
+            })
+
+        logger.info("Found %d hidden gems (hot: %d, warm: %d)",
+                   len(hidden_gems), len(categorized["hot"]), len(categorized["warm"]))
+
+        return json.dumps({
+            "success": True,
+            "client_name": client_name,
+            "period": f"Last {days} days",
+            "summary": {
+                "total_replies": len(all_replies),
+                "already_marked_interested": len(already_interested),
+                "analyzed_replies": len(non_interested_replies),
+                "hidden_gems_found": len(hidden_gems),
+                "breakdown": {
+                    "hot": len(categorized["hot"]),
+                    "warm": len(categorized["warm"]),
+                    "cold": len(categorized["cold"]),
+                    "auto_reply": len(categorized["auto_reply"]),
+                    "unclear": len(categorized["unclear"])
+                }
+            },
+            "hidden_gems": hidden_gems_report[:20],  # Limit to top 20
+            "message": f"Found {len(hidden_gems)} potential missed opportunities! "
+                      f"These replies look interested but weren't marked by Instantly AI.",
+            "note": "Review these leads and consider marking them as interested in Instantly!"
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in find_missed_opportunities: %s", error_msg)
+        import traceback
+        logger.error("Traceback: %s", traceback.format_exc())
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def get_bison_clients() -> str:
     """
     Get list of all Bison clients.

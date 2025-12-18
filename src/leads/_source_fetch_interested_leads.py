@@ -4,7 +4,7 @@ Simple function to fetch interested leads from Instantly API.
 
 import requests
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 
 def fetch_interested_leads(
@@ -191,3 +191,121 @@ def _deduplicate_leads(leads: List[Dict]) -> List[Dict]:
     )
 
     return sorted_leads
+
+
+def fetch_all_campaign_replies(
+    api_key: str,
+    start_date: str,
+    end_date: str,
+    i_status: Optional[int] = None,
+    limit: int = 100
+) -> Dict:
+    """
+    Fetch ALL campaign replies from Instantly, optionally filtered by interest status.
+
+    This function allows fetching replies regardless of their categorization,
+    which is useful for finding "hidden gems" - interested leads that weren't
+    marked as interested by Instantly's AI.
+
+    Args:
+        api_key: Instantly API key
+        start_date: Start date in ISO format (e.g., "2024-12-01T00:00:00Z")
+        end_date: End date in ISO format (e.g., "2024-12-11T23:59:59Z")
+        i_status: Optional interest status filter (None=all, 0=not interested, 1=interested)
+        limit: Max emails per page (default 100)
+
+    Returns:
+        {
+            "total_count": int,
+            "leads": [
+                {
+                    "email": str,
+                    "reply_body": str,
+                    "reply_summary": str,
+                    "subject": str,
+                    "timestamp": str,
+                    "lead_id": str (if available),
+                    "i_status": int (0 or 1)
+                }
+            ],
+            "i_status_filter": int | None
+        }
+    """
+    url = "https://api.instantly.ai/api/v2/emails"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    all_leads = []
+    starting_after = None
+
+    while True:
+        # Build params
+        params = {
+            "min_timestamp_created": start_date,
+            "max_timestamp_created": end_date,
+            "limit": limit
+        }
+
+        # Add i_status filter if specified
+        if i_status is not None:
+            params["i_status"] = i_status
+
+        if starting_after:
+            params["starting_after"] = starting_after
+
+        # Make request
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+
+            if not response.ok:
+                break
+
+            data = response.json()
+            items = data.get("items", [])
+
+            # Process each email
+            for email in items:
+                # IMPORTANT: Only process received emails (replies from leads)
+                # Not sent emails from our team
+                if email.get("ue_type") != 2:
+                    continue
+
+                from_email = email.get("from_address_email", "").lower()
+
+                # Skip emails FROM your team (prism, leadgenjay, etc.)
+                if any(keyword in from_email for keyword in ["prism", "leadgenjay", "pendrick"]):
+                    continue
+
+                # Skip system/auto emails
+                if "noreply" in from_email or "no-reply" in from_email or "paypal" in from_email:
+                    continue
+
+                lead_data = {
+                    "email": email.get("from_address_email", "Unknown"),
+                    "reply_body": email.get("body", {}).get("text", ""),
+                    "reply_summary": _summarize_reply(email.get("body", {}).get("text", "")),
+                    "subject": email.get("subject", ""),
+                    "timestamp": email.get("timestamp_email", ""),
+                    "lead_id": email.get("lead"),
+                    "thread_id": email.get("thread_id"),
+                    "i_status": email.get("i_status")  # Include the status
+                }
+                all_leads.append(lead_data)
+
+            # Check for next page
+            starting_after = data.get("next_starting_after")
+
+            # Break if no more pages OR if we got fewer items than limit (last page)
+            if not starting_after or len(items) < limit:
+                break
+
+        except Exception as e:
+            break
+
+    # De-duplicate by email (keep most recent)
+    unique_leads = _deduplicate_leads(all_leads)
+
+    return {
+        "total_count": len(unique_leads),
+        "leads": unique_leads,
+        "i_status_filter": i_status
+    }
