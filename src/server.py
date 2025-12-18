@@ -2535,16 +2535,19 @@ async def find_missed_opportunities(
 
     Perfect for quality assurance on lead categorization!
 
+    Supports BOTH Instantly and Bison clients - automatically detects which platform the client uses.
+
     Args:
-        client_name: Name of the client to analyze
+        client_name: Name of the client to analyze (works with both Instantly and Bison)
         days: Number of days to look back (default: 7)
         use_claude: Use Claude API for unclear cases (default: True, requires ANTHROPIC_API_KEY)
 
     Returns:
         JSON with hidden gems report showing missed interested leads
 
-    Example:
-        find_missed_opportunities("Rick Pendrick", 7, True)
+    Examples:
+        find_missed_opportunities("Rick Pendrick", 7, True)  # Instantly client
+        find_missed_opportunities("Rich Cave", 7, True)      # Bison client
     """
     try:
         from leads._source_fetch_interested_leads import fetch_all_campaign_replies
@@ -2564,54 +2567,126 @@ async def find_missed_opportunities(
         # Calculate date range
         start_date, end_date = calculate_date_range(days)
 
-        # Try to find client in Instantly workspaces
+        # Try to find client in Instantly workspaces first
+        from leads.sheets_client import load_bison_workspaces_from_sheet
+        from leads.bison_client import get_bison_lead_replies
+
+        platform_used = None
+        all_replies = []
+        already_interested = []
+
         instantly_workspaces = load_workspaces_from_sheet(
             config.lead_sheets_url,
             gid=config.lead_sheets_gid_instantly
         )
 
-        matching_workspace = next(
+        matching_instantly_workspace = next(
             (ws for ws in instantly_workspaces
              if ws.get("client_name", "").lower() == client_name.lower() or
                 ws.get("workspace_id", "").lower() == client_name.lower()),
             None
         )
 
-        if not matching_workspace:
-            return json.dumps({
-                "success": False,
-                "error": f"Client '{client_name}' not found in Instantly workspaces. "
-                        f"Note: This feature currently only supports Instantly. Bison support coming soon!"
-            }, indent=2)
+        # Try Instantly first
+        if matching_instantly_workspace:
+            api_key = matching_instantly_workspace.get("api_key")
+            if not api_key:
+                return json.dumps({
+                    "success": False,
+                    "error": f"No API key found for Instantly client '{client_name}'"
+                }, indent=2)
 
-        # Get API key
-        api_key = matching_workspace.get("api_key")
-        if not api_key:
-            return json.dumps({
-                "success": False,
-                "error": f"No API key found for client '{client_name}'"
-            }, indent=2)
+            logger.info("Found client in Instantly, fetching replies...")
+            platform_used = "instantly"
 
-        # Step 1: Fetch ALL campaign replies (no i_status filter)
-        logger.info("Fetching all campaign replies...")
-        all_replies_result = fetch_all_campaign_replies(
-            api_key=api_key,
-            start_date=start_date,
-            end_date=end_date,
-            i_status=None  # Fetch ALL replies
-        )
+            # Step 1: Fetch ALL campaign replies (no i_status filter)
+            all_replies_result = fetch_all_campaign_replies(
+                api_key=api_key,
+                start_date=start_date,
+                end_date=end_date,
+                i_status=None  # Fetch ALL replies
+            )
 
-        # Step 2: Fetch replies already marked as interested
-        logger.info("Fetching already-marked interested leads...")
-        interested_replies_result = fetch_all_campaign_replies(
-            api_key=api_key,
-            start_date=start_date,
-            end_date=end_date,
-            i_status=1  # Only interested
-        )
+            # Step 2: Fetch replies already marked as interested
+            interested_replies_result = fetch_all_campaign_replies(
+                api_key=api_key,
+                start_date=start_date,
+                end_date=end_date,
+                i_status=1  # Only interested
+            )
 
-        all_replies = all_replies_result.get("leads", [])
-        already_interested = interested_replies_result.get("leads", [])
+            all_replies = all_replies_result.get("leads", [])
+            already_interested = interested_replies_result.get("leads", [])
+
+        # If not found in Instantly, try Bison
+        if not matching_instantly_workspace:
+            bison_workspaces = load_bison_workspaces_from_sheet(
+                config.lead_sheets_url,
+                gid=config.lead_sheets_gid_bison
+            )
+
+            matching_bison_workspace = next(
+                (ws for ws in bison_workspaces
+                 if ws.get("client_name", "").lower() == client_name.lower()),
+                None
+            )
+
+            if not matching_bison_workspace:
+                return json.dumps({
+                    "success": False,
+                    "error": f"Client '{client_name}' not found in either Instantly or Bison workspaces."
+                }, indent=2)
+
+            api_key = matching_bison_workspace.get("api_key")
+            if not api_key:
+                return json.dumps({
+                    "success": False,
+                    "error": f"No API key found for Bison client '{client_name}'"
+                }, indent=2)
+
+            logger.info("Found client in Bison, fetching replies...")
+            platform_used = "bison"
+
+            # Step 1: Fetch ALL campaign replies (no status filter)
+            all_replies_result = get_bison_lead_replies(
+                api_key=api_key,
+                status=None,  # Fetch ALL replies
+                folder="all"
+            )
+
+            # Step 2: Fetch replies already marked as interested
+            interested_replies_result = get_bison_lead_replies(
+                api_key=api_key,
+                status="interested",
+                folder="all"
+            )
+
+            # Convert Bison format to standard format
+            all_replies_raw = all_replies_result.get("data", [])
+            interested_replies_raw = interested_replies_result.get("data", [])
+
+            # Normalize Bison replies to match Instantly format
+            for reply in all_replies_raw:
+                all_replies.append({
+                    "email": reply.get("from_email_address", "Unknown"),
+                    "reply_body": reply.get("text_body", ""),
+                    "reply_summary": reply.get("text_body", "")[:200] + "..." if len(reply.get("text_body", "")) > 200 else reply.get("text_body", ""),
+                    "subject": reply.get("subject", ""),
+                    "timestamp": reply.get("date_received", ""),
+                    "lead_id": reply.get("lead_id"),
+                    "interested": reply.get("interested", False)
+                })
+
+            for reply in interested_replies_raw:
+                already_interested.append({
+                    "email": reply.get("from_email_address", "Unknown"),
+                    "reply_body": reply.get("text_body", ""),
+                    "reply_summary": reply.get("text_body", "")[:200] + "..." if len(reply.get("text_body", "")) > 200 else reply.get("text_body", ""),
+                    "subject": reply.get("subject", ""),
+                    "timestamp": reply.get("date_received", ""),
+                    "lead_id": reply.get("lead_id"),
+                    "interested": True
+                })
 
         # Create set of already-interested email addresses
         already_interested_emails = {lead["email"].lower() for lead in already_interested}
@@ -2666,9 +2741,12 @@ async def find_missed_opportunities(
         logger.info("Found %d hidden gems (hot: %d, warm: %d)",
                    len(hidden_gems), len(categorized["hot"]), len(categorized["warm"]))
 
+        platform_name = "Instantly" if platform_used == "instantly" else "Bison"
+
         return json.dumps({
             "success": True,
             "client_name": client_name,
+            "platform": platform_used,
             "period": f"Last {days} days",
             "summary": {
                 "total_replies": len(all_replies),
@@ -2685,8 +2763,8 @@ async def find_missed_opportunities(
             },
             "hidden_gems": hidden_gems_report[:20],  # Limit to top 20
             "message": f"Found {len(hidden_gems)} potential missed opportunities! "
-                      f"These replies look interested but weren't marked by Instantly AI.",
-            "note": "Review these leads and consider marking them as interested in Instantly!"
+                      f"These replies look interested but weren't marked by {platform_name} AI.",
+            "note": f"Review these leads and consider marking them as interested in {platform_name}!"
         }, indent=2)
 
     except Exception as e:
