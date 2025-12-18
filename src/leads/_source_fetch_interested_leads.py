@@ -7,6 +7,68 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 
+def mark_instantly_lead_as_interested(
+    api_key: str,
+    lead_email: str,
+    interest_value: int = 1,
+    campaign_id: Optional[str] = None,
+    list_id: Optional[str] = None,
+    ai_interest_value: Optional[int] = None,
+    disable_auto_interest: bool = False
+) -> Dict:
+    """
+    Mark a lead as interested in Instantly API.
+
+    Args:
+        api_key: Instantly API key
+        lead_email: Email address of the lead
+        interest_value: Interest status value (default: 1 for "Interested")
+            1 = Interested
+            2 = Meeting Booked
+            3 = Meeting Completed
+            4 = Closed
+            -1 = Not Interested
+            -2 = Wrong Person
+            -3 = Lost
+            0 = Out of Office
+            None = Reset to "Lead"
+        campaign_id: Optional campaign ID context
+        list_id: Optional list ID context
+        ai_interest_value: Optional AI-determined interest level
+        disable_auto_interest: Whether to disable auto interest detection
+
+    Returns:
+        {
+            "message": "Lead interest status update background job submitted"
+        }
+    """
+    url = "https://api.instantly.ai/api/v2/leads/update-interest-status"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "lead_email": lead_email,
+        "interest_value": interest_value
+    }
+
+    # Add optional fields
+    if campaign_id:
+        payload["campaign_id"] = campaign_id
+    if list_id:
+        payload["list_id"] = list_id
+    if ai_interest_value is not None:
+        payload["ai_interest_value"] = ai_interest_value
+    if disable_auto_interest:
+        payload["disable_auto_interest"] = disable_auto_interest
+
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
 def fetch_interested_leads(
     api_key: str,
     start_date: str,

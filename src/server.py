@@ -2734,7 +2734,7 @@ async def find_missed_opportunities(
         # Build detailed report for hidden gems
         hidden_gems_report = []
         for gem in hidden_gems:
-            hidden_gems_report.append({
+            report_item = {
                 "email": gem["email"],
                 "category": gem["ai_category"],
                 "confidence": gem["ai_confidence"],
@@ -2744,12 +2744,20 @@ async def find_missed_opportunities(
                 "subject": gem["subject"],
                 "timestamp": gem["timestamp"],
                 "analysis_method": gem["ai_method"]
-            })
+            }
+
+            # Add reply_id for Bison (needed for mark_lead_as_interested)
+            if "id" in gem:
+                report_item["reply_id"] = gem["id"]
+            elif "reply_id" in gem:
+                report_item["reply_id"] = gem["reply_id"]
+
+            hidden_gems_report.append(report_item)
 
         # Also build report for unclear leads (for manual review)
         unclear_report = []
         for unclear_lead in categorized["unclear"]:
-            unclear_report.append({
+            report_item = {
                 "email": unclear_lead["email"],
                 "confidence": unclear_lead["ai_confidence"],
                 "reason": unclear_lead["ai_reason"],
@@ -2758,7 +2766,15 @@ async def find_missed_opportunities(
                 "subject": unclear_lead["subject"],
                 "timestamp": unclear_lead["timestamp"],
                 "analysis_method": unclear_lead["ai_method"]
-            })
+            }
+
+            # Add reply_id for Bison (needed for mark_lead_as_interested)
+            if "id" in unclear_lead:
+                report_item["reply_id"] = unclear_lead["id"]
+            elif "reply_id" in unclear_lead:
+                report_item["reply_id"] = unclear_lead["reply_id"]
+
+            unclear_report.append(report_item)
 
         logger.info("Found %d hidden gems (hot: %d, warm: %d)",
                    len(hidden_gems), len(categorized["hot"]), len(categorized["warm"]))
@@ -2795,6 +2811,136 @@ async def find_missed_opportunities(
         logger.error("Error in find_missed_opportunities: %s", error_msg)
         import traceback
         logger.error("Traceback: %s", traceback.format_exc())
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def mark_lead_as_interested(
+    client_name: str,
+    lead_email: str,
+    reply_id: Optional[int] = None,
+    interest_value: int = 1
+) -> str:
+    """
+    Mark a lead as interested in Instantly or Bison.
+
+    Auto-detects which platform the client uses and marks the lead accordingly.
+    For Bison: Uses reply_id to mark the reply as interested
+    For Instantly: Uses lead_email to update interest status
+
+    Args:
+        client_name: Name of the client (e.g., "Jeff Mikolai", "Lena Kadriu")
+        lead_email: Email address of the lead to mark
+        reply_id: (Bison only) Reply ID to mark as interested
+        interest_value: (Instantly only) Interest status value (default: 1)
+            1 = Interested, 2 = Meeting Booked, 3 = Meeting Completed,
+            4 = Closed, -1 = Not Interested, -2 = Wrong Person, -3 = Lost
+
+    Returns:
+        JSON string with success status and platform used
+
+    Example:
+        mark_lead_as_interested("Jeff Mikolai", "john@example.com", reply_id=123)
+        mark_lead_as_interested("Lena Kadriu", "jane@example.com")
+    """
+    try:
+        # Import required functions
+        from leads._source_fetch_interested_leads import mark_instantly_lead_as_interested
+        from leads.bison_client import mark_bison_reply_as_interested
+
+        logger.info("Marking lead as interested: %s (client: %s)", lead_email, client_name)
+
+        # Try Instantly first
+        instantly_workspaces = load_workspaces_from_sheet(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_instantly
+        )
+
+        matching_instantly_workspace = next(
+            (w for w in instantly_workspaces if w["client_name"].lower() == client_name.lower()),
+            None
+        )
+
+        if matching_instantly_workspace:
+            # Use Instantly API
+            api_key = matching_instantly_workspace["api_key"]
+
+            result = mark_instantly_lead_as_interested(
+                api_key=api_key,
+                lead_email=lead_email,
+                interest_value=interest_value
+            )
+
+            logger.info("Successfully marked lead as interested in Instantly: %s", lead_email)
+
+            return json.dumps({
+                "success": True,
+                "platform": "instantly",
+                "client_name": client_name,
+                "lead_email": lead_email,
+                "interest_value": interest_value,
+                "message": result.get("message", "Lead marked as interested"),
+                "note": "Lead interest status update job submitted to Instantly"
+            }, indent=2)
+
+        # If not Instantly, try Bison
+        bison_workspaces = load_bison_workspaces_from_sheet(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_bison
+        )
+
+        matching_bison_workspace = next(
+            (w for w in bison_workspaces if w["client_name"].lower() == client_name.lower()),
+            None
+        )
+
+        if matching_bison_workspace:
+            # Use Bison API
+            api_key = matching_bison_workspace["api_key"]
+
+            # For Bison, we need a reply_id
+            if not reply_id:
+                return json.dumps({
+                    "success": False,
+                    "error": "Bison requires reply_id parameter. Please provide the reply ID to mark as interested.",
+                    "platform": "bison",
+                    "client_name": client_name,
+                    "suggestion": "Use find_missed_opportunities() to get reply IDs, then pass the reply_id here"
+                }, indent=2)
+
+            result = mark_bison_reply_as_interested(
+                api_key=api_key,
+                reply_id=reply_id,
+                skip_webhooks=True
+            )
+
+            logger.info("Successfully marked reply as interested in Bison: reply_id=%d, email=%s",
+                       reply_id, lead_email)
+
+            return json.dumps({
+                "success": True,
+                "platform": "bison",
+                "client_name": client_name,
+                "lead_email": lead_email,
+                "reply_id": reply_id,
+                "interested": result.get("data", {}).get("interested", True),
+                "message": "Reply marked as interested in Bison",
+                "note": "Lead status updated successfully"
+            }, indent=2)
+
+        # Client not found in either platform
+        return json.dumps({
+            "success": False,
+            "error": f"Client '{client_name}' not found in Instantly or Bison workspaces.",
+            "suggestion": "Check client name spelling or use get_instantly_clients() / get_bison_clients() to see available clients"
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error marking lead as interested: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg

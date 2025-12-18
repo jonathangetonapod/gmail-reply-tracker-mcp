@@ -48,6 +48,44 @@ def get_bison_lead_replies(api_key: str, status: str = "interested", folder: str
     return response.json()
 
 
+def mark_bison_reply_as_interested(api_key: str, reply_id: int, skip_webhooks: bool = True):
+    """
+    Mark a specific reply as interested in Bison API.
+
+    Args:
+        api_key: Bison API key
+        reply_id: Reply ID to mark as interested
+        skip_webhooks: Whether to skip triggering webhooks (default: True)
+
+    Returns:
+        {
+            "data": {
+                "id": int,
+                "uuid": str,
+                "from_email_address": str,
+                "from_name": str,
+                "subject": str,
+                "text_body": str,
+                "interested": bool,
+                "automated_reply": bool,
+                ...
+            }
+        }
+    """
+    url = f"https://send.leadgenjay.com/api/replies/{reply_id}/mark-as-interested"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {"skip_webhooks": skip_webhooks}
+
+    response = requests.patch(url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
 def get_bison_conversation_thread(api_key: str, reply_id: int):
     """
     Fetch conversation thread for a specific reply from Bison API.
