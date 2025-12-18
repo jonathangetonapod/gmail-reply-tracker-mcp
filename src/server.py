@@ -2470,39 +2470,33 @@ async def get_active_instantly_clients(days: int = 14) -> str:
         def check_client_activity(workspace):
             """Check if client has sent emails"""
             try:
+                from leads.instantly_client import get_instantly_campaign_stats
+
                 client_name = workspace.get("client_name", workspace.get("workspace_name", "Unknown"))
                 api_key = workspace["api_key"]
 
-                # Get campaign stats from Instantly API
-                url = "https://api.instantly.ai/api/v1/analytics/campaign/summary"
-                headers = {"Authorization": f"Bearer {api_key}"}
-                params = {
-                    "start_date": start_date,
-                    "end_date": end_date
-                }
-
-                response = requests.get(url, headers=headers, params=params, timeout=30)
-                response.raise_for_status()
-                data = response.json()
+                # Get campaign stats from Instantly API (V2)
+                data = get_instantly_campaign_stats(
+                    api_key=api_key,
+                    start_date=start_date,
+                    end_date=end_date
+                )
 
                 # Check if any emails were sent
-                emails_sent = data.get("emails_sent", 0)
+                emails_sent = data.get("emails_sent_count", 0)
 
                 if emails_sent > 0:
                     return {
                         "client_name": client_name,
                         "emails_sent": emails_sent,
-                        "opened": data.get("opened", 0),
-                        "clicked": data.get("clicked", 0),
-                        "replied": data.get("replied", 0),
-                        "bounced": data.get("bounced", 0),
-                        "open_rate": data.get("open_rate", 0),
+                        "replied": data.get("reply_count_unique", 0),
+                        "total_opportunities": data.get("total_opportunities", 0),
                         "reply_rate": data.get("reply_rate", 0)
                     }
                 return None
 
             except Exception as e:
-                logger.warning("Error checking client %s: %s", client_name, str(e))
+                logger.warning("Error checking Instantly client %s: %s", client_name, str(e))
                 return None
 
         # Use parallel processing to check all clients simultaneously
@@ -2520,8 +2514,8 @@ async def get_active_instantly_clients(days: int = 14) -> str:
 
         # Calculate summary stats
         total_emails = sum(c["emails_sent"] for c in active_clients)
-        total_opened = sum(c["opened"] for c in active_clients)
         total_replied = sum(c["replied"] for c in active_clients)
+        total_opportunities = sum(c["total_opportunities"] for c in active_clients)
 
         logger.info("Found %d active Instantly clients with %d emails sent",
                    len(active_clients), total_emails)
@@ -2538,12 +2532,13 @@ async def get_active_instantly_clients(days: int = 14) -> str:
                 "active_clients": len(active_clients),
                 "inactive_clients": len(instantly_workspaces) - len(active_clients),
                 "total_emails_sent": total_emails,
-                "total_opened": total_opened,
                 "total_replied": total_replied,
-                "average_emails_per_client": round(total_emails / len(active_clients), 1) if active_clients else 0
+                "total_opportunities": total_opportunities,
+                "average_emails_per_client": round(total_emails / len(active_clients), 1) if active_clients else 0,
+                "average_reply_rate": round(sum(c["reply_rate"] for c in active_clients) / len(active_clients), 2) if active_clients else 0
             },
             "active_clients": active_clients[:50],  # Limit to top 50
-            "note": "Clients sorted by emails sent (highest first)"
+            "note": "Clients sorted by emails sent (highest first). Note: Instantly API returns workspace-level stats."
         }, indent=2)
 
     except Exception as e:
@@ -2754,7 +2749,6 @@ async def get_all_active_clients(days: int = 14, platform: str = "all") -> str:
         # Combine results
         combined_clients = []
         total_emails = 0
-        total_opened = 0
         total_replied = 0
 
         for platform_name, data in results.items():
@@ -2766,7 +2760,6 @@ async def get_all_active_clients(days: int = 14, platform: str = "all") -> str:
 
                 summary = data.get("summary", {})
                 total_emails += summary.get("total_emails_sent", 0)
-                total_opened += summary.get("total_opened", 0)
                 total_replied += summary.get("total_replied", 0)
 
         # Sort by emails sent
@@ -2778,7 +2771,6 @@ async def get_all_active_clients(days: int = 14, platform: str = "all") -> str:
             "summary": {
                 "total_active_clients": len(combined_clients),
                 "total_emails_sent": total_emails,
-                "total_opened": total_opened,
                 "total_replied": total_replied,
                 "instantly_clients": len([c for c in combined_clients if c["platform"] == "instantly"]),
                 "bison_clients": len([c for c in combined_clients if c["platform"] == "bison"])
@@ -2788,7 +2780,7 @@ async def get_all_active_clients(days: int = 14, platform: str = "all") -> str:
                 "instantly": results.get("instantly", {}).get("summary", {}),
                 "bison": results.get("bison", {}).get("summary", {})
             },
-            "note": "Clients from both platforms sorted by emails sent"
+            "note": "Clients from both platforms sorted by emails sent. Instantly data is workspace-level."
         }, indent=2)
 
     except Exception as e:
