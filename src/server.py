@@ -2426,6 +2426,136 @@ async def get_all_clients_with_positive_replies(
 
 
 @mcp.tool()
+async def get_active_instantly_clients(days: int = 14) -> str:
+    """
+    FAST: Get all Instantly clients that have sent emails in the specified time period.
+
+    Uses parallel processing to check campaign activity across all Instantly workspaces
+    simultaneously. Perfect for queries like "which Instantly clients sent emails this week?"
+
+    Args:
+        days: Number of days to look back (default: 14)
+
+    Returns:
+        JSON with list of Instantly clients that have campaign activity, sorted by emails sent
+
+    Example:
+        get_active_instantly_clients(14)  # Get clients with activity in last 14 days
+    """
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from leads.date_utils import validate_and_parse_dates
+        from leads.sheets_client import load_workspaces_from_sheet
+        import requests
+
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Fetching active Instantly clients (last %d days)...", days)
+
+        # Calculate date range
+        start_date, end_date, warnings = validate_and_parse_dates(days=days)
+
+        # Load all Instantly workspaces
+        instantly_workspaces = load_workspaces_from_sheet(
+            sheet_url=config.lead_sheets_url,
+            gid=config.lead_sheets_gid_instantly
+        )
+
+        logger.info("Checking %d Instantly workspaces for campaign activity...", len(instantly_workspaces))
+
+        def check_client_activity(workspace):
+            """Check if client has sent emails"""
+            try:
+                client_name = workspace.get("client_name", workspace.get("workspace_name", "Unknown"))
+                api_key = workspace["api_key"]
+
+                # Get campaign stats from Instantly API
+                url = "https://api.instantly.ai/api/v1/analytics/campaign/summary"
+                headers = {"Authorization": f"Bearer {api_key}"}
+                params = {
+                    "start_date": start_date,
+                    "end_date": end_date
+                }
+
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+
+                # Check if any emails were sent
+                emails_sent = data.get("emails_sent", 0)
+
+                if emails_sent > 0:
+                    return {
+                        "client_name": client_name,
+                        "emails_sent": emails_sent,
+                        "opened": data.get("opened", 0),
+                        "clicked": data.get("clicked", 0),
+                        "replied": data.get("replied", 0),
+                        "bounced": data.get("bounced", 0),
+                        "open_rate": data.get("open_rate", 0),
+                        "reply_rate": data.get("reply_rate", 0)
+                    }
+                return None
+
+            except Exception as e:
+                logger.warning("Error checking client %s: %s", client_name, str(e))
+                return None
+
+        # Use parallel processing to check all clients simultaneously
+        active_clients = []
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            futures = {executor.submit(check_client_activity, ws): ws for ws in instantly_workspaces}
+
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    active_clients.append(result)
+
+        # Sort by emails sent (descending)
+        active_clients.sort(key=lambda x: x["emails_sent"], reverse=True)
+
+        # Calculate summary stats
+        total_emails = sum(c["emails_sent"] for c in active_clients)
+        total_opened = sum(c["opened"] for c in active_clients)
+        total_replied = sum(c["replied"] for c in active_clients)
+
+        logger.info("Found %d active Instantly clients with %d emails sent",
+                   len(active_clients), total_emails)
+
+        return json.dumps({
+            "success": True,
+            "period": f"Last {days} days",
+            "date_range": {
+                "start_date": start_date,
+                "end_date": end_date
+            },
+            "summary": {
+                "total_instantly_workspaces": len(instantly_workspaces),
+                "active_clients": len(active_clients),
+                "inactive_clients": len(instantly_workspaces) - len(active_clients),
+                "total_emails_sent": total_emails,
+                "total_opened": total_opened,
+                "total_replied": total_replied,
+                "average_emails_per_client": round(total_emails / len(active_clients), 1) if active_clients else 0
+            },
+            "active_clients": active_clients[:50],  # Limit to top 50
+            "note": "Clients sorted by emails sent (highest first)"
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_active_instantly_clients: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def get_client_lead_details(client_name: str, days: int = 7) -> str:
     """
     Get detailed lead responses for a specific client.
