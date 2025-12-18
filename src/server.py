@@ -159,14 +159,15 @@ async def get_unreplied_emails(
         # Get user email
         user_email = gmail_client.get_user_email()
 
+        # Fetch all threads in parallel
+        thread_ids = [t['id'] for t in thread_infos]
+        threads = gmail_client.batch_get_threads(thread_ids)
+
         # Process threads
         unreplied = []
-        for thread_info in thread_infos:
+        for thread in threads:
             if len(unreplied) >= max_results:
                 break
-
-            # Fetch full thread
-            thread = gmail_client.get_thread(thread_info['id'])
 
             # Check if unreplied
             if email_analyzer.is_unreplied(thread, user_email):
@@ -487,12 +488,20 @@ async def get_unreplied_by_sender(email_or_domain: str) -> str:
         # Get user email
         user_email = gmail_client.get_user_email()
 
+        # Get unique thread IDs and fetch all threads in parallel
+        thread_ids = list(set([msg_info['threadId'] for msg_info in message_infos]))
+        threads = gmail_client.batch_get_threads(thread_ids)
+
+        # Create thread lookup dict
+        threads_by_id = {t['id']: t for t in threads}
+
         # Filter for unreplied
         unreplied = []
 
         for msg_info in message_infos:
-            # Get full thread
-            thread = gmail_client.get_thread(msg_info['threadId'])
+            thread = threads_by_id.get(msg_info['threadId'])
+            if not thread:
+                continue
 
             # Check if unreplied
             if email_analyzer.is_unreplied(thread, user_email):
