@@ -2,11 +2,80 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.4.1"
-RELEASE_DATE = "2025-12-17"
+VERSION = "2.4.2"
+RELEASE_DATE = "2025-12-18"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.4.2": {
+        "date": "December 18, 2025",
+        "title": "Campaign Creation & Analysis Improvements",
+        "highlights": [
+            {
+                "icon": "🚀",
+                "category": "Feature",
+                "title": "Bison Campaign Creation Helper",
+                "description": "Create campaigns with sequences in one call",
+                "details": "New create_bison_campaign_with_sequences() function automatically loads client config from Google Sheet, creates campaign and sequences together, handles placeholder conversion ({{FirstName}} → {FIRST_NAME}), supports A/B test variants with proper variant_from_step handling, and automatically manages thread reply subjects.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔧",
+                "category": "Bug Fix",
+                "title": "Thread Reply Subject Handling",
+                "description": "Fixed 422 errors when creating campaigns with thread reply steps",
+                "details": "Empty subjects for thread replies now automatically convert to 'Re:' placeholder. Bison API requires non-empty subjects even for thread replies. Fixed in both create_bison_sequence MCP tool and create_bison_campaign_with_sequences helper. Thread replies properly inherit subject from variant sent to each lead.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🛡️",
+                "category": "Bug Fix",
+                "title": "False Positive Detection Fixed",
+                "description": "Eliminated 9/9 false positives in hidden gems analysis",
+                "details": "Expanded auto-reply detection from 8 to 25+ patterns. Fixed Claude API JSON parsing errors (20+ failures resolved). Added subject line checking for auto-reply and unsubscribe detection. Created comprehensive test suite with 20 tests (all passing). Examples fixed: 'No thanks' now COLD not HOT, 'Out of office' now AUTO_REPLY not HOT, 'UNSUBSCRIBE' subject now COLD not HOT.",
+                "screenshot": None,
+            },
+            {
+                "icon": "⚡",
+                "category": "Performance",
+                "title": "Instantly API Pagination Fixed",
+                "description": "Reduced timeout from 4 minutes to 47 seconds",
+                "details": "Fixed infinite pagination loop where Instantly API was returning 17,867 items per page (not 100). Added duplicate detection with seen_emails tracking across pages. Breaks immediately when all emails on current page were already seen. Added comprehensive pagination logging for debugging.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔍",
+                "category": "Enhancement",
+                "title": "Bison Outbound Email Filtering",
+                "description": "Client's own emails no longer appear as lead replies",
+                "details": "Added filtering using Bison API's 'type' field to skip outbound/sent emails. Prevents false positives where client's own outbound emails were showing as interested lead replies. Filter checks for type in ['sent', 'outbound', 'out'].",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added create_bison_campaign_with_sequences() to src/leads/bison_client.py",
+            "Function loads client config from Google Sheet automatically",
+            "Handles campaign creation and sequence creation in single call",
+            "Supports A/B variants using variant_from_step parameter",
+            "Thread reply subject conversion: empty string → 'Re:' placeholder",
+            "Fixed in both MCP tool (server.py) and helper function (bison_client.py)",
+            "Expanded AUTO_REPLY_KEYWORDS from 8 to 25+ regex patterns",
+            "Added regex extraction for Claude API JSON parsing: json_match = re.search()",
+            "Fixed 'no thanks' pattern from r'\\bno thank\\b' to r'\\bno thanks?\\b'",
+            "Added subject line checking for 'Automatic reply:', 'UNSUBSCRIBE'",
+            "Added tests/test_false_positives.py with 20 comprehensive tests",
+            "All false positive tests passing after fixes",
+            "Added duplicate email tracking across pagination with seen_emails set",
+            "Break loop when page_emails.issubset(seen_emails) (all duplicates)",
+            "Added pagination token change detection to prevent infinite loops",
+            "Instantly pagination: 17,867 items/page bug handled gracefully",
+            "Performance: find_missed_opportunities 4 minutes → 47 seconds",
+            "Added Bison outbound filter using 'type' field from API",
+            "Filter skips emails where type in ['sent', 'outbound', 'out']",
+            "Added debug logging for outbound email skipping",
+        ],
+    },
     "2.4.1": {
         "date": "December 17, 2025",
         "title": "Performance & Critical Bug Fixes",
