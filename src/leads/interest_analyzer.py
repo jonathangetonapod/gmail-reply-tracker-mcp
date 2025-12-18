@@ -171,6 +171,12 @@ def analyze_reply_with_keywords(reply_text: str, subject: str = "") -> Dict:
 
     # Check for negative signals
     negative_matches = []
+
+    # Check subject line for unsubscribe requests
+    if subject_lower and "unsubscribe" in subject_lower:
+        negative_matches.append("subject:unsubscribe")
+
+    # Check body for negative patterns
     for pattern in NEGATIVE_KEYWORDS:
         if re.search(pattern, text_lower, re.IGNORECASE):
             negative_matches.append(pattern)
