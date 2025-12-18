@@ -3,13 +3,14 @@ AI-powered interest detection to find missed opportunities in campaign replies.
 
 This module uses a hybrid approach:
 1. Fast keyword-based analysis for obvious interest signals
-2. Claude API for nuanced/unclear cases
+2. Claude API for nuanced/unclear cases (with parallel processing for scale)
 """
 
 import re
 import os
 import logging
 from typing import Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from anthropic import Anthropic
 
 logger = logging.getLogger(__name__)
@@ -326,13 +327,16 @@ def analyze_reply_hybrid(reply_text: str, subject: str = "") -> Dict:
     return keyword_result
 
 
-def categorize_leads(leads: List[Dict], use_claude: bool = True) -> Dict:
+def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: int = 10) -> Dict:
     """
     Categorize a list of leads into hot/warm/cold/auto/unclear buckets.
+
+    Uses parallel processing for Claude API calls to handle large batches efficiently.
 
     Args:
         leads: List of lead dicts with "reply_body" and optionally "subject"
         use_claude: Whether to use Claude API for unclear cases (default: True)
+        max_workers: Max parallel Claude API calls (default: 10)
 
     Returns:
         {
@@ -359,26 +363,115 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True) -> Dict:
         "unclear": []
     }
 
+    # Phase 1: Fast keyword analysis on all leads (sequential is fine, it's instant)
+    keyword_analyzed = []
+    needs_claude = []
+
     for lead in leads:
         reply_text = lead.get("reply_body", "")
         subject = lead.get("subject", "")
 
-        if use_claude:
-            analysis = analyze_reply_hybrid(reply_text, subject)
+        # Try keyword analysis first
+        keyword_result = analyze_reply_with_keywords(reply_text)
+
+        # If confident (>70%) or not using Claude, finalize with keywords
+        if keyword_result["confidence"] >= 70 or not use_claude:
+            keyword_result["method"] = "keyword"
+            lead_with_analysis = {
+                **lead,
+                "ai_category": keyword_result["category"],
+                "ai_confidence": keyword_result["confidence"],
+                "ai_reason": keyword_result["reason"],
+                "ai_method": "keyword"
+            }
+            categorized[keyword_result["category"]].append(lead_with_analysis)
+            keyword_analyzed.append(lead_with_analysis)
         else:
-            analysis = analyze_reply_with_keywords(reply_text)
-            analysis["method"] = "keyword"
+            # Save for Claude analysis
+            needs_claude.append({
+                "lead": lead,
+                "keyword_result": keyword_result
+            })
 
-        # Add analysis to lead
-        lead_with_analysis = {
-            **lead,
-            "ai_category": analysis["category"],
-            "ai_confidence": analysis["confidence"],
-            "ai_reason": analysis["reason"],
-            "ai_method": analysis.get("method", "unknown")
-        }
+    logger.info("Keyword analysis: %d confident, %d need Claude",
+               len(keyword_analyzed), len(needs_claude))
 
-        categorized[analysis["category"]].append(lead_with_analysis)
+    # Phase 2: Parallel Claude API calls for unclear leads
+    if needs_claude and use_claude:
+        logger.info("Starting parallel Claude analysis for %d leads (max_workers=%d)...",
+                   len(needs_claude), max_workers)
+
+        def analyze_with_claude(item):
+            """Helper function for parallel processing"""
+            lead = item["lead"]
+            keyword_result = item["keyword_result"]
+            reply_text = lead.get("reply_body", "")
+            subject = lead.get("subject", "")
+
+            try:
+                claude_result = analyze_reply_with_claude(reply_text, subject)
+
+                # Use Claude if confident, otherwise fallback to keywords
+                if claude_result["confidence"] >= 50:
+                    claude_result["method"] = "claude"
+                    return {
+                        **lead,
+                        "ai_category": claude_result["category"],
+                        "ai_confidence": claude_result["confidence"],
+                        "ai_reason": claude_result["reason"],
+                        "ai_method": "claude"
+                    }
+                else:
+                    keyword_result["method"] = "keyword_fallback"
+                    return {
+                        **lead,
+                        "ai_category": keyword_result["category"],
+                        "ai_confidence": keyword_result["confidence"],
+                        "ai_reason": keyword_result["reason"],
+                        "ai_method": "keyword_fallback"
+                    }
+            except Exception as e:
+                logger.error("Error analyzing lead with Claude: %s", str(e))
+                # Fallback to keyword result
+                keyword_result["method"] = "keyword_fallback_error"
+                return {
+                    **lead,
+                    "ai_category": keyword_result["category"],
+                    "ai_confidence": keyword_result["confidence"],
+                    "ai_reason": f"Claude error: {str(e)}",
+                    "ai_method": "keyword_fallback_error"
+                }
+
+        # Process in parallel
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_item = {
+                executor.submit(analyze_with_claude, item): item
+                for item in needs_claude
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_item):
+                try:
+                    lead_with_analysis = future.result()
+                    categorized[lead_with_analysis["ai_category"]].append(lead_with_analysis)
+                except Exception as e:
+                    logger.error("Error processing future: %s", str(e))
+                    # Use keyword fallback for this lead
+                    item = future_to_item[future]
+                    lead = item["lead"]
+                    keyword_result = item["keyword_result"]
+                    keyword_result["method"] = "keyword_fallback_error"
+                    lead_with_analysis = {
+                        **lead,
+                        "ai_category": keyword_result["category"],
+                        "ai_confidence": keyword_result["confidence"],
+                        "ai_reason": f"Processing error: {str(e)}",
+                        "ai_method": "keyword_fallback_error"
+                    }
+                    categorized[lead_with_analysis["ai_category"]].append(lead_with_analysis)
+
+        logger.info("Parallel Claude analysis complete")
 
     # Build summary
     summary = {
