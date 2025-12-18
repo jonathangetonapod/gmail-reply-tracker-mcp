@@ -68,12 +68,23 @@ NEGATIVE_KEYWORDS = [
     r'\bunsubscribe\b',
     r'\bremove me\b',
     r'\bstop.*email\b',
+    r'\bstop.*contact\b',  # "stop contacting me"
+    r'\bstop emailing\b',
     r'\bdon\'t contact\b',
+    r'\bdo not contact\b',
+    r'\btake.*off.*list\b',  # "take me off your list"
+    r'\boff.*list\b',  # "off your list"
+    r'\boff.*email list\b',
     r'\bnot.*right time\b',
     r'\bnot a fit\b',
     r'\balready have\b',
     r'\bnot looking\b',
     r'\bno longer\b',
+    r'\bnot.*industry\b',  # "not in that industry"
+    r'\bwrong person\b',
+    r'\bwrong company\b',
+    r'\bnot the right\b',
+    r'\bplease stop\b',  # catch generic "please stop"
 ]
 
 # Auto-reply indicators
