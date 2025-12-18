@@ -2525,7 +2525,8 @@ async def get_client_lead_details(client_name: str, days: int = 7) -> str:
 async def find_missed_opportunities(
     client_name: str,
     days: int = 7,
-    use_claude: bool = True
+    use_claude: bool = True,
+    exclude_auto_replies: bool = True
 ) -> str:
     """
     Find "hidden gems" - interested leads that Instantly/Bison AI didn't categorize correctly.
@@ -2541,6 +2542,7 @@ async def find_missed_opportunities(
         client_name: Name of the client to analyze (works with both Instantly and Bison)
         days: Number of days to look back (default: 7)
         use_claude: Use Claude API for unclear cases (default: True, requires ANTHROPIC_API_KEY)
+        exclude_auto_replies: Exclude automated replies like OOO messages (default: True, Bison only)
 
     Returns:
         JSON with hidden gems report showing missed interested leads
@@ -2548,6 +2550,7 @@ async def find_missed_opportunities(
     Examples:
         find_missed_opportunities("Rick Pendrick", 7, True)  # Instantly client
         find_missed_opportunities("Rich Cave", 7, True)      # Bison client
+        find_missed_opportunities("Jeff Mikolai", 30, True, True)  # Exclude auto-replies
     """
     try:
         from leads._source_fetch_interested_leads import fetch_all_campaign_replies
@@ -2561,8 +2564,8 @@ async def find_missed_opportunities(
                 "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
             }, indent=2)
 
-        logger.info("Finding missed opportunities for %s (days=%d, use_claude=%s)",
-                   client_name, days, use_claude)
+        logger.info("Finding missed opportunities for %s (days=%d, use_claude=%s, exclude_auto_replies=%s)",
+                   client_name, days, use_claude, exclude_auto_replies)
 
         # Calculate date range
         start_date, end_date, warnings = validate_and_parse_dates(days=days)
@@ -2647,10 +2650,12 @@ async def find_missed_opportunities(
             logger.info("Found client in Bison, fetching replies...")
             platform_used = "bison"
 
-            # Step 1: Fetch ALL campaign replies (no status filter)
+            # Step 1: Fetch ALL campaign replies (excluding auto-replies if requested)
+            # Use status="not_automated_reply" to exclude OOO messages and other auto-replies
+            all_replies_status = "not_automated_reply" if exclude_auto_replies else None
             all_replies_result = get_bison_lead_replies(
                 api_key=api_key,
-                status=None,  # Fetch ALL replies
+                status=all_replies_status,
                 folder="all"
             )
 
