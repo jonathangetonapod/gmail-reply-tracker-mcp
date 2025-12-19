@@ -23,16 +23,28 @@ def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
         campaign_id (UUID string) or None
     """
     url = "https://api.instantly.ai/api/v1/lead/get"
-    headers = {"Authorization": f"Bearer {api_key}"}
-    params = {"email": lead_email}
+    # v1 endpoints use API key as query parameter, not Bearer token
+    params = {
+        "api_key": api_key,
+        "email": lead_email
+    }
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
 
         if response.status_code == 200:
             data = response.json()
+            logger.info(f"✅ Lead found: {lead_email}")
+            logger.info(f"   Lead data keys: {list(data.keys())}")
+
             # Try to extract campaign from various possible locations
-            campaign_id = data.get("campaigns", [{}])[0].get("id") if data.get("campaigns") else None
+            campaign_id = None
+
+            # Check if there's a campaigns array
+            if data.get("campaigns") and isinstance(data["campaigns"], list) and len(data["campaigns"]) > 0:
+                campaign_id = data["campaigns"][0].get("id")
+
+            # Check direct fields
             if not campaign_id:
                 campaign_id = data.get("campaign_id")
             if not campaign_id:
@@ -42,9 +54,11 @@ def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
                 logger.info(f"✅ Found campaign for lead {lead_email}: {campaign_id}")
             else:
                 logger.warning(f"⚠️  Lead {lead_email} has no campaign association")
+                logger.warning(f"   Available data: {data}")
             return campaign_id
         else:
             logger.warning(f"⚠️  Could not fetch lead {lead_email}: {response.status_code}")
+            logger.warning(f"   Response: {response.text}")
             return None
     except Exception as e:
         logger.error(f"Error getting campaign from lead: {e}")
@@ -67,11 +81,14 @@ def verify_lead_exists_in_instantly(api_key: str, lead_email: str) -> Dict:
         }
     """
     url = "https://api.instantly.ai/api/v1/lead/get"
-    headers = {"Authorization": f"Bearer {api_key}"}
-    params = {"email": lead_email}
+    # v1 endpoints use API key as query parameter, not Bearer token
+    params = {
+        "api_key": api_key,
+        "email": lead_email
+    }
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
 
         if response.status_code == 200:
             data = response.json()
