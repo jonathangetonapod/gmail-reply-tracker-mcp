@@ -2996,6 +2996,12 @@ async def find_missed_opportunities(
             all_replies = all_replies_result.get("leads", [])
             already_interested = interested_replies_result.get("leads", [])
 
+            # Add platform field to Instantly replies for timing detection
+            for reply in all_replies:
+                reply["platform"] = "instantly"
+            for reply in already_interested:
+                reply["platform"] = "instantly"
+
         # If not found in Instantly, try Bison
         if not matching_instantly_workspace:
             logger.info("Client not found in Instantly, checking Bison...")
@@ -3087,8 +3093,10 @@ async def find_missed_opportunities(
                     "reply_summary": reply.get("text_body", "")[:200] + "..." if len(reply.get("text_body", "")) > 200 else reply.get("text_body", ""),
                     "subject": reply.get("subject", ""),
                     "timestamp": reply.get("date_received", ""),
+                    "id": reply.get("id"),  # Bison reply ID for thread lookup
                     "lead_id": reply.get("lead_id"),
-                    "interested": reply.get("interested", False)
+                    "interested": reply.get("interested", False),
+                    "platform": "bison"  # Track platform for timing detection
                 })
 
             for reply in interested_replies_raw:
@@ -3106,8 +3114,10 @@ async def find_missed_opportunities(
                     "reply_summary": reply.get("text_body", "")[:200] + "..." if len(reply.get("text_body", "")) > 200 else reply.get("text_body", ""),
                     "subject": reply.get("subject", ""),
                     "timestamp": reply.get("date_received", ""),
+                    "id": reply.get("id"),  # Bison reply ID for thread lookup
                     "lead_id": reply.get("lead_id"),
-                    "interested": True
+                    "interested": True,
+                    "platform": "bison"  # Track platform for timing detection
                 })
 
         # Create set of already-interested email addresses
@@ -3140,7 +3150,7 @@ async def find_missed_opportunities(
         logger.info("Step 7/7: AI analyzing %d non-interested replies (use_claude=%s)...",
                    len(non_interested_replies), use_claude)
         logger.info("This may take 30-60 seconds for 100+ replies with Claude API enabled...")
-        categorized = categorize_leads(non_interested_replies, use_claude=use_claude)
+        categorized = categorize_leads(non_interested_replies, use_claude=use_claude, api_key=api_key)
         logger.info("AI analysis complete!")
 
         # Hidden gems = HOT + WARM leads from the non-interested bucket

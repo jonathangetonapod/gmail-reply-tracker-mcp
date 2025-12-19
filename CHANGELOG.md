@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Timing-Based Auto-Reply Validation**: Post-Claude validation to catch automated responses
+  - **Runs as Phase 3 AFTER Claude analysis** (validates HOT/WARM opportunities only)
+  - Detects replies that come within 2 minutes of sent email (highly likely automated)
+  - **Works with both Instantly and Bison platforms** via platform-specific thread APIs
+  - Instantly: uses `get_thread_emails()` with thread_id
+  - Bison: uses `get_bison_conversation_thread()` with reply_id
+  - **90% fewer API calls**: Only checks 10-20 opportunities vs 200+ replies
+  - **Rate limit friendly**: Small batch size stays well within Instantly limits
+  - **Quality control**: Downgrades false positives (e.g., "Thanks!" automated responses)
+  - **Transparent tracking**: Marked with `"ai_method": "timing_validation"` and includes original category
+  - Logs all downgrades: "Downgraded email@example.com from hot to auto_reply"
+  - Added `is_instant_auto_reply()` and `is_bison_instant_auto_reply()` functions
+  - Three-phase detection: keywords → Claude API → timing validation
+
 - **Bison Campaign Creation Helper**: New `create_bison_campaign_with_sequences()` function in `src/leads/bison_client.py`
   - Automatically loads client configuration from Google Sheet
   - Creates campaign and sequences in one call

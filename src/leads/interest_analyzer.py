@@ -9,11 +9,199 @@ This module uses a hybrid approach:
 import re
 import os
 import logging
+import time
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from anthropic import Anthropic
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# Global cache for thread emails to avoid duplicate API calls
+_thread_cache = {}
+
+
+def is_instant_auto_reply(
+    thread_id: str,
+    reply_timestamp: str,
+    api_key: str,
+    threshold_minutes: int = 2
+) -> bool:
+    """
+    Check if reply came suspiciously fast after sent email (likely automated).
+
+    Uses thread-based timing: fetches all emails in the thread, finds the most
+    recent SENT email before this reply, and calculates time difference.
+
+    Args:
+        thread_id: Thread ID from Instantly API
+        reply_timestamp: ISO timestamp of the reply
+        api_key: Instantly API key
+        threshold_minutes: Max minutes for human response (default: 2)
+
+    Returns:
+        True if reply came within threshold minutes (likely automated)
+    """
+    try:
+        from .instantly_client import get_thread_emails
+        import requests
+
+        logger.info(f"DEBUG is_instant_auto_reply: thread_id={thread_id}, reply_timestamp={reply_timestamp}")
+
+        # Check cache first to avoid duplicate API calls
+        if thread_id in _thread_cache:
+            thread_emails = _thread_cache[thread_id]
+            logger.info(f"DEBUG: Using cached thread emails ({len(thread_emails)} emails)")
+        else:
+            # Fetch thread emails (no retries - let circuit breaker handle failures)
+            logger.info(f"DEBUG: Fetching thread emails from API for thread_id={thread_id}")
+            thread_emails = get_thread_emails(thread_id, api_key)
+            logger.info(f"DEBUG: Got {len(thread_emails)} emails from API")
+            # Cache successful result
+            _thread_cache[thread_id] = thread_emails
+
+        if not thread_emails:
+            logger.info(f"DEBUG: No thread emails found, returning False")
+            return False
+
+        # Find most recent SENT email (ue_type=1) before this reply
+        reply_dt = datetime.fromisoformat(reply_timestamp.replace('Z', '+00:00'))
+
+        # DEBUG: Log what we're seeing in the thread
+        ue_types_seen = {}
+        for email in thread_emails[:5]:  # Just log first 5 for brevity
+            ue_type = email.get('ue_type')
+            timestamp = email.get('timestamp_email', 'no timestamp')
+            ue_types_seen[ue_type] = ue_types_seen.get(ue_type, 0) + 1
+            logger.info(f"DEBUG: Email sample - ue_type={ue_type}, timestamp={timestamp}")
+
+        logger.info(f"DEBUG: ue_type distribution in thread: {ue_types_seen}")
+        logger.info(f"DEBUG: Reply timestamp to compare: {reply_timestamp}")
+
+        sent_emails = []
+        for email in thread_emails:
+            if email.get('ue_type') == 1:  # Type 1 = sent (outbound)
+                email_dt = datetime.fromisoformat(
+                    email['timestamp_email'].replace('Z', '+00:00')
+                )
+                # Only consider sent emails BEFORE this reply
+                logger.info(f"DEBUG: Found sent email at {email['timestamp_email']}, comparing to reply at {reply_timestamp}")
+                if email_dt < reply_dt:
+                    sent_emails.append((email_dt, email))
+                    logger.info(f"DEBUG: ^ This sent email IS before the reply")
+                else:
+                    logger.info(f"DEBUG: ^ This sent email is NOT before the reply (email_dt={email_dt} >= reply_dt={reply_dt})")
+
+        logger.info(f"DEBUG: Found {len(sent_emails)} sent emails before this reply")
+
+        if not sent_emails:
+            logger.info(f"DEBUG: No sent emails found before reply, returning False")
+            return False
+
+        # Get the most recent sent email
+        last_sent_dt, last_sent_email = max(sent_emails, key=lambda x: x[0])
+
+        # Calculate time difference in minutes
+        time_diff = (reply_dt - last_sent_dt).total_seconds() / 60
+        logger.info(f"DEBUG: Time difference = {time_diff:.1f} minutes (threshold: {threshold_minutes})")
+
+        # Reply came within threshold minutes - likely automated
+        if 0 < time_diff <= threshold_minutes:
+            logger.info(
+                "Instant auto-reply detected: reply came %.1f minutes after sent email "
+                "(threshold: %d min)",
+                time_diff, threshold_minutes
+            )
+            logger.info(f"DEBUG: Returning True - this is an instant auto-reply")
+            return True
+
+        logger.info(f"DEBUG: Returning False - time_diff ({time_diff:.1f} min) is > threshold ({threshold_minutes} min)")
+        return False
+
+    except Exception as e:
+        logger.warning("Error checking instant auto-reply timing: %s", str(e))
+        logger.info(f"DEBUG: Exception occurred, returning False: {e}")
+        return False  # Don't filter if we can't determine
+
+
+def is_bison_instant_auto_reply(
+    reply_id: int,
+    reply_timestamp: str,
+    api_key: str,
+    threshold_minutes: int = 2
+) -> bool:
+    """
+    Check if Bison reply came suspiciously fast after sent email (likely automated).
+
+    Uses thread-based timing: fetches the conversation thread, finds the most
+    recent SENT email before this reply, and calculates time difference.
+
+    Args:
+        reply_id: Reply ID from Bison API
+        reply_timestamp: ISO timestamp of the reply (date_received)
+        api_key: Bison API key
+        threshold_minutes: Max minutes for human response (default: 2)
+
+    Returns:
+        True if reply came within threshold minutes (likely automated)
+    """
+    try:
+        from .bison_client import get_bison_conversation_thread
+        import requests
+
+        # Check cache first (use reply_id as key)
+        cache_key = f"bison_{reply_id}"
+        if cache_key in _thread_cache:
+            thread_data = _thread_cache[cache_key]
+        else:
+            # Fetch conversation thread (no retries - let circuit breaker handle failures)
+            thread_response = get_bison_conversation_thread(api_key, reply_id)
+            thread_data = thread_response.get("data", {})
+            # Cache successful result
+            _thread_cache[cache_key] = thread_data
+
+        if not thread_data:
+            return False
+
+        # Parse reply timestamp
+        reply_dt = datetime.fromisoformat(reply_timestamp.replace('Z', '+00:00'))
+
+        # Look through older messages to find most recent SENT email
+        sent_emails = []
+        for msg in thread_data.get("older_messages", []):
+            msg_type = msg.get("type", "").lower()
+            # Bison types: "sent", "received", "outbound", "inbound", etc.
+            if msg_type in ["sent", "outbound", "out"]:
+                msg_dt = datetime.fromisoformat(
+                    msg.get("date_received", "").replace('Z', '+00:00')
+                )
+                # Only consider sent emails BEFORE this reply
+                if msg_dt < reply_dt:
+                    sent_emails.append((msg_dt, msg))
+
+        if not sent_emails:
+            return False
+
+        # Get the most recent sent email
+        last_sent_dt, last_sent_msg = max(sent_emails, key=lambda x: x[0])
+
+        # Calculate time difference in minutes
+        time_diff = (reply_dt - last_sent_dt).total_seconds() / 60
+
+        # Reply came within threshold minutes - likely automated
+        if 0 < time_diff <= threshold_minutes:
+            logger.info(
+                "Instant auto-reply detected (Bison): reply came %.1f minutes after sent email "
+                "(threshold: %d min)",
+                time_diff, threshold_minutes
+            )
+            return True
+
+        return False
+
+    except Exception as e:
+        logger.warning("Error checking Bison instant auto-reply timing: %s", str(e))
+        return False  # Don't filter if we can't determine
 
 
 # Interest signal keywords (strong positive indicators)
@@ -382,17 +570,25 @@ def analyze_reply_hybrid(reply_text: str, subject: str = "") -> Dict:
     return keyword_result
 
 
-def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: int = 20) -> Dict:
+def categorize_leads(
+    leads: List[Dict],
+    use_claude: bool = True,
+    max_workers: int = 20,
+    api_key: Optional[str] = None
+) -> Dict:
     """
     Categorize a list of leads into hot/warm/cold/auto/unclear buckets.
 
-    Uses parallel processing for Claude API calls to handle large batches efficiently.
-    Changed to use Claude for ALL replies except obvious auto-replies and rejections.
+    Three-phase detection system:
+    1. Keyword analysis: Fast filter for obvious auto-replies and rejections
+    2. Claude API: Context-aware analysis (parallel processing, 20 workers)
+    3. Timing validation: Double-checks HOT/WARM opportunities for instant auto-replies
 
     Args:
-        leads: List of lead dicts with "reply_body" and optionally "subject"
+        leads: List of lead dicts with "reply_body" and optionally "subject", "thread_id", "timestamp", "platform"
         use_claude: Whether to use Claude API for analysis (default: True)
         max_workers: Max parallel Claude API calls (default: 20, well under 4K RPM limit)
+        api_key: Optional Instantly/Bison API key for timing validation (Phase 3)
 
     Returns:
         {
@@ -552,6 +748,88 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: in
                     categorized[lead_with_analysis["ai_category"]].append(lead_with_analysis)
 
         logger.info("Parallel Claude analysis complete")
+
+    # Phase 3: TIMING VALIDATION - Double-check HOT/WARM leads for instant auto-replies
+    # This runs AFTER Claude to validate opportunities (much fewer API calls)
+    if api_key:
+        opportunities = categorized["hot"] + categorized["warm"]
+
+        if opportunities:
+            logger.info(f"Phase 3: Validating {len(opportunities)} opportunities with timing check...")
+
+            # Clear cache for fresh validation
+            global _thread_cache
+            _thread_cache = {}
+
+            downgraded_count = 0
+            validated_hot = []
+            validated_warm = []
+
+            for lead in opportunities:
+                is_timing_auto_reply = False
+
+                # DEBUG: Check what fields are available
+                logger.info(f"DEBUG: Checking {lead.get('email', 'unknown')} - "
+                           f"platform={lead.get('platform')}, "
+                           f"thread_id={lead.get('thread_id')}, "
+                           f"timestamp={lead.get('timestamp')}, "
+                           f"id={lead.get('id')}")
+
+                if lead.get("timestamp"):
+                    platform = lead.get("platform", "").lower()
+
+                    try:
+                        # Check timing based on platform
+                        if platform == "instantly" and lead.get("thread_id"):
+                            logger.info(f"DEBUG: Calling is_instant_auto_reply for {lead.get('email')} with thread_id={lead['thread_id']}")
+                            is_timing_auto_reply = is_instant_auto_reply(
+                                thread_id=lead["thread_id"],
+                                reply_timestamp=lead["timestamp"],
+                                api_key=api_key,
+                                threshold_minutes=2
+                            )
+                            logger.info(f"DEBUG: is_instant_auto_reply returned {is_timing_auto_reply} for {lead.get('email')}")
+                        elif platform == "bison" and lead.get("id"):
+                            logger.info(f"DEBUG: Calling is_bison_instant_auto_reply for {lead.get('email')} with reply_id={lead['id']}")
+                            is_timing_auto_reply = is_bison_instant_auto_reply(
+                                reply_id=lead["id"],
+                                reply_timestamp=lead["timestamp"],
+                                api_key=api_key,
+                                threshold_minutes=2
+                            )
+                            logger.info(f"DEBUG: is_bison_instant_auto_reply returned {is_timing_auto_reply} for {lead.get('email')}")
+                        else:
+                            logger.info(f"DEBUG: Skipping timing check for {lead.get('email')} - no thread_id/id or wrong platform")
+                    except Exception as e:
+                        # Log but don't fail - just skip timing validation for this lead
+                        logger.warning(f"Could not validate timing for {lead.get('email', 'unknown')}: {e}")
+
+                if is_timing_auto_reply:
+                    # Downgrade to auto_reply - this was a false positive
+                    downgraded_lead = {
+                        **lead,
+                        "ai_category": "auto_reply",
+                        "ai_confidence": 95,
+                        "ai_reason": f"TIMING OVERRIDE: Reply came within 2 minutes (automated). Original: {lead.get('ai_reason', 'unknown')}",
+                        "ai_method": "timing_validation",
+                        "original_category": lead["ai_category"],
+                        "original_method": lead.get("ai_method", "unknown")
+                    }
+                    categorized["auto_reply"].append(downgraded_lead)
+                    downgraded_count += 1
+                    logger.info(f"Downgraded {lead.get('email', 'unknown')} from {lead['ai_category']} to auto_reply (replied in <2 min)")
+                else:
+                    # Validated as genuine opportunity
+                    if lead["ai_category"] == "hot":
+                        validated_hot.append(lead)
+                    else:
+                        validated_warm.append(lead)
+
+            # Update categorized with validated leads
+            categorized["hot"] = validated_hot
+            categorized["warm"] = validated_warm
+
+            logger.info(f"Timing validation complete: {downgraded_count} downgraded to auto_reply, {len(validated_hot)} hot, {len(validated_warm)} warm validated")
 
     # Build summary
     summary = {

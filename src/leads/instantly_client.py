@@ -413,3 +413,30 @@ def get_instantly_campaign_details(api_key: str, campaign_id: str):
     response.raise_for_status()
 
     return response.json()
+
+
+def get_thread_emails(thread_id: str, api_key: str):
+    """
+    Fetch all emails in a thread from Instantly API.
+    
+    Args:
+        thread_id: Thread ID to fetch
+        api_key: Instantly API key
+    
+    Returns:
+        List of email dicts with timestamp_email and ue_type fields
+        ue_type: 1 = sent (outbound), 2 = received (reply)
+    """
+    url = "https://api.instantly.ai/api/v2/emails"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    
+    params = {
+        "thread_id": thread_id,
+        "limit": 100  # Should be enough for most threads
+    }
+    
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+    
+    data = response.json()
+    return data.get("items", [])
