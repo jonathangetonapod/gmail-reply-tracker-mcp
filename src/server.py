@@ -3367,7 +3367,8 @@ async def mark_lead_as_interested(
                 api_key=api_key,
                 lead_email=lead_email,
                 interest_value=interest_value,
-                campaign_id=campaign_id  # Pass campaign_id for proper association
+                campaign_id=campaign_id,  # Pass campaign_id for proper association
+                lead_id=lead_id  # Pass lead_id to look up campaign if needed
             )
 
             # Check if the result contains an error

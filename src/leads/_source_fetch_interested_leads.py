@@ -11,6 +11,46 @@ from typing import List, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
+    """
+    Get the campaign_id from an existing lead in Instantly.
+
+    Args:
+        api_key: Instantly API key
+        lead_email: Email of the lead to look up
+
+    Returns:
+        campaign_id (UUID string) or None
+    """
+    url = "https://api.instantly.ai/api/v1/lead/get"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    params = {"email": lead_email}
+
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            # Try to extract campaign from various possible locations
+            campaign_id = data.get("campaigns", [{}])[0].get("id") if data.get("campaigns") else None
+            if not campaign_id:
+                campaign_id = data.get("campaign_id")
+            if not campaign_id:
+                campaign_id = data.get("campaign")
+
+            if campaign_id:
+                logger.info(f"✅ Found campaign for lead {lead_email}: {campaign_id}")
+            else:
+                logger.warning(f"⚠️  Lead {lead_email} has no campaign association")
+            return campaign_id
+        else:
+            logger.warning(f"⚠️  Could not fetch lead {lead_email}: {response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"Error getting campaign from lead: {e}")
+        return None
+
+
 def verify_lead_exists_in_instantly(api_key: str, lead_email: str) -> Dict:
     """
     Verify that a lead exists in Instantly before trying to mark it.
@@ -113,6 +153,7 @@ def mark_instantly_lead_as_interested(
     lead_email: str,
     interest_value: int = 1,
     campaign_id: Optional[str] = None,
+    lead_id: Optional[str] = None,
     list_id: Optional[str] = None,
     ai_interest_value: Optional[int] = None,
     disable_auto_interest: bool = False
@@ -133,7 +174,8 @@ def mark_instantly_lead_as_interested(
             -3 = Lost
             0 = Out of Office
             None = Reset to "Lead"
-        campaign_id: Optional campaign ID context
+        campaign_id: Optional campaign ID (if not provided, will try to get from lead_id)
+        lead_id: Optional original lead email (used to look up campaign)
         list_id: Optional list ID context
         ai_interest_value: Optional AI-determined interest level
         disable_auto_interest: Whether to disable auto interest detection
@@ -143,6 +185,15 @@ def mark_instantly_lead_as_interested(
             "message": "Lead interest status update background job submitted"
         }
     """
+    # If campaign_id not provided but we have a lead_id, try to get campaign from original lead
+    if not campaign_id and lead_id:
+        logger.info(f"🔍 No campaign_id provided, looking up from original lead: {lead_id}")
+        campaign_id = get_campaign_from_lead(api_key, lead_id)
+        if campaign_id:
+            logger.info(f"✅ Found campaign_id from original lead: {campaign_id}")
+        else:
+            logger.warning(f"⚠️  Could not find campaign_id from original lead")
+
     url = "https://api.instantly.ai/api/v2/leads/update-interest-status"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -179,9 +230,10 @@ def mark_instantly_lead_as_interested(
             "email": lead_email
         }
 
-        # Add campaign_id if provided
+        # Add campaign_id if we have it (either provided or looked up from lead_id)
         if campaign_id:
             create_payload["campaign"] = campaign_id
+            logger.info(f"   Including campaign_id in lead creation: {campaign_id}")
 
         try:
             logger.info(f"🔵 Creating lead in Instantly...")
