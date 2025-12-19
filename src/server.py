@@ -2983,24 +2983,33 @@ async def find_missed_opportunities(
             )
             logger.info("Fetched %d total replies", all_replies_result.get("total_count", 0))
 
-            # Step 2: Fetch replies already marked as interested
-            logger.info("Step 4/7: Fetching interested Instantly replies...")
-            interested_replies_result = fetch_all_campaign_replies(
-                api_key=api_key,
-                start_date=start_date,
-                end_date=end_date,
-                i_status=1  # Only interested
-            )
-            logger.info("Fetched %d interested replies", interested_replies_result.get("total_count", 0))
-
+            # Step 2: Split replies into already-captured (positive status) vs missed opportunities
+            logger.info("Step 4/7: Filtering Instantly replies by status...")
             all_replies = all_replies_result.get("leads", [])
-            already_interested = interested_replies_result.get("leads", [])
 
             # Add platform field to Instantly replies for timing detection
             for reply in all_replies:
                 reply["platform"] = "instantly"
-            for reply in already_interested:
-                reply["platform"] = "instantly"
+
+            # Positive statuses that indicate already-captured opportunities
+            POSITIVE_STATUSES = [1, 2, 3, 4]  # Interested, Meeting Booked, Meeting Completed, Closed
+
+            # Separate already-captured from potential missed opportunities
+            already_interested = [
+                lead for lead in all_replies
+                if lead.get("i_status") in POSITIVE_STATUSES
+            ]
+
+            logger.info(
+                "Found %d already-captured opportunities: %s",
+                len(already_interested),
+                ", ".join([
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 1)} Interested",
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 2)} Meeting Booked",
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 3)} Meeting Completed",
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 4)} Closed"
+                ])
+            )
 
         # If not found in Instantly, try Bison
         if not matching_instantly_workspace:
