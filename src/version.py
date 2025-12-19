@@ -2,11 +2,67 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.4.5"
-RELEASE_DATE = "2025-12-18"
+VERSION = "2.4.6"
+RELEASE_DATE = "2025-12-19"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.4.6": {
+        "date": "December 19, 2025",
+        "title": "🎯 Forwarded Reply Intelligence: Automatic Dual-Marking for Unibox Accuracy",
+        "highlights": [
+            {
+                "icon": "🎯",
+                "category": "Critical Fix",
+                "title": "Automatic Dual-Marking for Forwarded Replies",
+                "description": "System now automatically marks both responder AND original lead to ensure Unibox displays correct 'Interested' status",
+                "details": "THE PROBLEM: When original lead (jhickman@brimmer.org) forwards email to actual decision-maker (aeppers@brimmer.org), marking only the responder left Unibox showing 'Lead' status instead of 'Interested'. ROOT CAUSE: Instantly's Unibox threads are tied to the original lead's email, not the responder's email. THE FIX: System now automatically detects forwarded replies (when lead_id differs from lead_email) and marks BOTH contacts as interested. DETECTION LOGIC: When lead_id parameter differs from lead_email, system recognizes it as a forwarded reply scenario. IMPACT: Sales team sees correct status in Unibox without manual intervention. No more 'Lead' status confusion on threads with interested responses. Both contacts properly tracked in campaign for follow-up. LOGGING: Clear messages like '🔄 Forwarded reply detected: also marking original lead jhickman@brimmer.org' and '✅ Successfully marked original lead as interested'.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔗",
+                "category": "Feature",
+                "title": "Campaign Association via Contact Lookup",
+                "description": "Finds campaign by searching with original lead's email when responder isn't in the campaign",
+                "details": "THE PROBLEM: When marking forwarded replies as interested, system couldn't find the campaign because responder's email wasn't in the campaign. THE FIX: Now uses original lead's email to find campaign via /api/v2/campaigns/search-by-contact endpoint. FLOW: (1) Receive response from aeppers@brimmer.org, (2) System identifies original lead: jhickman@brimmer.org (via lead_id parameter), (3) Searches campaigns using jhickman@brimmer.org to find campaign, (4) Associates both contacts with found campaign when marking. VALIDATION: Logs show '✅ Found campaign for lead jhickman@brimmer.org: 0e0ec7fb-2f40-401b-b919-4afc79feaf9e' and '✅ Marking request accepted - background job queued'. IMPACT: Leads properly associated with campaigns, enabling background jobs to succeed. Campaign tracking works correctly even for forwarded replies.",
+                "screenshot": None,
+            },
+            {
+                "icon": "⚙️",
+                "category": "Team Setup",
+                "title": "Shared Anthropic API Key Configuration",
+                "description": "Team members now automatically get Claude AI configured when running local install - no manual setup required",
+                "details": "THE PROBLEM: Team members (like Juliana) didn't know if they had the Claude API key configured, causing authentication errors and fallback to keyword-only analysis. SYMPTOMS: 'Error code: 401 - invalid x-api-key' errors followed by '⚠️ Claude API error' and 'ℹ️ Falling back to keyword-only analysis'. THE FIX: Added shared Anthropic API key to default configuration files. (1) .env.example: Now includes production Anthropic API key with usage notes, (2) local_install.sh: Automatically adds ANTHROPIC_API_KEY to Claude Desktop MCP environment. TEAM SETUP: New team members automatically get Claude AI working when running local install. MODEL: Using claude-3-5-haiku-20241022 (cheapest model: ~$0.0008 per email analyzed). COST: Approximately $0.001 per reply analyzed - very affordable for nuanced AI detection. IMPACT: No more manual API key configuration required. Consistent Claude AI analysis across all team members. Better lead quality through nuanced AI reply analysis instead of keyword-only fallback.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🎭",
+                "category": "User Experience",
+                "title": "Unibox Status Display Priority",
+                "description": "Focused on what matters most: 'I only care what people see in the Unibox'",
+                "details": "USER FEEDBACK: 'I only care what people see in the Unibox' - this drove the entire dual-marking solution. UNIBOX BEHAVIOR: Threads display the status of the ORIGINAL lead email, not the responder. EXAMPLE: Thread shows jhickman@brimmer.org's name at top, even though aeppers@brimmer.org sent the interested reply. BEFORE FIX: Marking only aeppers@brimmer.org → Unibox thread still shows 'Lead' status (jhickman's status). AFTER FIX: System marks BOTH aeppers and jhickman → Unibox thread shows 'Interested' status. RESULT: Sales team sees accurate lead status at a glance. No confusion about which leads have shown interest. Proper follow-up prioritization based on visible Unibox status.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "src/leads/_source_fetch_interested_leads.py lines 325-361: Added automatic dual-marking logic",
+            "When lead_id differs from lead_email, system marks both contacts as interested",
+            "Dual-marking uses same interest_value and campaign_id for both contacts",
+            "Clear logging: '🔄 Forwarded reply detected: also marking original lead {lead_id}'",
+            "Error handling: If original lead marking fails, responder marking still succeeds",
+            "Campaign lookup uses /api/v2/campaigns/search-by-contact endpoint",
+            "Passes original lead's email (lead_id) to campaign search when available",
+            "Both contacts associated with found campaign for proper tracking",
+            ".env.example:54 - Added shared Anthropic API key with documentation",
+            "local_install.sh:495 - Added ANTHROPIC_API_KEY to MCP environment variables",
+            "Anthropic key now automatically deployed to all new team member setups",
+            "Using claude-3-5-haiku-20241022 model (cheapest: ~$0.0008 per email)",
+            "Cost per reply analyzed: ~$0.001 (very affordable for AI-powered lead analysis)",
+            "GitHub push protection: Required allowlisting Anthropic API key in repository settings",
+            "Solution: Visit GitHub security URL to allowlist the shared API key for team use",
+        ],
+    },
     "2.4.5": {
         "date": "December 18, 2025",
         "title": "🎯 Accuracy & Performance: Multi-Status Filtering + API Auto-Reply Detection",
