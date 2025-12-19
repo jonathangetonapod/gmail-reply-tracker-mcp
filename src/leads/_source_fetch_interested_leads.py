@@ -11,6 +11,61 @@ from typing import List, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def verify_lead_exists_in_instantly(api_key: str, lead_email: str) -> Dict:
+    """
+    Verify that a lead exists in Instantly before trying to mark it.
+
+    Args:
+        api_key: Instantly API key
+        lead_email: Email address to verify
+
+    Returns:
+        {
+            "exists": bool,
+            "lead_data": dict or None,
+            "message": str
+        }
+    """
+    url = "https://api.instantly.ai/api/v1/lead/get"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    params = {"email": lead_email}
+
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"✅ Lead exists in Instantly: {lead_email}")
+            logger.info(f"   Lead data: {data}")
+            return {
+                "exists": True,
+                "lead_data": data,
+                "message": "Lead found in Instantly"
+            }
+        elif response.status_code == 404:
+            logger.warning(f"❌ Lead NOT found in Instantly: {lead_email}")
+            return {
+                "exists": False,
+                "lead_data": None,
+                "message": f"Lead {lead_email} does not exist in this Instantly workspace"
+            }
+        else:
+            logger.warning(f"⚠️  Unexpected status checking lead: {response.status_code}")
+            logger.warning(f"   Response: {response.text}")
+            return {
+                "exists": False,
+                "lead_data": None,
+                "message": f"Error checking lead: {response.status_code}"
+            }
+    except Exception as e:
+        logger.error(f"Error verifying lead exists: {e}")
+        return {
+            "exists": False,
+            "lead_data": None,
+            "message": f"Error: {str(e)}"
+        }
+
+
 def _make_request_with_retry(url: str, headers: Dict, params: Dict, max_retries: int = 3, timeout: int = 60):
     """
     Make HTTP GET request with retry logic and exponential backoff.
@@ -109,8 +164,25 @@ def mark_instantly_lead_as_interested(
     if disable_auto_interest:
         payload["disable_auto_interest"] = disable_auto_interest
 
+    # FIRST: Verify the lead exists in Instantly
+    logger.info(f"🔍 Step 1: Verifying lead exists in Instantly...")
+    verification = verify_lead_exists_in_instantly(api_key, lead_email)
+
+    if not verification["exists"]:
+        logger.error(f"❌ Cannot mark lead - lead does not exist in Instantly!")
+        logger.error(f"   Email: {lead_email}")
+        logger.error(f"   Reason: {verification['message']}")
+        return {
+            "error": "Lead not found in Instantly workspace",
+            "message": verification["message"],
+            "lead_email": lead_email,
+            "suggestion": "The email address might not be imported to Instantly, or might be in a different workspace"
+        }
+
+    logger.info(f"✅ Lead verified, proceeding to mark as interested...")
+
     # Log the request for debugging
-    logger.info(f"🔵 Instantly API Request:")
+    logger.info(f"🔵 Step 2: Instantly API Request:")
     logger.info(f"   URL: {url}")
     logger.info(f"   Payload: {payload}")
 
