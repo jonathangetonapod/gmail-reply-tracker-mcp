@@ -1451,12 +1451,95 @@ class WebServer:
         def index():
             """Home page."""
             return """
-            <h1>Gmail + Calendar + Fathom MCP Server</h1>
-            <p>Multi-tenant server for Claude Desktop</p>
-            <ul>
-                <li><a href="/setup">Setup your account</a></li>
-                <li><a href="/health">Health check</a></li>
-            </ul>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gmail + Calendar + Fathom MCP Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .link {
+            display: block;
+            padding: 16px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .primary {
+            background: #667eea;
+            color: white;
+        }
+        .primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .secondary:hover {
+            background: #e0e0e0;
+        }
+        .badge {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📬 Gmail + Calendar + Fathom</h1>
+        <p>Multi-tenant MCP Server for Claude Desktop</p>
+        <div class="links">
+            <a href="/setup" class="link primary">🚀 Setup Your Account</a>
+            <a href="/coming-soon" class="link primary">✨ Coming Soon <span class="badge">45+ Features</span></a>
+            <a href="/changelog" class="link secondary">📝 What's New</a>
+            <a href="/health" class="link secondary">💚 Health Check</a>
+        </div>
+    </div>
+</body>
+</html>
             """
 
         @self.app.route('/health')
