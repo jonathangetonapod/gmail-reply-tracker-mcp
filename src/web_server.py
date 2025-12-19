@@ -1544,8 +1544,258 @@ class WebServer:
 
         @self.app.route('/health')
         def health():
-            """Health check endpoint."""
-            return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+            """Health check endpoint with visual dashboard."""
+            # Gather health metrics
+            checks = []
+            overall_status = "healthy"
+
+            # 1. Database check
+            try:
+                users = self.database.get_all_users()
+                user_count = len(users)
+                checks.append({
+                    "name": "Database",
+                    "status": "healthy",
+                    "icon": "💚",
+                    "message": f"Connected • {user_count} users registered"
+                })
+            except Exception as e:
+                overall_status = "unhealthy"
+                checks.append({
+                    "name": "Database",
+                    "status": "unhealthy",
+                    "icon": "❌",
+                    "message": f"Connection failed: {str(e)}"
+                })
+                user_count = 0
+
+            # 2. Environment variables check
+            required_vars = [
+                'GOOGLE_CLIENT_ID',
+                'GOOGLE_CLIENT_SECRET',
+                'GOOGLE_REDIRECT_URI',
+                'TOKEN_ENCRYPTION_KEY'
+            ]
+            missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+            if missing_vars:
+                overall_status = "degraded"
+                checks.append({
+                    "name": "Environment Variables",
+                    "status": "warning",
+                    "icon": "⚠️",
+                    "message": f"Missing: {', '.join(missing_vars)}"
+                })
+            else:
+                checks.append({
+                    "name": "Environment Variables",
+                    "status": "healthy",
+                    "icon": "💚",
+                    "message": "All required variables set"
+                })
+
+            # 3. Lead sheets check
+            lead_sheets_url = os.getenv('LEAD_SHEETS_URL')
+            if lead_sheets_url:
+                checks.append({
+                    "name": "Lead Management",
+                    "status": "healthy",
+                    "icon": "💚",
+                    "message": "Google Sheets configured"
+                })
+            else:
+                checks.append({
+                    "name": "Lead Management",
+                    "status": "warning",
+                    "icon": "⚠️",
+                    "message": "Lead Sheets URL not configured"
+                })
+
+            # 4. Optional integrations
+            fathom_key = os.getenv('FATHOM_API_KEY')
+            emailguard_key = os.getenv('EMAILGUARD_API_KEY')
+            anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+
+            optional_count = sum([
+                1 if fathom_key else 0,
+                1 if emailguard_key else 0,
+                1 if anthropic_key else 0
+            ])
+
+            checks.append({
+                "name": "Optional Integrations",
+                "status": "healthy",
+                "icon": "🔌",
+                "message": f"{optional_count}/3 configured (Fathom, EmailGuard, Anthropic)"
+            })
+
+            # 5. Server info
+            checks.append({
+                "name": "Server",
+                "status": "healthy",
+                "icon": "🚀",
+                "message": f"Running on port {os.getenv('PORT', '8080')}"
+            })
+
+            # Build HTML
+            status_color = {
+                "healthy": "#4caf50",
+                "degraded": "#ff9800",
+                "unhealthy": "#f44336"
+            }
+
+            status_emoji = {
+                "healthy": "✅",
+                "degraded": "⚠️",
+                "unhealthy": "❌"
+            }
+
+            checks_html = ""
+            for check in checks:
+                check_status_color = {
+                    "healthy": "#e8f5e9",
+                    "warning": "#fff3e0",
+                    "unhealthy": "#ffebee"
+                }
+
+                checks_html += f"""
+                <div style="background: {check_status_color.get(check['status'], '#f5f5f5')};
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-bottom: 15px;
+                            border-left: 4px solid {status_color.get(check['status'], '#ccc')};">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="font-size: 32px;">{check['icon']}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 5px;">
+                                {check['name']}
+                            </div>
+                            <div style="color: #666; font-size: 14px;">
+                                {check['message']}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                """
+
+            html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Check - MCP Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="30">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }}
+        .container {{
+            max-width: 900px;
+            margin: 0 auto;
+        }}
+        .header {{
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }}
+        .header h1 {{
+            font-size: 42px;
+            margin-bottom: 10px;
+        }}
+        .header p {{
+            font-size: 16px;
+            opacity: 0.9;
+        }}
+        .status-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }}
+        .status-indicator {{
+            display: inline-block;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }}
+        .status-text {{
+            font-size: 32px;
+            font-weight: 600;
+            color: {status_color[overall_status]};
+            margin-bottom: 10px;
+        }}
+        .timestamp {{
+            color: #999;
+            font-size: 14px;
+        }}
+        .checks-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        .checks-card h2 {{
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }}
+        .back-button {{
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .back-button:hover {{
+            background: #f8f9fa;
+        }}
+        .refresh-note {{
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            margin-top: 30px;
+            opacity: 0.8;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💚 System Health</h1>
+            <p>Real-time status of your MCP server</p>
+        </div>
+
+        <a href="/" class="back-button">← Back to Home</a>
+
+        <div class="status-card">
+            <div class="status-indicator">{status_emoji[overall_status]}</div>
+            <div class="status-text">{overall_status.title()}</div>
+            <div class="timestamp">Last checked: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+        </div>
+
+        <div class="checks-card">
+            <h2>System Components</h2>
+            {checks_html}
+        </div>
+
+        <div class="refresh-note">
+            ⟳ Auto-refreshes every 30 seconds
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            return html
 
         @self.app.route('/changelog')
         def changelog():
