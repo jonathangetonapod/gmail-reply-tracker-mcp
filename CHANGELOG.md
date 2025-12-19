@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed - December 18, 2025
 
+- **🔧 FIX: STOP Detection Now Works with Quoted Replies**
+  - **THE PROBLEM**: Standalone "STOP!" replies with quoted email text below were slipping through keyword detection
+  - **EXAMPLES**:
+    - jah@gobighorn.com: "STOP!\n\n> On Nov 17..." → Went to Claude, marked WARM ❌
+    - blake@colauto.com: "Stop\n\n-----Original Message-----..." → Went to Claude, marked WARM ❌
+  - **ROOT CAUSE**: Regex pattern `^\s*stop\s*!?\s*$` used string anchors, not line anchors
+    - `^` and `$` matched entire string start/end, not line boundaries
+    - When reply had quoted text, `$` didn't match (text after "STOP!")
+  - **THE FIX**: Added `re.MULTILINE` flag to regex search
+    - Now `^` and `$` match line boundaries
+    - "STOP!" on first line is correctly detected even with quoted text below
+  - **VALIDATION**: Created test_stop_with_quote.py - all 4 test cases pass ✅
+  - **CODE**: `src/leads/interest_analyzer.py` line 370
+
 - **🔧 WORKAROUND: Timestamp-Based Pagination to Fix API Bug**
   - **THE PROBLEM**: Even with `email_type="received"`, `next_starting_after` cursor returns duplicate data on subsequent pages
   - **SYMPTOMS**: Page 1: 566 items → Page 2: SAME 566 items (cursor doesn't advance)

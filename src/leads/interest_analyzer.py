@@ -367,7 +367,7 @@ def analyze_reply_with_keywords(reply_text: str, subject: str = "") -> Dict:
 
     # Check body for negative patterns
     for pattern in NEGATIVE_KEYWORDS:
-        if re.search(pattern, text_lower, re.IGNORECASE):
+        if re.search(pattern, text_lower, re.IGNORECASE | re.MULTILINE):
             negative_matches.append(pattern)
 
     if negative_matches:
