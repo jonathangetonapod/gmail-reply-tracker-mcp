@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed - December 18, 2025
+- **🚀 CRITICAL FIX: Instantly API Pagination Now Works!**
+  - **THE PROBLEM**: API returning 10,489 items despite `limit=100`, causing pagination to fail completely
+  - **SYMPTOMS**:
+    - Penili Pulotu 7-day query: API returned 10,489 items instead of 100
+    - Page 2 returned duplicate data (same 10,489 items)
+    - Infinite loop detector triggered: "All 40 emails on this page were already seen!"
+    - Result: Only got 40 total replies instead of full dataset
+  - **ROOT CAUSE**: We were fetching ALL emails (sent + received + manual) and filtering in code
+    - For 7-day period: 10,489+ total emails across all types
+    - Only 46 of those were received emails (replies from leads)
+    - The large dataset (10k+ items) broke pagination
+  - **THE FIX**: Use `email_type="received"` query parameter (from API docs)
+    - Filter at API level, not in code
+    - Only fetch received emails (replies from leads)
+    - API now returns ≤100 items per page (respects `limit` parameter)
+    - Added `sort_order="asc"` for consistent pagination
+  - **API DOCUMENTATION**: https://developer.instantly.ai/api/v2/email/listemail
+    - `email_type`: "received" | "sent" | "manual"
+    - `limit`: integer [1..100] - now properly respected
+    - `sort_order`: "asc" | "desc" (default: "desc")
+  - **IMPACT**:
+    - **Before**: Fetch 10,489 items → filter to 46 → pagination fails
+    - **After**: Fetch 46 items directly → pagination works ✅
+    - **Performance**: ~225x less data transferred
+    - **Reliability**: Pagination now works for any time period
+  - **CODE**: `src/leads/_source_fetch_interested_leads.py` lines 163-164, 359-360
+
 - **🛑 Standalone "STOP" Unsubscribe Detection**
   - **THE PROBLEM**: Standalone "STOP" or "Stop" replies were passing through keyword filtering and being incorrectly flagged as WARM/HOT leads by Claude API
   - **EXAMPLES**: Found in Penili Pulotu 60-day analysis:
