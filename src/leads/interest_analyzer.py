@@ -382,7 +382,7 @@ def analyze_reply_hybrid(reply_text: str, subject: str = "") -> Dict:
     return keyword_result
 
 
-def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: int = 5) -> Dict:
+def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: int = 20) -> Dict:
     """
     Categorize a list of leads into hot/warm/cold/auto/unclear buckets.
 
@@ -392,7 +392,7 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: in
     Args:
         leads: List of lead dicts with "reply_body" and optionally "subject"
         use_claude: Whether to use Claude API for analysis (default: True)
-        max_workers: Max parallel Claude API calls (default: 5, respects rate limits)
+        max_workers: Max parallel Claude API calls (default: 20, well under 4K RPM limit)
 
     Returns:
         {
