@@ -85,7 +85,7 @@ class Config:
 
         oauth_scopes_str = os.getenv(
             "GMAIL_OAUTH_SCOPES",
-            "https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/userinfo.email"
+            "https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/userinfo.email"
         )
         oauth_scopes = [s.strip() for s in oauth_scopes_str.split(",")]
 
