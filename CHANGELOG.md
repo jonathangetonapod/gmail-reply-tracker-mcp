@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed - December 18, 2025
+- **🛑 Standalone "STOP" Unsubscribe Detection**
+  - **THE PROBLEM**: Standalone "STOP" or "Stop" replies were passing through keyword filtering and being incorrectly flagged as WARM/HOT leads by Claude API
+  - **EXAMPLES**: Found in Penili Pulotu 60-day analysis:
+    - jah@gobighorn.com: "STOP!" → incorrectly marked WARM ❌
+    - blake@colauto.com: "Stop" → incorrectly marked WARM ❌
+  - **ROOT CAUSE**: NEGATIVE_KEYWORDS patterns required additional words around "stop":
+    - `\bstop.*email\b` - needs "email" after "stop"
+    - `\bstop.*contact\b` - needs "contact" after "stop"
+    - `\bplease stop\b` - needs "please" before "stop"
+    - Result: Standalone "STOP" didn't match any pattern
+  - **THE FIX**: Added pattern `r'^\s*stop\s*!?\s*$'` to catch:
+    - "STOP", "Stop", "stop"
+    - "STOP!", "Stop!", "stop!"
+    - " STOP " (with surrounding whitespace)
+  - **VALIDATION**: Created test_stop_fix.py - all 7 test cases pass ✅
+  - **IMPACT**: Standalone STOP replies now correctly categorized as COLD (not interested)
+  - **CODE**: `src/leads/interest_analyzer.py` line 261
+
 - **🎯 CRITICAL FIX: Timing Validation Now Working!**
   - **THE PROBLEM**: Timing validation was completely broken - always returned "0 sent emails before reply"
   - **IMPACT**: False positives like al@porterscall.com (replied in 12 seconds!) were slipping through as HOT leads
