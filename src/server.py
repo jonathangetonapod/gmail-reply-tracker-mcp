@@ -3155,6 +3155,27 @@ async def find_missed_opportunities(
                 "hidden_gems": []
             }, indent=2)
 
+        # Deduplicate by email - keep only the FIRST (earliest) reply per person
+        # This ensures green "Interested" tag shows on the first reply
+        from collections import defaultdict
+        email_to_earliest_reply = {}
+        for reply in non_interested_replies:
+            email = reply["email"].lower()
+            timestamp = reply.get("timestamp", "")
+
+            # If we haven't seen this email yet, or this reply is earlier
+            if email not in email_to_earliest_reply:
+                email_to_earliest_reply[email] = reply
+            else:
+                # Compare timestamps and keep the earlier one
+                existing_timestamp = email_to_earliest_reply[email].get("timestamp", "")
+                if timestamp < existing_timestamp:
+                    email_to_earliest_reply[email] = reply
+
+        # Use deduplicated list (one reply per person)
+        non_interested_replies = list(email_to_earliest_reply.values())
+        logger.info("After deduplication: %d unique people to analyze", len(non_interested_replies))
+
         # Step 4: AI analyze the non-interested replies
         logger.info("Step 7/7: AI analyzing %d non-interested replies (use_claude=%s)...",
                    len(non_interested_replies), use_claude)
