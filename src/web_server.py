@@ -377,26 +377,52 @@ SETUP_LANDING_HTML = """
         <div class="modal-content">
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
-                <h2>📬 How This MCP Server Works</h2>
-                <p>34 powerful tools to supercharge your productivity with Claude</p>
+                <h2>🚀 Your AI Productivity Command Center</h2>
+                <p>45 powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>🚀 What You Get</h3>
-                    <p><strong>34 production-ready tools</strong> that connect Claude to your entire productivity stack:</p>
+                    <h3>💫 The Complete Toolkit - 45 Tools Across 5 Platforms</h3>
+                    <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
-                        <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Smart email management, unreplied email tracking, send/reply, search, drafts</p>
+                        <strong>📧 Gmail</strong><span class="tool-count">5 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Smart unreplied email detection (auto-filters newsletters & automated emails)<br>
+                        • Thread-aware replies (never creates duplicate threads)<br>
+                        • Send emails, create drafts, search with Gmail query syntax<br>
+                        • Full conversation history & inbox analytics</p>
 
                         <strong>📅 Google Calendar</strong><span class="tool-count">7 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Natural language scheduling, auto-timezone detection, event management, invitations</p>
+                        <p style="margin-top: 8px; font-size: 14px;">• Natural language scheduling ("tomorrow at 2pm")<br>
+                        • Automatic Google Meet links for all meetings<br>
+                        • Auto-timezone detection (no more UTC confusion)<br>
+                        • Email invitations sent to all attendees<br>
+                        • Recurring events, multi-calendar support</p>
 
                         <strong>🎙️ Fathom AI</strong><span class="tool-count">6 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Meeting transcripts, AI summaries, action items, search recordings</p>
+                        <p style="margin-top: 8px; font-size: 14px;">• Full meeting transcripts with timestamps<br>
+                        • AI-generated summaries & action item extraction<br>
+                        • Search recordings by title or attendee<br>
+                        • Calendar event cross-reference</p>
 
-                        <strong>🎯 Lead Management</strong><span class="tool-count">8 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Track 88 clients (Instantly.ai + Bison), campaign analytics, interested leads</p>
+                        <strong>🎯 Campaign Management</strong><span class="tool-count">10 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Create email sequences for Instantly & Bison (88+ clients)<br>
+                        • Auto-convert placeholders ({{firstname}} → {FIRST_NAME})<br>
+                        • HTML email formatting for Instantly campaigns<br>
+                        • Performance tracking & analytics<br>
+                        • Fuzzy client name matching (handles typos)</p>
+
+                        <strong>💎 Lead Intelligence</strong><span class="tool-count">14 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• <strong>Hidden Gems:</strong> Find interested leads AI missed (HOT/WARM/COLD scoring)<br>
+                        • Mark leads as interested with one command<br>
+                        • Track 88+ clients across Instantly & Bison<br>
+                        • Campaign analytics, top performers, underperforming clients<br>
+                        • Weekly summaries & detailed lead breakdowns</p>
+
+                        <strong>🛡️ Spam Detection</strong><span class="tool-count">3 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Check any email subject/body for spam words<br>
+                        • Scan entire Bison & Instantly campaigns<br>
+                        • EmailGuard API integration with detailed scoring</p>
                     </div>
                 </div>
 
@@ -437,63 +463,98 @@ SETUP_LANDING_HTML = """
                 </div>
 
                 <div class="section">
-                    <h3>💬 Example Prompts You Can Use</h3>
+                    <h3>💬 What You Can Actually Do (Real Examples)</h3>
 
                     <p><strong>📧 Email Management:</strong></p>
                     <div class="example-prompt">"Show me emails I haven't replied to from the last 3 days"</div>
-                    <div class="example-prompt">"Search for emails about the Q4 budget proposal"</div>
-                    <div class="example-prompt">"Draft a reply thanking them for the update"</div>
-                    <div class="example-prompt">"Send an email to team@company.com about tomorrow's meeting"</div>
+                    <div class="example-prompt">"Reply to the thread from john@company.com about the proposal"</div>
+                    <div class="example-prompt">"Search for emails about the Q4 budget"</div>
+                    <div class="example-prompt">"Draft an email to sarah@company.com thanking her for the intro"</div>
 
-                    <p style="margin-top: 15px;"><strong>📅 Calendar & Scheduling:</strong></p>
+                    <p style="margin-top: 15px;"><strong>📅 Calendar & Meetings:</strong></p>
+                    <div class="example-prompt">"Schedule a meeting with sarah@company.com tomorrow at 2pm and send invite"</div>
+                    <div class="example-prompt">"Create a 30-min call with john@company.com Friday at 3pm" <span style="color: #4caf50;">← Auto-adds Google Meet!</span></div>
                     <div class="example-prompt">"What's on my calendar this week?"</div>
-                    <div class="example-prompt">"Schedule a meeting with sarah@company.com tomorrow at 2pm"</div>
-                    <div class="example-prompt">"Create a team standup every Monday at 9am and invite everyone"</div>
-                    <div class="example-prompt">"Cancel my 3pm meeting today"</div>
+                    <div class="example-prompt">"Create a recurring Monday standup at 9am and invite the team"</div>
 
-                    <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence:</strong></p>
-                    <div class="example-prompt">"Get the transcript from yesterday's client call"</div>
-                    <div class="example-prompt">"What action items came out of the engineering sync?"</div>
+                    <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence (Fathom):</strong></p>
+                    <div class="example-prompt">"What were the action items from yesterday's client call?"</div>
                     <div class="example-prompt">"Summarize the Project Phoenix kickoff meeting"</div>
-                    <div class="example-prompt">"Find all meetings where we discussed the new feature"</div>
+                    <div class="example-prompt">"Show me all meetings where we discussed pricing"</div>
+                    <div class="example-prompt">"Get the transcript from the engineering sync last Tuesday"</div>
 
-                    <p style="margin-top: 15px;"><strong>🎯 Lead Management:</strong></p>
-                    <div class="example-prompt">"Show me all clients from Instantly and Bison"</div>
-                    <div class="example-prompt">"Get interested leads from ABC Corp in the last 7 days"</div>
-                    <div class="example-prompt">"Which clients are underperforming this week?"</div>
+                    <p style="margin-top: 15px;"><strong>💎 Hidden Gems (Find Missed Opportunities):</strong></p>
+                    <div class="example-prompt">"Find missed opportunities for Brian Bliss from the last 7 days"</div>
+                    <div class="example-prompt">"Show me hidden gems for Rick Pendrick - interested leads AI missed"</div>
+                    <div class="example-prompt">"Mark john@example.com as interested for Brian Bliss"</div>
+                    <div class="example-prompt">"Mark lead@company.com as Meeting Booked for Lena Kadriu"</div>
+
+                    <p style="margin-top: 15px;"><strong>🎯 Campaign Creation:</strong></p>
+                    <div class="example-prompt">"Create a Bison campaign for Michael Hernandez with a 3-step sequence"</div>
+                    <div class="example-prompt">"Set up an Instantly campaign for Brian Bliss targeting speakers"</div>
+                    <div class="example-prompt">"Use fuzzy matching to find client 'brian blis' and create a campaign" <span style="color: #4caf50;">← Handles typos!</span></div>
+                    <div class="example-prompt">"Create a campaign with custom wait times: 3 days, then 5 days, then 7 days"</div>
+
+                    <p style="margin-top: 15px;"><strong>📊 Lead Analytics:</strong></p>
+                    <div class="example-prompt">"Show me interested leads from Brian Bliss campaigns this week"</div>
+                    <div class="example-prompt">"Which clients are underperforming and need attention?"</div>
+                    <div class="example-prompt">"Get campaign statistics for all Instantly clients this month"</div>
                     <div class="example-prompt">"Show me the top 5 clients by reply rate"</div>
-                    <div class="example-prompt">"Generate a weekly summary of all lead activity"</div>
+                    <div class="example-prompt">"Generate a weekly summary of all lead activity across both platforms"</div>
 
-                    <p style="margin-top: 15px;"><strong>🔀 Cross-Platform:</strong></p>
-                    <div class="example-prompt">"What's the status of the marketing campaign? Check emails, calendar, and meetings"</div>
+                    <p style="margin-top: 15px;"><strong>🛡️ Spam Detection:</strong></p>
+                    <div class="example-prompt">"Check spam in Instantly campaigns for Brian Bliss"</div>
+                    <div class="example-prompt">"Scan the Bison campaign for Michael Hernandez for spam words"</div>
+                    <div class="example-prompt">"Check if this subject line is spammy: 'FREE OFFER - Act Now!!!'"</div>
+
+                    <p style="margin-top: 15px;"><strong>🔀 Cross-Platform Magic:</strong></p>
+                    <div class="example-prompt">"What's the status of the ABC Corp deal? Check emails, calendar, and Fathom"</div>
                     <div class="example-prompt">"Find all action items from this week across meetings and emails"</div>
                     <div class="example-prompt">"Who have I been meeting with most this month?"</div>
+                    <div class="example-prompt">"Show me all communication with john@company.com - emails, meetings, everything"</div>
                 </div>
 
                 <div class="section">
-                    <h3>🎯 Why This Is Powerful</h3>
+                    <h3>🎯 Why This Is Game-Changing</h3>
                     <ul>
-                        <li><strong>Natural language</strong> - No more clicking through interfaces</li>
-                        <li><strong>Context-aware</strong> - Claude understands your full work context</li>
-                        <li><strong>Time-saving</strong> - Automate repetitive email/calendar tasks</li>
-                        <li><strong>Smart filtering</strong> - Automatically filters automated emails, newsletters</li>
-                        <li><strong>Multi-app queries</strong> - Ask about emails, calendar, meetings in one go</li>
-                        <li><strong>Action items tracking</strong> - Never miss a follow-up</li>
+                        <li><strong>Natural language everything</strong> - No more clicking through interfaces, menus, or forms</li>
+                        <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across all platforms</li>
+                        <li><strong>Hidden gems discovery</strong> - AI finds interested leads that other AIs missed (unique feature!)</li>
+                        <li><strong>Fuzzy matching</strong> - Handles typos in names ("brian blis" → "Brian Bliss")</li>
+                        <li><strong>Thread-aware replies</strong> - Never creates duplicate email threads (smart detection)</li>
+                        <li><strong>Auto Google Meet</strong> - Every meeting gets a Meet link automatically</li>
+                        <li><strong>Smart filtering</strong> - Automatically filters newsletters, automated emails, auto-replies</li>
+                        <li><strong>Multi-platform queries</strong> - Ask about emails, calendar, meetings, campaigns in one go</li>
+                        <li><strong>Real-time analytics</strong> - Track campaign performance, reply rates, interested leads</li>
+                        <li><strong>One-command marking</strong> - Mark leads as interested without switching tools</li>
                     </ul>
                 </div>
 
                 <div class="section">
-                    <h3>📈 Production Features</h3>
+                    <h3>📈 Production-Ready Features</h3>
                     <div class="highlight-box">
-                        <strong>For Your Team:</strong>
+                        <strong>Built for Teams:</strong>
                         <ul style="margin-top: 8px;">
-                            <li>41 unit tests - Full test coverage</li>
-                            <li>Type hints - Complete type safety</li>
-                            <li>Rate limiting - API quota management</li>
-                            <li>Error handling - Friendly error messages</li>
-                            <li>Auto timezone detection - No more UTC confusion</li>
-                            <li>One-command setup - 5-10 minute installation</li>
+                            <li><strong>100 unit tests</strong> - Complete test coverage across all features</li>
+                            <li><strong>Type safety</strong> - Full type hints throughout codebase</li>
+                            <li><strong>Smart error handling</strong> - User-friendly messages with recovery steps</li>
+                            <li><strong>Rate limiting</strong> - API quota management for Gmail/Calendar/Instantly/Bison</li>
+                            <li><strong>Auto timezone detection</strong> - No more UTC confusion</li>
+                            <li><strong>OAuth 2.0 security</strong> - Encrypted token storage (600 permissions)</li>
+                            <li><strong>One-command setup</strong> - 5-10 minute installation with beautiful progress UX</li>
+                            <li><strong>Multi-tenant support</strong> - Railway deployment for teams</li>
+                            <li><strong>Open source</strong> - Full visibility on GitHub</li>
                         </ul>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>💡 Unique Features You Won't Find Elsewhere</h3>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring with confidence levels. This alone can recover 10-20% more leads.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Use fuzzy matching to find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📧 Thread Detection:</strong> Never creates duplicate email threads. System auto-detects existing conversations and suggests the correct reply tool.</p>
+                        <p style="margin: 0; font-size: 16px; line-height: 1.6;"><strong>🎥 Auto Google Meet:</strong> Every calendar event with attendees automatically gets a Google Meet link. No more "forgot to add the link".</p>
                     </div>
                 </div>
 
