@@ -325,6 +325,33 @@ def mark_instantly_lead_as_interested(
     # Check if the response indicates success
     if "message" in result and "background job submitted" in result["message"].lower():
         logger.info(f"✅ Marking request accepted - background job queued")
+
+        # If this is a forwarded reply (lead_id exists and differs from lead_email),
+        # also mark the original lead so the Unibox shows "Interested"
+        if lead_id and lead_id.lower() != lead_email.lower():
+            logger.info(f"🔄 Forwarded reply detected: also marking original lead {lead_id}")
+            logger.info(f"   This ensures the Unibox thread shows 'Interested' status")
+
+            try:
+                # Mark the original lead with same interest value
+                original_payload = {
+                    "lead_email": lead_id,
+                    "interest_value": interest_value
+                }
+                if campaign_id:
+                    original_payload["campaign_id"] = campaign_id
+
+                original_response = requests.post(url, headers=headers, json=original_payload, timeout=30)
+                logger.info(f"🔵 Original Lead Marking Response: {original_response.status_code}")
+
+                if original_response.status_code == 202:
+                    logger.info(f"✅ Successfully marked original lead {lead_id} as interested")
+                else:
+                    logger.warning(f"⚠️  Could not mark original lead: {original_response.text}")
+            except Exception as e:
+                logger.warning(f"⚠️  Failed to mark original lead {lead_id}: {str(e)}")
+                logger.warning(f"   Responder ({lead_email}) was marked successfully")
+
         return result
     elif "error" in result:
         logger.error(f"❌ Instantly returned an error: {result.get('error')}")
