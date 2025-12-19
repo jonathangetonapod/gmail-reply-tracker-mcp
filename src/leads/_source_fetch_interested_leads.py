@@ -169,15 +169,32 @@ def mark_instantly_lead_as_interested(
     verification = verify_lead_exists_in_instantly(api_key, lead_email)
 
     if not verification["exists"]:
-        logger.error(f"❌ Cannot mark lead - lead does not exist in Instantly!")
-        logger.error(f"   Email: {lead_email}")
-        logger.error(f"   Reason: {verification['message']}")
-        return {
-            "error": "Lead not found in Instantly workspace",
-            "message": verification["message"],
-            "lead_email": lead_email,
-            "suggestion": "The email address might not be imported to Instantly, or might be in a different workspace"
+        logger.warning(f"⚠️  Lead doesn't exist yet - this is likely a forwarded reply")
+        logger.warning(f"   Email: {lead_email}")
+        logger.info(f"🔧 Auto-creating lead in Instantly before marking...")
+
+        # Auto-create the lead
+        create_url = "https://api.instantly.ai/api/v1/lead/add"
+        create_payload = {
+            "email": lead_email
         }
+
+        # Add campaign_id if provided
+        if campaign_id:
+            create_payload["campaign_id"] = campaign_id
+
+        try:
+            create_response = requests.post(create_url, headers=headers, json=create_payload, timeout=30)
+            create_response.raise_for_status()
+            logger.info(f"✅ Lead created successfully: {lead_email}")
+        except Exception as e:
+            logger.error(f"❌ Failed to create lead: {e}")
+            return {
+                "error": "Lead not found and could not be created",
+                "message": f"Failed to create lead: {str(e)}",
+                "lead_email": lead_email,
+                "suggestion": "This email replied (possibly via forward) but isn't a lead in Instantly. Try adding them manually first."
+            }
 
     logger.info(f"✅ Lead verified, proceeding to mark as interested...")
 
