@@ -3287,6 +3287,7 @@ async def mark_lead_as_interested(
         # Import required functions
         from leads._source_fetch_interested_leads import mark_instantly_lead_as_interested
         from leads.bison_client import mark_bison_reply_as_interested
+        from leads.sheets_client import load_workspaces_from_sheet, load_bison_workspaces_from_sheet
 
         logger.info("Marking lead as interested: %s (client: %s)", lead_email, client_name)
 
