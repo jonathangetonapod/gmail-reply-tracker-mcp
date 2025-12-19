@@ -32,6 +32,7 @@ from auth import GmailAuthManager
 from gmail_client import GmailClient
 from email_analyzer import EmailAnalyzer
 from calendar_client import CalendarClient
+from docs_client import DocsClient
 from fathom_client import FathomClient
 from leads import (
     get_client_list, get_lead_responses, get_campaign_stats, get_workspace_info,
@@ -56,14 +57,15 @@ auth_manager: Optional[GmailAuthManager] = None
 gmail_client: Optional[GmailClient] = None
 email_analyzer: Optional[EmailAnalyzer] = None
 calendar_client: Optional[CalendarClient] = None
+docs_client: Optional[DocsClient] = None
 fathom_client: Optional[FathomClient] = None
 
 
 def initialize_clients():
-    """Initialize Gmail, Calendar, and Fathom clients."""
-    global auth_manager, gmail_client, email_analyzer, calendar_client, fathom_client
+    """Initialize Gmail, Calendar, Docs, and Fathom clients."""
+    global auth_manager, gmail_client, email_analyzer, calendar_client, docs_client, fathom_client
 
-    if gmail_client is not None and calendar_client is not None:
+    if gmail_client is not None and calendar_client is not None and docs_client is not None:
         return
 
     logger.info("Initializing clients...")
@@ -99,6 +101,12 @@ def initialize_clients():
 
     # Initialize Calendar client
     calendar_client = CalendarClient(
+        credentials,
+        config.max_requests_per_minute
+    )
+
+    # Initialize Docs client
+    docs_client = DocsClient(
         credentials,
         config.max_requests_per_minute
     )
@@ -1169,6 +1177,362 @@ async def quick_add_calendar_event(
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in quick_add_calendar_event: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+# ===============================================
+# Google Docs Tools
+# ===============================================
+
+@mcp.tool()
+async def create_google_doc(
+    title: str,
+    initial_content: str = None
+) -> str:
+    """
+    Create a new Google Doc with optional initial content.
+
+    Args:
+        title: Title of the document
+        initial_content: Optional text to add to the document
+
+    Returns:
+        JSON string with document ID, title, and URL
+
+    Examples:
+        - create_google_doc("Meeting Notes - Dec 19", "Attendees:\\n- John\\n- Sarah")
+        - create_google_doc("Project Proposal")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Creating Google Doc: {title}")
+
+        # Create the document
+        doc = docs_client.create_document(title)
+        doc_id = doc['documentId']
+        doc_url = docs_client.get_document_url(doc_id)
+
+        # Add initial content if provided
+        if initial_content:
+            docs_client.insert_text(doc_id, initial_content + '\n', index=1)
+            logger.info(f"Added initial content to document")
+
+        logger.info(f"Created Google Doc: {doc_url}")
+
+        return json.dumps({
+            "success": True,
+            "document_id": doc_id,
+            "title": doc['title'],
+            "url": doc_url,
+            "message": f"Created document '{title}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in create_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def append_to_google_doc(
+    document_id: str,
+    content: str
+) -> str:
+    """
+    Append text to the end of an existing Google Doc.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        content: Text to append
+
+    Returns:
+        JSON string with success status
+
+    Example:
+        - append_to_google_doc("1abc...", "\\n\\nAdditional notes:\\n- Point 1\\n- Point 2")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Appending to Google Doc: {document_id}")
+
+        # Append the content
+        docs_client.append_text(document_id, content)
+        doc_url = docs_client.get_document_url(document_id)
+
+        logger.info(f"Successfully appended content")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "message": "Content appended successfully"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in append_to_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def insert_into_google_doc(
+    document_id: str,
+    content: str,
+    index: int = 1
+) -> str:
+    """
+    Insert text at a specific position in a Google Doc.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        content: Text to insert
+        index: Character position where to insert (default: 1, right after title)
+
+    Returns:
+        JSON string with success status
+
+    Example:
+        - insert_into_google_doc("1abc...", "Introduction\\n\\n", index=1)
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Inserting into Google Doc: {document_id} at index {index}")
+
+        # Insert the content
+        docs_client.insert_text(document_id, content, index=index)
+        doc_url = docs_client.get_document_url(document_id)
+
+        logger.info(f"Successfully inserted content")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "message": f"Content inserted at index {index}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in insert_into_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def read_google_doc(
+    document_id: str
+) -> str:
+    """
+    Read the text content from a Google Doc.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+
+    Returns:
+        JSON string with document content and metadata
+
+    Example:
+        - read_google_doc("1abc...")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Reading Google Doc: {document_id}")
+
+        # Get the document
+        doc = docs_client.get_document(document_id)
+        text_content = docs_client.extract_text(document_id)
+        doc_url = docs_client.get_document_url(document_id)
+
+        logger.info(f"Successfully read document")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "title": doc['title'],
+            "content": text_content,
+            "url": doc_url
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in read_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def replace_text_in_google_doc(
+    document_id: str,
+    find_text: str,
+    replace_with: str
+) -> str:
+    """
+    Find and replace text in a Google Doc.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        find_text: Text to find
+        replace_with: Text to replace with
+
+    Returns:
+        JSON string with success status
+
+    Example:
+        - replace_text_in_google_doc("1abc...", "{{client_name}}", "Acme Corp")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Replacing text in Google Doc: {document_id}")
+
+        # Replace the text
+        docs_client.replace_all_text(document_id, find_text, replace_with)
+        doc_url = docs_client.get_document_url(document_id)
+
+        logger.info(f"Successfully replaced text")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "message": f"Replaced '{find_text}' with '{replace_with}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in replace_text_in_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def add_heading_to_google_doc(
+    document_id: str,
+    heading_text: str,
+    heading_level: int = 1,
+    index: int = None
+) -> str:
+    """
+    Add a formatted heading to a Google Doc.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        heading_text: The heading text
+        heading_level: Heading level (1-6, default: 1 for H1)
+        index: Position to insert (default: end of document)
+
+    Returns:
+        JSON string with success status
+
+    Example:
+        - add_heading_to_google_doc("1abc...", "Executive Summary", heading_level=1)
+        - add_heading_to_google_doc("1abc...", "Background", heading_level=2)
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Adding heading to Google Doc: {document_id}")
+
+        # Map heading level to Google Docs style
+        heading_map = {
+            1: "HEADING_1",
+            2: "HEADING_2",
+            3: "HEADING_3",
+            4: "HEADING_4",
+            5: "HEADING_5",
+            6: "HEADING_6"
+        }
+
+        heading_style = heading_map.get(heading_level, "HEADING_1")
+
+        # Insert heading
+        if index is None:
+            # Get document to find end index
+            doc = docs_client.get_document(document_id)
+            index = doc['body']['content'][-1]['endIndex'] - 1
+
+        docs_client.insert_paragraph(document_id, heading_text, index=index, heading=heading_style)
+        doc_url = docs_client.get_document_url(document_id)
+
+        logger.info(f"Successfully added heading")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "message": f"Added {heading_style} heading"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in add_heading_to_google_doc: {error_msg}")
         return json.dumps({
             "success": False,
             "error": error_msg

@@ -487,7 +487,7 @@ install_dir = "$INSTALL_DIR"
 env_vars = {
     'GMAIL_CREDENTIALS_PATH': f'{install_dir}/credentials/credentials.json',
     'GMAIL_TOKEN_PATH': f'{install_dir}/credentials/token.json',
-    'GMAIL_OAUTH_SCOPES': 'https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/userinfo.email',
+    'GMAIL_OAUTH_SCOPES': 'https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/userinfo.email',
     'LEAD_SHEETS_URL': 'https://docs.google.com/spreadsheets/d/1CNejGg-egkp28ItSRfW7F_CkBXgYevjzstJ1QlrAyAY/edit',
     'LEAD_SHEETS_GID_INSTANTLY': '928115249',
     'LEAD_SHEETS_GID_BISON': '1631680229',
