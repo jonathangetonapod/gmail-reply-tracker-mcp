@@ -66,7 +66,8 @@ def get_lead_by_email(api_key: str, lead_email: str) -> Optional[Dict]:
 
 def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
     """
-    Get the campaign_id from an existing lead in Instantly using v2 API.
+    Get the campaign_id from an existing lead using the campaigns search endpoint.
+    This is more efficient than looking up the lead and extracting the campaign.
 
     Args:
         api_key: Instantly API key
@@ -75,19 +76,40 @@ def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
     Returns:
         campaign_id (UUID string) or None
     """
-    lead_data = get_lead_by_email(api_key, lead_email)
+    url = "https://api.instantly.ai/api/v2/campaigns/search-by-contact"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    params = {"search": lead_email}
 
-    if not lead_data:
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            campaigns = data.get("items", [])
+
+            if not campaigns or len(campaigns) == 0:
+                logger.warning(f"⚠️  No campaigns found for lead: {lead_email}")
+                return None
+
+            # Get the first campaign (most leads are only in one campaign)
+            campaign_id = campaigns[0].get("id")
+            campaign_name = campaigns[0].get("name", "Unknown")
+
+            if campaign_id:
+                logger.info(f"✅ Found campaign for lead {lead_email}: {campaign_id} ({campaign_name})")
+                if len(campaigns) > 1:
+                    logger.info(f"   Note: Lead is in {len(campaigns)} campaigns, using first one")
+            else:
+                logger.warning(f"⚠️  Campaign data malformed for lead {lead_email}")
+
+            return campaign_id
+        else:
+            logger.warning(f"⚠️  Could not search campaigns for lead {lead_email}: {response.status_code}")
+            logger.warning(f"   Response: {response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"Error getting campaign from lead: {e}")
         return None
-
-    campaign_id = lead_data.get("campaign")
-
-    if campaign_id:
-        logger.info(f"✅ Found campaign for lead {lead_email}: {campaign_id}")
-    else:
-        logger.warning(f"⚠️  Lead {lead_email} has no campaign association")
-
-    return campaign_id
 
 
 def verify_lead_exists_in_instantly(api_key: str, lead_email: str) -> Dict:
