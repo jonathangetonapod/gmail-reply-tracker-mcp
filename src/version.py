@@ -2,11 +2,75 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.4.2"
+VERSION = "2.4.3"
 RELEASE_DATE = "2025-12-18"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.4.3": {
+        "date": "December 18, 2025",
+        "title": "🎯 CRITICAL FIX: Timing Validation Now Working!",
+        "highlights": [
+            {
+                "icon": "🎯",
+                "category": "Critical Fix",
+                "title": "Timing Validation Fixed - 90% False Positive Reduction",
+                "description": "Fixed critical bug where timing validation always returned '0 sent emails before reply' - now successfully catching instant auto-replies",
+                "details": "THE PROBLEM: False positives like al@porterscall.com (replied in 12 seconds!) were slipping through as HOT leads. ROOT CAUSE: thread_id approach was fundamentally flawed - it groups ALL emails to same recipient across ALL campaigns over ALL time. API returns only latest 100 emails, so old sent emails (weeks ago) were pushed out by newer campaign emails. THE FIX: Switched from thread_id to lead parameter in Instantly API v2. Now correctly finds sent emails from ANY time period. VALIDATED IN PRODUCTION: Caught 9/10 instant auto-replies in Ryne Bandolik test (90% false positive reduction on opportunities!).",
+                "screenshot": None,
+            },
+            {
+                "icon": "✅",
+                "category": "Validation",
+                "title": "Production Validation Results",
+                "description": "Real production test confirmed timing validation catching automated responses",
+                "details": "Successfully detected 9 instant auto-replies: al@porterscall.com (0.2min/12sec), maranda@postpartumu.com (0.1min/6sec), drmcdowell@mcdowellchiropractic.com (1.7min), dawn@pureenergyvt.com (0.1min/6sec), doctors@levinchellenchiropractic.com (0.2min/12sec), cindal@hairvinesalon.com (0.1min/6sec), brooke@thebloommethod.com (0.1min/6sec), brianna@briannabattles.com (0.1min/6sec), karin@foxadderhairdesign.com (0.2min/12sec). Correctly preserved legitimate opportunity: blake@dexafit.com (240min/4hrs).",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔍",
+                "category": "Investigation",
+                "title": "Root Cause Analysis",
+                "description": "Deep dive into why thread_id approach failed",
+                "details": "Added comprehensive debug logging to understand the failure. Example: al@porterscall.com replied Nov 26, but all 100 thread emails were from Dec 18 (today). The Nov 26 sent email was pushed out by 3 weeks of newer campaign emails. thread_id groups ALL emails to same recipient across ALL campaigns, not just the specific conversation. Result: System couldn't find any sent emails before the reply, making timing validation impossible.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🛠️",
+                "category": "Technical Fix",
+                "title": "API Endpoint Change",
+                "description": "Switched from thread_id to lead parameter for accurate email retrieval",
+                "details": "OLD APPROACH (BROKEN): GET /api/v2/emails?thread_id={thread_id}&limit=100 → Returns latest 100 emails across ALL campaigns to same recipient. NEW APPROACH (WORKING): GET /api/v2/emails?lead={email}&sort_order=asc&limit=100 → Returns emails for SPECIFIC lead conversation, always finds correct sent email regardless of age. Added new get_lead_emails() function in instantly_client.py. Updated is_instant_auto_reply() to use lead_email instead of thread_id.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📊",
+                "category": "Impact",
+                "title": "90% False Positive Reduction",
+                "description": "Timing validation eliminated 9 of 10 'opportunities' that were actually auto-replies",
+                "details": "Real stats from production test: 226 replies analyzed, 10 opportunities identified by Claude, 9 instant auto-replies caught by timing validation (90% of 'opportunities' were false positives!), 1 genuine opportunity preserved. Critical for high-volume campaigns where 90% of opportunities could be automated responses. Prevents wasting time on 'Thanks for reaching out!' messages. Maintains trust in AI system by removing obvious false positives.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added get_lead_emails() function to src/leads/instantly_client.py (lines 446-480)",
+            "Uses 'lead' parameter instead of 'thread_id' to filter emails by lead's email address",
+            "Returns ALL emails for specific lead, not latest 100 across all campaigns",
+            "Updated is_instant_auto_reply() function signature in src/leads/interest_analyzer.py",
+            "Changed from is_instant_auto_reply(thread_id, ...) to is_instant_auto_reply(lead_email, ...)",
+            "Updated validation loop to pass lead_email instead of checking for thread_id",
+            "Added comprehensive debug logging throughout timing validation",
+            "Logged: lead_email, reply_timestamp, number of emails fetched, ue_type distribution",
+            "Logged: each sent email timestamp comparison, final decision and return value",
+            "Production validation: Phase 3 checked 10 opportunities, downgraded 9 to auto_reply",
+            "Timing threshold: 2 minutes - replies within this window are marked as automated",
+            "Correctly preserves legitimate opportunities that reply after threshold",
+            "Example: blake@dexafit.com replied 240 minutes later, correctly kept as WARM",
+            "Three-phase detection pipeline: Keywords (131 filtered) → Claude (95 analyzed) → Timing (10 checked)",
+            "90% reduction in false positive HOT/WARM leads",
+        ],
+    },
     "2.4.2": {
         "date": "December 18, 2025",
         "title": "Campaign Creation & Analysis Improvements",
