@@ -491,7 +491,8 @@ env_vars = {
     'LEAD_SHEETS_URL': 'https://docs.google.com/spreadsheets/d/1CNejGg-egkp28ItSRfW7F_CkBXgYevjzstJ1QlrAyAY/edit',
     'LEAD_SHEETS_GID_INSTANTLY': '928115249',
     'LEAD_SHEETS_GID_BISON': '1631680229',
-    'EMAILGUARD_API_KEY': '55483|lebMfPQndeLapfcsDTMpWBe6ff1cuzftnVSGdxfC6a437dd0'
+    'EMAILGUARD_API_KEY': '55483|lebMfPQndeLapfcsDTMpWBe6ff1cuzftnVSGdxfC6a437dd0',
+    'ANTHROPIC_API_KEY': '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'
 }
 
 # Add Fathom API key if provided
