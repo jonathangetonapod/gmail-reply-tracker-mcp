@@ -3286,7 +3286,7 @@ async def find_missed_opportunities(
             "unclear_leads": unclear_report[:20],  # Include unclear leads for manual review
             "message": f"Found {len(hidden_gems)} potential missed opportunities! "
                       f"These replies look interested but weren't marked by {platform_name} AI.",
-            "note": f"Review these leads and consider marking them as interested in {platform_name}!"
+            "note": f"To mark leads: Use mark_lead_as_interested with client_name, lead_email, and lead_id (if present) for best results!"
         }, indent=2)
 
     except Exception as e:
@@ -3314,15 +3314,18 @@ async def mark_lead_as_interested(
 
     Auto-detects which platform the client uses and marks the lead accordingly.
     For Bison: Uses reply_id to mark the reply as interested
-    For Instantly: Uses campaign_id to associate lead with campaign when marking
+    For Instantly: Uses lead_id to look up campaign, then marks the lead
 
     Args:
         client_name: Name of the client (e.g., "Jeff Mikolai", "Lena Kadriu")
-        lead_email: Email address of the lead to mark
+        lead_email: Email address of the lead to mark (the person who replied)
         reply_id: (Bison only) Reply ID to mark as interested
-        lead_id: (Instantly only) Lead UUID from Instantly API (for context)
-        campaign_id: (Instantly only) Campaign UUID - REQUIRED for marking to work properly
-        interest_value: (Instantly only) Interest status value (default: 1)
+        lead_id: (Instantly) IMPORTANT - Original lead's email for campaign lookup
+                 For forwarded replies, this is the original recipient's email
+                 Example: If Julian forwarded to Amanda, lead_id=julian@example.com
+                 Used to look up campaign when campaign_id is not provided
+        campaign_id: (Instantly) Campaign UUID - will be auto-looked-up from lead_id if not provided
+        interest_value: (Instantly) Interest status value (default: 1)
             1 = Interested, 2 = Meeting Booked, 3 = Meeting Completed,
             4 = Closed, -1 = Not Interested, -2 = Wrong Person, -3 = Lost
 
@@ -3330,8 +3333,14 @@ async def mark_lead_as_interested(
         JSON string with success status and platform used
 
     Example:
+        # Bison
         mark_lead_as_interested("Jeff Mikolai", "john@example.com", reply_id=123)
+
+        # Instantly with campaign
         mark_lead_as_interested("Lena Kadriu", "jane@example.com", campaign_id="abc-123-def")
+
+        # Instantly forwarded reply (campaign auto-looked-up from lead_id)
+        mark_lead_as_interested("Brian Rechtman", "amanda@example.com", lead_id="julian@example.com")
     """
     try:
         # Import required functions
@@ -3358,10 +3367,11 @@ async def mark_lead_as_interested(
 
             # Log whether we have lead_id for better debugging
             if lead_id:
-                logger.info("Marking lead with lead_id (UUID): %s (email: %s)", lead_id, lead_email)
+                logger.info("✅ Marking lead %s with lead_id: %s (will look up campaign from this lead)", lead_email, lead_id)
             else:
-                logger.warning("⚠️  Marking lead WITHOUT lead_id - this may fail! Email: %s", lead_email)
-                logger.warning("⚠️  Run find_missed_opportunities first to get lead_id")
+                logger.warning("⚠️  Marking lead WITHOUT lead_id: %s", lead_email)
+                logger.warning("⚠️  For forwarded replies, pass lead_id (original recipient's email) to auto-lookup campaign")
+                logger.warning("⚠️  If marking fails, ensure lead_id is provided from hidden gems output")
 
             result = mark_instantly_lead_as_interested(
                 api_key=api_key,
