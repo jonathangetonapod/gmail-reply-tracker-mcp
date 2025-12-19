@@ -187,6 +187,10 @@ def fetch_interested_leads(
                 if email.get("ue_type") != 2:
                     continue
 
+                # Skip auto-replies detected by Instantly API (is_auto_reply: 0=false, 1=true)
+                if email.get("is_auto_reply") == 1:
+                    continue
+
                 from_email = email.get("from_address_email", "").lower()
 
                 # Skip emails FROM your team (prism, leadgenjay, etc.)
@@ -399,6 +403,10 @@ def fetch_all_campaign_replies(
                 # Safety check: Only process received emails (should already be filtered by API)
                 # ue_type: 1=Sent, 2=Received, 3=Manual, 4=Scheduled
                 if email.get("ue_type") != 2:
+                    continue
+
+                # Skip auto-replies detected by Instantly API (is_auto_reply: 0=false, 1=true)
+                if email.get("is_auto_reply") == 1:
                     continue
 
                 from_email = email.get("from_address_email", "").lower()
