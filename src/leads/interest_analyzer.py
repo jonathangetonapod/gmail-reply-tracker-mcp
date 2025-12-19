@@ -382,16 +382,17 @@ def analyze_reply_hybrid(reply_text: str, subject: str = "") -> Dict:
     return keyword_result
 
 
-def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: int = 10) -> Dict:
+def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: int = 5) -> Dict:
     """
     Categorize a list of leads into hot/warm/cold/auto/unclear buckets.
 
     Uses parallel processing for Claude API calls to handle large batches efficiently.
+    Changed to use Claude for ALL replies except obvious auto-replies and rejections.
 
     Args:
         leads: List of lead dicts with "reply_body" and optionally "subject"
-        use_claude: Whether to use Claude API for unclear cases (default: True)
-        max_workers: Max parallel Claude API calls (default: 10)
+        use_claude: Whether to use Claude API for analysis (default: True)
+        max_workers: Max parallel Claude API calls (default: 5, respects rate limits)
 
     Returns:
         {
@@ -418,7 +419,7 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: in
         "unclear": []
     }
 
-    # Phase 1: Fast keyword analysis on all leads (sequential is fine, it's instant)
+    # Phase 1: Fast keyword analysis - ONLY for auto-replies and obvious rejections
     keyword_analyzed = []
     needs_claude = []
 
@@ -429,9 +430,10 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: in
         # Try keyword analysis first (pass subject to detect auto-replies)
         keyword_result = analyze_reply_with_keywords(reply_text, subject=subject)
 
-        # If confident (>70%) or not using Claude, finalize with keywords
-        if keyword_result["confidence"] >= 70 or not use_claude:
-            keyword_result["method"] = "keyword"
+        # Only skip Claude for HIGH CONFIDENCE auto-replies and rejections
+        # This avoids false positives on interest signals
+        if not use_claude:
+            # Fallback to keywords if Claude disabled
             lead_with_analysis = {
                 **lead,
                 "ai_category": keyword_result["category"],
@@ -441,19 +443,42 @@ def categorize_leads(leads: List[Dict], use_claude: bool = True, max_workers: in
             }
             categorized[keyword_result["category"]].append(lead_with_analysis)
             keyword_analyzed.append(lead_with_analysis)
+        elif keyword_result["category"] == "auto_reply" and keyword_result["confidence"] >= 90:
+            # Auto-replies are accurate, skip Claude
+            lead_with_analysis = {
+                **lead,
+                "ai_category": keyword_result["category"],
+                "ai_confidence": keyword_result["confidence"],
+                "ai_reason": keyword_result["reason"],
+                "ai_method": "keyword"
+            }
+            categorized["auto_reply"].append(lead_with_analysis)
+            keyword_analyzed.append(lead_with_analysis)
+        elif keyword_result["category"] == "cold" and keyword_result["confidence"] >= 90:
+            # Very clear rejections (unsubscribe, "not interested"), skip Claude
+            lead_with_analysis = {
+                **lead,
+                "ai_category": keyword_result["category"],
+                "ai_confidence": keyword_result["confidence"],
+                "ai_reason": keyword_result["reason"],
+                "ai_method": "keyword"
+            }
+            categorized["cold"].append(lead_with_analysis)
+            keyword_analyzed.append(lead_with_analysis)
         else:
-            # Save for Claude analysis
+            # Everything else goes to Claude for better context understanding
             needs_claude.append({
                 "lead": lead,
                 "keyword_result": keyword_result
             })
 
-    logger.info("Keyword analysis: %d confident, %d need Claude",
+    logger.info("Keyword analysis: %d auto-replies/rejections filtered, %d going to Claude",
                len(keyword_analyzed), len(needs_claude))
 
-    # Phase 2: Parallel Claude API calls for unclear leads
+    # Phase 2: Parallel Claude API calls for ALL remaining leads (not just unclear)
+    # This gives much better accuracy on interest detection vs keyword matching
     if needs_claude and use_claude:
-        logger.info("Starting parallel Claude analysis for %d leads (max_workers=%d)...",
+        logger.info("Starting parallel Claude analysis for %d leads (max_workers=%d, rate-limited)...",
                    len(needs_claude), max_workers)
 
         def analyze_with_claude(item):
