@@ -1652,6 +1652,438 @@ class WebServer:
 
             return html
 
+        @self.app.route('/coming-soon')
+        def coming_soon():
+            """Show coming soon features roadmap."""
+            html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coming Soon - Gmail Calendar MCP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .category {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+        .category-icon {
+            font-size: 36px;
+        }
+        .category-title {
+            font-size: 24px;
+            color: #333;
+            flex: 1;
+        }
+        .category-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .feature-example {
+            font-size: 13px;
+            color: #999;
+            font-style: italic;
+            border-left: 2px solid #ddd;
+            padding-left: 10px;
+            margin-top: 8px;
+        }
+        .back-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .back-button:hover {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Coming Soon</h1>
+            <p>Features we're working on to make Claude even more powerful</p>
+        </div>
+
+        <a href="/setup" class="back-button">← Back to Setup</a>
+
+        <!-- Gmail Enhancements -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📧</span>
+                <h2 class="category-title">Gmail Enhancements</h2>
+                <span class="category-count">6 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">get_sent_emails</div>
+                    <div class="feature-desc">View emails you've sent to specific people or time periods</div>
+                    <div class="feature-example">"What did I send to John last week?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_emails_by_date_range</div>
+                    <div class="feature-desc">Search emails within specific date ranges</div>
+                    <div class="feature-example">"Show me all emails between Dec 1-15"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">list_drafts</div>
+                    <div class="feature-desc">See all your draft emails in one place</div>
+                    <div class="feature-example">"Show me my draft emails"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">send_draft</div>
+                    <div class="feature-desc">Send drafts you've already created</div>
+                    <div class="feature-example">"Send the draft I created for sarah@company.com"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_draft</div>
+                    <div class="feature-desc">Edit existing drafts before sending</div>
+                    <div class="feature-example">"Update my draft to John and add the pricing details"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">archive_email</div>
+                    <div class="feature-desc">Archive emails to clean up your inbox</div>
+                    <div class="feature-example">"Archive all read emails from last week"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign Management -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">🎯</span>
+                <h2 class="category-title">Campaign Management</h2>
+                <span class="category-count">4 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">update_bison_campaign</div>
+                    <div class="feature-desc">Edit existing Bison campaign sequences</div>
+                    <div class="feature-example">"Update step 2 in Michael's campaign to fix the typo"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_instantly_campaign</div>
+                    <div class="feature-desc">Modify Instantly campaigns and variants</div>
+                    <div class="feature-example">"Change the subject line in variant A of Brian's campaign"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">pause_campaign</div>
+                    <div class="feature-desc">Pause/resume campaigns across platforms</div>
+                    <div class="feature-example">"Pause the Instantly campaign for Rick Pendrick"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">delete_campaign</div>
+                    <div class="feature-desc">Remove campaigns that are no longer needed</div>
+                    <div class="feature-example">"Delete the old test campaign for Lena Kadriu"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Drive Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📁</span>
+                <h2 class="category-title">Google Drive Integration</h2>
+                <span class="category-count">8 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">search_drive_files</div>
+                    <div class="feature-desc">Find files and folders in your Drive</div>
+                    <div class="feature-example">"Find all PDFs from last month"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">upload_to_drive</div>
+                    <div class="feature-desc">Upload files directly to Google Drive</div>
+                    <div class="feature-example">"Upload contract.pdf to the Clients folder"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">share_drive_file</div>
+                    <div class="feature-desc">Share files with specific people or create public links</div>
+                    <div class="feature-example">"Share the proposal doc with john@company.com"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">create_drive_folder</div>
+                    <div class="feature-desc">Organize files with new folders</div>
+                    <div class="feature-example">"Create a folder called 'Q1 2025 Projects'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">download_drive_file</div>
+                    <div class="feature-desc">Download files from Drive to your computer</div>
+                    <div class="feature-example">"Download the latest version of budget.xlsx"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">move_drive_file</div>
+                    <div class="feature-desc">Move files between folders</div>
+                    <div class="feature-example">"Move all invoices to the Archive folder"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">list_recent_files</div>
+                    <div class="feature-desc">See your recently modified files</div>
+                    <div class="feature-example">"What files did I work on yesterday?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_drive_storage_info</div>
+                    <div class="feature-desc">Check how much Drive storage you're using</div>
+                    <div class="feature-example">"How much Drive storage do I have left?"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Sheets Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📊</span>
+                <h2 class="category-title">Google Sheets Integration</h2>
+                <span class="category-count">7 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">read_sheet_data</div>
+                    <div class="feature-desc">Read data from any Google Sheet</div>
+                    <div class="feature-example">"Show me the data in the Sales Pipeline sheet"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">append_to_sheet</div>
+                    <div class="feature-desc">Add new rows to sheets automatically</div>
+                    <div class="feature-example">"Add John Doe as a new lead in the Prospects sheet"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_sheet_cell</div>
+                    <div class="feature-desc">Update specific cells or ranges</div>
+                    <div class="feature-example">"Change the status to 'Closed' for row 5"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">create_new_sheet</div>
+                    <div class="feature-desc">Create new spreadsheets from scratch</div>
+                    <div class="feature-example">"Create a new sheet called 'Q1 Budget Tracking'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">search_sheet_data</div>
+                    <div class="feature-desc">Find specific data within sheets</div>
+                    <div class="feature-example">"Find all rows where status is 'Pending'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">format_sheet_range</div>
+                    <div class="feature-desc">Apply formatting like bold, colors, borders</div>
+                    <div class="feature-example">"Make the header row bold and freeze it"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">create_sheet_chart</div>
+                    <div class="feature-desc">Generate charts from sheet data</div>
+                    <div class="feature-example">"Create a pie chart of sales by region"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notion Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📝</span>
+                <h2 class="category-title">Notion Integration</h2>
+                <span class="category-count">6 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">create_notion_page</div>
+                    <div class="feature-desc">Create new pages in your Notion workspace</div>
+                    <div class="feature-example">"Create a meeting notes page for today's client call"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_notion_page</div>
+                    <div class="feature-desc">Edit existing Notion pages</div>
+                    <div class="feature-example">"Add action items to yesterday's meeting notes"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">search_notion</div>
+                    <div class="feature-desc">Search across all your Notion content</div>
+                    <div class="feature-example">"Find all pages mentioning 'Q4 planning'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">add_notion_database_row</div>
+                    <div class="feature-desc">Add items to Notion databases</div>
+                    <div class="feature-example">"Add a new task to my To-Do database"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">query_notion_database</div>
+                    <div class="feature-desc">Query and filter Notion databases</div>
+                    <div class="feature-example">"Show me all high-priority tasks due this week"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">append_notion_blocks</div>
+                    <div class="feature-desc">Add content blocks to existing pages</div>
+                    <div class="feature-example">"Add a checklist to my project planning page"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slack Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">💬</span>
+                <h2 class="category-title">Slack Integration</h2>
+                <span class="category-count">8 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">send_slack_message</div>
+                    <div class="feature-desc">Send messages to channels or DMs</div>
+                    <div class="feature-example">"Send 'Meeting in 5 minutes' to the #team channel"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">search_slack_messages</div>
+                    <div class="feature-desc">Search Slack history for specific content</div>
+                    <div class="feature-example">"Find all messages about the product launch"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_slack_thread</div>
+                    <div class="feature-desc">View full conversation threads</div>
+                    <div class="feature-example">"Show me the discussion thread about the budget"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">set_slack_status</div>
+                    <div class="feature-desc">Update your Slack status automatically</div>
+                    <div class="feature-example">"Set my status to 'In a meeting' for 1 hour"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">list_slack_channels</div>
+                    <div class="feature-desc">See all your Slack channels</div>
+                    <div class="feature-example">"What channels am I a member of?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">upload_to_slack</div>
+                    <div class="feature-desc">Share files in Slack channels</div>
+                    <div class="feature-example">"Upload report.pdf to #executives"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">react_to_slack_message</div>
+                    <div class="feature-desc">Add emoji reactions to messages</div>
+                    <div class="feature-example">"React with 👍 to the latest message in #general"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_slack_reminders</div>
+                    <div class="feature-desc">View and manage your Slack reminders</div>
+                    <div class="feature-example">"What reminders do I have set?"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Prompts & Workflows -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">🤖</span>
+                <h2 class="category-title">Advanced Prompts & Workflows</h2>
+                <span class="category-count">Coming Soon</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">Email Digest Generator</div>
+                    <div class="feature-desc">Get AI-generated daily summaries of important emails</div>
+                    <div class="feature-example">"Summarize my inbox from today and highlight urgent items"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Meeting Prep Assistant</div>
+                    <div class="feature-desc">Automatically prepare for upcoming meetings with context</div>
+                    <div class="feature-example">"Prepare me for my 2pm meeting with John"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Lead Scoring & Prioritization</div>
+                    <div class="feature-desc">AI ranks leads by engagement and closes potential</div>
+                    <div class="feature-example">"Which of my leads should I focus on this week?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Smart Follow-Up Suggestions</div>
+                    <div class="feature-desc">AI suggests when and how to follow up with leads</div>
+                    <div class="feature-example">"Who should I follow up with and what should I say?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Campaign Performance Insights</div>
+                    <div class="feature-desc">AI analyzes campaigns and suggests improvements</div>
+                    <div class="feature-example">"Analyze my campaigns and tell me what's working"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Automated Weekly Reports</div>
+                    <div class="feature-desc">Generate comprehensive weekly productivity reports</div>
+                    <div class="feature-example">"Create my weekly report with all key metrics"</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="/setup" class="back-button">← Back to Setup</a>
+        </div>
+    </div>
+</body>
+</html>
+            """
+            return html
+
         @self.app.route('/setup')
         def setup_landing():
             """Show setup landing page with explanation."""
