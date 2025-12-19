@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Timing Validation Bug**: Fixed critical bug where timing validation always returned "0 sent emails before reply"
+  - **Root Cause**: Using `thread_id` parameter fetched latest 100 emails across ALL campaigns to same recipient
+  - Old sent emails (weeks ago) were pushed out of 100-email window by newer campaign emails
+  - **Solution**: Switch from `thread_id` to `lead` parameter to filter emails by lead's email address
+  - Now correctly finds sent emails before replies for accurate timing detection
+  - Added new `get_lead_emails()` function in `instantly_client.py`
+  - Updated `is_instant_auto_reply()` to use `lead_email` instead of `thread_id`
+
 ### Added
 - **Timing-Based Auto-Reply Validation**: Post-Claude validation to catch automated responses
   - **Runs as Phase 3 AFTER Claude analysis** (validates HOT/WARM opportunities only)
