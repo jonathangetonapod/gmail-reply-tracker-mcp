@@ -2152,9 +2152,14 @@ class WebServer:
             <div class="category-header">
                 <span class="category-icon">🎯</span>
                 <h2 class="category-title">Campaign Management</h2>
-                <span class="category-count">4 tools</span>
+                <span class="category-count">5 tools</span>
             </div>
             <div class="features">
+                <div class="feature">
+                    <div class="feature-title">check_campaign_lead_capacity</div>
+                    <div class="feature-desc">Identify campaigns running low on leads and need more contacts added</div>
+                    <div class="feature-example">"Which campaigns are running out of leads?" or "Show me campaigns that need more leads added"</div>
+                </div>
                 <div class="feature">
                     <div class="feature-title">update_bison_campaign</div>
                     <div class="feature-desc">Edit existing Bison campaign sequences</div>
