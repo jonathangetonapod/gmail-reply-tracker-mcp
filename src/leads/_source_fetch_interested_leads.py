@@ -173,11 +173,37 @@ def mark_instantly_lead_as_interested(
         logger.warning(f"   Email: {lead_email}")
         logger.info(f"🔧 Auto-creating lead in Instantly before marking...")
 
-        # Skip auto-creation for now - the API endpoint requires different auth
-        # Just proceed with marking and let Instantly create the lead automatically
-        logger.warning(f"⚠️  Proceeding without lead verification...")
-        logger.warning(f"   Instantly may auto-create the lead when marking")
-        logger.warning(f"   If this fails, the lead needs to be manually added to Instantly first")
+        # Auto-create the lead using v2 API
+        create_url = "https://api.instantly.ai/api/v2/leads"
+        create_payload = {
+            "email": lead_email
+        }
+
+        # Add campaign_id if provided
+        if campaign_id:
+            create_payload["campaign"] = campaign_id
+
+        try:
+            logger.info(f"🔵 Creating lead in Instantly...")
+            logger.info(f"   URL: {create_url}")
+            logger.info(f"   Payload: {create_payload}")
+
+            create_response = requests.post(create_url, headers=headers, json=create_payload, timeout=30)
+
+            logger.info(f"🔵 Create Lead Response:")
+            logger.info(f"   Status Code: {create_response.status_code}")
+            logger.info(f"   Response Body: {create_response.text}")
+
+            create_response.raise_for_status()
+            logger.info(f"✅ Lead created successfully: {lead_email}")
+        except Exception as e:
+            logger.error(f"❌ Failed to create lead: {e}")
+            return {
+                "error": "Lead not found and could not be created",
+                "message": f"Failed to create lead: {str(e)}",
+                "lead_email": lead_email,
+                "suggestion": "This email replied (possibly via forward) but isn't a lead in Instantly. You may need to add them manually or check if the API key has proper permissions."
+            }
 
     logger.info(f"✅ Lead verified, proceeding to mark as interested...")
 
