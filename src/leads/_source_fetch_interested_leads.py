@@ -159,7 +159,9 @@ def fetch_interested_leads(
             "i_status": 1,  # Interested
             "min_timestamp_created": start_date,
             "max_timestamp_created": end_date,
-            "limit": limit
+            "limit": limit,
+            "sort_order": "asc",  # Ascending order for pagination
+            "email_type": "received"  # Only fetch received emails (replies)
         }
 
         if starting_after:
@@ -180,8 +182,8 @@ def fetch_interested_leads(
 
             # Process each email
             for email in items:
-                # IMPORTANT: Only process received emails (replies from leads)
-                # i_status=1 returns BOTH sent and received emails in interested threads
+                # Safety check: Only process received emails (should already be filtered by API)
+                # ue_type: 1=Sent, 2=Received, 3=Manual, 4=Scheduled
                 if email.get("ue_type") != 2:
                     continue
 
@@ -356,7 +358,8 @@ def fetch_all_campaign_replies(
             "min_timestamp_created": start_date,
             "max_timestamp_created": end_date,
             "limit": limit,
-            "sort_order": "asc"  # Try ascending order for pagination
+            "sort_order": "asc",  # Ascending order for pagination
+            "email_type": "received"  # Only fetch received emails (replies)
         }
 
         # Add i_status filter if specified
@@ -383,8 +386,8 @@ def fetch_all_campaign_replies(
             page_emails = set()  # Track emails on this specific page
 
             for email in items:
-                # IMPORTANT: Only process received emails (replies from leads)
-                # Not sent emails from our team
+                # Safety check: Only process received emails (should already be filtered by API)
+                # ue_type: 1=Sent, 2=Received, 3=Manual, 4=Scheduled
                 if email.get("ue_type") != 2:
                     continue
 
