@@ -2,11 +2,47 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.4.4"
+VERSION = "2.4.5"
 RELEASE_DATE = "2025-12-18"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.4.5": {
+        "date": "December 18, 2025",
+        "title": "🎯 Accuracy & Performance: Multi-Status Filtering + API Auto-Reply Detection",
+        "highlights": [
+            {
+                "icon": "✅",
+                "category": "Accuracy Fix",
+                "title": "Hidden Gems Now Excludes ALL Positive Statuses",
+                "description": "Fixed analysis to skip all already-captured opportunities, not just 'Interested'",
+                "details": "THE PROBLEM: Hidden gems analysis only excluded i_status=1 (Interested), but missed other positive statuses like Meeting Booked (2), Meeting Completed (3), and Closed (4). Result: Leads already marked as 'Meeting Booked' were incorrectly counted as 'missed opportunities'. THE FIX: Now filters ALL positive statuses [1, 2, 3, 4] from analysis. Only analyzes potential missed opportunities: i_status in [None, 0, -1, -2, -3]. Eliminated unnecessary second API call by filtering in-memory. Added detailed logging: 'Found 15 already-captured opportunities: 12 Interested, 3 Meeting Booked, 0 Meeting Completed, 0 Closed'. IMPACT: Accurate 'missed opportunities' reporting with no false positives from already-converted leads. Performance improvement from eliminating duplicate API call.",
+                "screenshot": None,
+            },
+            {
+                "icon": "⚡",
+                "category": "Performance Optimization",
+                "title": "Early Filter Using Instantly API Auto-Reply Detection",
+                "description": "Leverages is_auto_reply field from Instantly API to skip auto-replies before analysis",
+                "details": "THE OPTIMIZATION: Added early filter using Instantly API's native is_auto_reply field (0=false, 1=true). Skips auto-replies BEFORE keyword detection and Claude API analysis. MULTI-LAYER DETECTION: (1) Instantly API detection (new early filter) - catches most OOO/vacation replies instantly. (2) Keyword pattern matching (Phase 1) - 25+ negative patterns catch unsubscribes/rejections. (3) Claude API analysis (Phase 2) - NLP understanding catches complex rejections. (4) Timing validation (Phase 3) - Reply time < 2min catches instant automated responses. Each layer catches what previous layers missed, ensuring maximum accuracy. BENEFITS: Faster processing (auto-replies filtered before expensive analysis), Cost savings (fewer Claude API calls), Higher accuracy (multiple detection methods), No false negatives (genuine replies get through all layers). Implementation in both fetch functions at lines 191 and 409.",
+                "screenshot": None,
+            },
+        ],
+        "technical_notes": [
+            "src/server.py lines 2986-3012: Updated Instantly filtering logic to exclude all positive statuses",
+            "Added POSITIVE_STATUSES = [1, 2, 3, 4] constant for clarity",
+            "Filter now uses: lead.get('i_status') in POSITIVE_STATUSES",
+            "Detailed logging shows breakdown: '12 Interested, 3 Meeting Booked, 0 Meeting Completed, 0 Closed'",
+            "Eliminated second fetch_all_campaign_replies() API call (was fetching i_status=1 only)",
+            "src/leads/_source_fetch_interested_leads.py line 191: Added is_auto_reply filter in fetch_interested_leads()",
+            "src/leads/_source_fetch_interested_leads.py line 409: Added is_auto_reply filter in fetch_all_campaign_replies()",
+            "Filter placement: After ue_type check, before team/system email checks",
+            "Auto-reply detection now 4-layer system: API → Keywords → Claude → Timing",
+            "Performance impact: Fewer emails reach Claude API analysis phase",
+            "Cost impact: Reduced Claude API usage for auto-reply heavy campaigns",
+        ],
+        "breaking_changes": [],
+    },
     "2.4.4": {
         "date": "December 18, 2025",
         "title": "🚀 PRODUCTION FIX: Pagination & Data Quality - System Now Bulletproof!",
