@@ -3210,6 +3210,14 @@ async def find_missed_opportunities(
             elif "reply_id" in gem:
                 report_item["reply_id"] = gem["reply_id"]
 
+            # Add lead_id for Instantly (needed for mark_lead_as_interested)
+            if "lead_id" in gem:
+                report_item["lead_id"] = gem["lead_id"]
+
+            # Add thread_id for context
+            if "thread_id" in gem:
+                report_item["thread_id"] = gem["thread_id"]
+
             hidden_gems_report.append(report_item)
 
         # Also build report for unclear leads (for manual review)
@@ -3280,6 +3288,7 @@ async def mark_lead_as_interested(
     client_name: str,
     lead_email: str,
     reply_id: Optional[int] = None,
+    lead_id: Optional[str] = None,
     interest_value: int = 1
 ) -> str:
     """
@@ -3287,12 +3296,13 @@ async def mark_lead_as_interested(
 
     Auto-detects which platform the client uses and marks the lead accordingly.
     For Bison: Uses reply_id to mark the reply as interested
-    For Instantly: Uses lead_email to update interest status
+    For Instantly: Uses lead_id (UUID) to ensure correct lead is marked
 
     Args:
         client_name: Name of the client (e.g., "Jeff Mikolai", "Lena Kadriu")
         lead_email: Email address of the lead to mark
         reply_id: (Bison only) Reply ID to mark as interested
+        lead_id: (Instantly only) Lead UUID from Instantly API (recommended for accuracy)
         interest_value: (Instantly only) Interest status value (default: 1)
             1 = Interested, 2 = Meeting Booked, 3 = Meeting Completed,
             4 = Closed, -1 = Not Interested, -2 = Wrong Person, -3 = Lost
@@ -3302,7 +3312,7 @@ async def mark_lead_as_interested(
 
     Example:
         mark_lead_as_interested("Jeff Mikolai", "john@example.com", reply_id=123)
-        mark_lead_as_interested("Lena Kadriu", "jane@example.com")
+        mark_lead_as_interested("Lena Kadriu", "jane@example.com", lead_id="abc-123-def")
     """
     try:
         # Import required functions
@@ -3327,10 +3337,19 @@ async def mark_lead_as_interested(
             # Use Instantly API
             api_key = matching_instantly_workspace["api_key"]
 
+            # Log whether we have lead_id for better debugging
+            if lead_id:
+                logger.info("Marking lead with lead_id (UUID): %s (email: %s)", lead_id, lead_email)
+            else:
+                logger.warning("⚠️  Marking lead WITHOUT lead_id - this may fail! Email: %s", lead_email)
+                logger.warning("⚠️  Run find_missed_opportunities first to get lead_id")
+
             result = mark_instantly_lead_as_interested(
                 api_key=api_key,
                 lead_email=lead_email,
                 interest_value=interest_value
+                # TODO: Need to pass campaign_id or workspace_id here
+                # Currently only passing email which may not be enough
             )
 
             logger.info("Successfully marked lead as interested in Instantly: %s", lead_email)
@@ -3340,6 +3359,7 @@ async def mark_lead_as_interested(
                 "platform": "instantly",
                 "client_name": client_name,
                 "lead_email": lead_email,
+                "lead_id": lead_id,
                 "interest_value": interest_value,
                 "message": result.get("message", "Lead marked as interested"),
                 "note": "Lead interest status update job submitted to Instantly"

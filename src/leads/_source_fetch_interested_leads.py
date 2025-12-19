@@ -109,7 +109,18 @@ def mark_instantly_lead_as_interested(
     if disable_auto_interest:
         payload["disable_auto_interest"] = disable_auto_interest
 
+    # Log the request for debugging
+    logger.info(f"🔵 Instantly API Request:")
+    logger.info(f"   URL: {url}")
+    logger.info(f"   Payload: {payload}")
+
     response = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    # Log the full response for debugging
+    logger.info(f"🔵 Instantly API Response:")
+    logger.info(f"   Status Code: {response.status_code}")
+    logger.info(f"   Response Body: {response.text}")
+
     response.raise_for_status()
 
     return response.json()
