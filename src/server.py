@@ -3348,9 +3348,20 @@ async def mark_lead_as_interested(
                 api_key=api_key,
                 lead_email=lead_email,
                 interest_value=interest_value
-                # TODO: Need to pass campaign_id or workspace_id here
-                # Currently only passing email which may not be enough
             )
+
+            # Check if the result contains an error
+            if "error" in result:
+                logger.error("Failed to mark lead in Instantly: %s", result.get("error"))
+                return json.dumps({
+                    "success": False,
+                    "platform": "instantly",
+                    "client_name": client_name,
+                    "lead_email": lead_email,
+                    "error": result.get("error"),
+                    "message": result.get("message", "Failed to mark lead"),
+                    "suggestion": result.get("suggestion", "The lead may not exist in this Instantly workspace. This often happens with forwarded replies where the person who replied was never added as a lead.")
+                }, indent=2)
 
             logger.info("Successfully marked lead as interested in Instantly: %s", lead_email)
 

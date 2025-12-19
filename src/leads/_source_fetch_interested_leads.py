@@ -173,28 +173,11 @@ def mark_instantly_lead_as_interested(
         logger.warning(f"   Email: {lead_email}")
         logger.info(f"🔧 Auto-creating lead in Instantly before marking...")
 
-        # Auto-create the lead
-        create_url = "https://api.instantly.ai/api/v1/lead/add"
-        create_payload = {
-            "email": lead_email
-        }
-
-        # Add campaign_id if provided
-        if campaign_id:
-            create_payload["campaign_id"] = campaign_id
-
-        try:
-            create_response = requests.post(create_url, headers=headers, json=create_payload, timeout=30)
-            create_response.raise_for_status()
-            logger.info(f"✅ Lead created successfully: {lead_email}")
-        except Exception as e:
-            logger.error(f"❌ Failed to create lead: {e}")
-            return {
-                "error": "Lead not found and could not be created",
-                "message": f"Failed to create lead: {str(e)}",
-                "lead_email": lead_email,
-                "suggestion": "This email replied (possibly via forward) but isn't a lead in Instantly. Try adding them manually first."
-            }
+        # Skip auto-creation for now - the API endpoint requires different auth
+        # Just proceed with marking and let Instantly create the lead automatically
+        logger.warning(f"⚠️  Proceeding without lead verification...")
+        logger.warning(f"   Instantly may auto-create the lead when marking")
+        logger.warning(f"   If this fails, the lead needs to be manually added to Instantly first")
 
     logger.info(f"✅ Lead verified, proceeding to mark as interested...")
 
@@ -212,7 +195,18 @@ def mark_instantly_lead_as_interested(
 
     response.raise_for_status()
 
-    return response.json()
+    result = response.json()
+
+    # Check if the response indicates success
+    if "message" in result and "background job submitted" in result["message"].lower():
+        logger.info(f"✅ Marking request accepted - background job queued")
+        return result
+    elif "error" in result:
+        logger.error(f"❌ Instantly returned an error: {result.get('error')}")
+        return result
+    else:
+        logger.info(f"✅ Response received: {result}")
+        return result
 
 
 def fetch_interested_leads(
