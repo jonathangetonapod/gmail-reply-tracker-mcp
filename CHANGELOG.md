@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed - December 18, 2025
+
+- **🔧 WORKAROUND: Timestamp-Based Pagination to Fix API Bug**
+  - **THE PROBLEM**: Even with `email_type="received"`, `next_starting_after` cursor returns duplicate data on subsequent pages
+  - **SYMPTOMS**: Page 1: 566 items → Page 2: SAME 566 items (cursor doesn't advance)
+  - **ROOT CAUSE**: Instantly API bug - cursor pagination broken when `email_type` filter is used
+  - **THE WORKAROUND**: Switched from cursor-based to timestamp-based pagination
+    - Use `timestamp_email` of last item as `min_timestamp_created` for next page
+    - Track email IDs (`ue_id` or `lead_timestamp` combo) to skip duplicates
+    - Advances through data without relying on broken `next_starting_after` cursor
+  - **IMPACT**:
+    - **Before**: Could only fetch ~400-500 replies (duplicate page detection stopped pagination)
+    - **After**: Can fetch ALL replies regardless of volume ✅
+    - No data loss, pagination works reliably
+  - **CODE**: `src/leads/_source_fetch_interested_leads.py` lines 347-446
+  - **NOTE**: Instantly support has been contacted about the cursor pagination bug
 - **🚀 CRITICAL FIX: Instantly API Pagination Now Works!**
   - **THE PROBLEM**: API returning 10,489 items despite `limit=100`, causing pagination to fail completely
   - **SYMPTOMS**:

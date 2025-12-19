@@ -345,17 +345,18 @@ def fetch_all_campaign_replies(
     headers = {"Authorization": f"Bearer {api_key}"}
 
     all_leads = []
-    starting_after = None
     page_num = 0
-    seen_emails = set()  # Track emails to detect duplicate pages
+    seen_emails = set()  # Track email addresses to detect duplicate pages
+    seen_email_ids = set()  # Track email IDs to avoid processing duplicates
+    current_min_timestamp = start_date  # Start with the original start_date
 
     while True:
         page_num += 1
         logger.info(f"   Fetching page {page_num} (i_status={i_status})...")
 
-        # Build params
+        # Build params - use timestamp-based pagination instead of cursor
         params = {
-            "min_timestamp_created": start_date,
+            "min_timestamp_created": current_min_timestamp,
             "max_timestamp_created": end_date,
             "limit": limit,
             "sort_order": "asc",  # Ascending order for pagination
@@ -366,8 +367,8 @@ def fetch_all_campaign_replies(
         if i_status is not None:
             params["i_status"] = i_status
 
-        if starting_after:
-            params["starting_after"] = starting_after
+        # NOTE: Not using starting_after cursor due to API bug with email_type filter
+        # Using timestamp-based pagination instead
 
         # Make request with retry logic
         try:
@@ -386,6 +387,15 @@ def fetch_all_campaign_replies(
             page_emails = set()  # Track emails on this specific page
 
             for email in items:
+                # Create unique identifier for this email (id field or combination of lead + timestamp)
+                email_id = email.get("id") or email.get("ue_id") or f"{email.get('lead')}_{email.get('timestamp_email')}"
+
+                # Skip if we've already processed this exact email
+                if email_id in seen_email_ids:
+                    continue
+
+                seen_email_ids.add(email_id)
+
                 # Safety check: Only process received emails (should already be filtered by API)
                 # ue_type: 1=Sent, 2=Received, 3=Manual, 4=Scheduled
                 if email.get("ue_type") != 2:
@@ -425,21 +435,24 @@ def fetch_all_campaign_replies(
 
             seen_emails.update(page_emails)
 
-            # Check for next page
-            next_starting_after = data.get("next_starting_after")
-            logger.info(f"   next_starting_after: {next_starting_after}")
-
-            # SAFETY CHECK: Detect infinite loop (same data repeating)
-            if next_starting_after == starting_after:
-                logger.warning(f"   ⚠️  Infinite loop detected! next_starting_after unchanged: {starting_after}")
-                logger.info(f"   Breaking pagination to prevent timeout")
+            # Break if we got fewer items than limit (last page)
+            if len(items) < limit:
+                logger.info(f"   Pagination complete after {page_num} pages (received {len(items)} < {limit})")
                 break
 
-            starting_after = next_starting_after
-
-            # Break if no more pages OR if we got fewer items than limit (last page)
-            if not starting_after or len(items) < limit:
-                logger.info(f"   Pagination complete after {page_num} pages")
+            # Timestamp-based pagination: Use the last item's timestamp for next page
+            if items:
+                last_timestamp = items[-1].get("timestamp_email")
+                if last_timestamp:
+                    # Add 1ms to avoid getting the same email again
+                    # (timestamps are in ISO format, so we can use string comparison safely)
+                    current_min_timestamp = last_timestamp
+                    logger.info(f"   Next page will start from timestamp: {current_min_timestamp}")
+                else:
+                    logger.warning(f"   No timestamp on last item, stopping pagination")
+                    break
+            else:
+                logger.info(f"   No items returned, pagination complete")
                 break
 
         except Exception as e:
