@@ -3231,6 +3231,10 @@ async def find_missed_opportunities(
             if "thread_id" in gem:
                 report_item["thread_id"] = gem["thread_id"]
 
+            # Add campaign_id for marking
+            if "campaign_id" in gem:
+                report_item["campaign_id"] = gem["campaign_id"]
+
             hidden_gems_report.append(report_item)
 
         # Also build report for unclear leads (for manual review)
@@ -3302,6 +3306,7 @@ async def mark_lead_as_interested(
     lead_email: str,
     reply_id: Optional[int] = None,
     lead_id: Optional[str] = None,
+    campaign_id: Optional[str] = None,
     interest_value: int = 1
 ) -> str:
     """
@@ -3309,13 +3314,14 @@ async def mark_lead_as_interested(
 
     Auto-detects which platform the client uses and marks the lead accordingly.
     For Bison: Uses reply_id to mark the reply as interested
-    For Instantly: Uses lead_id (UUID) to ensure correct lead is marked
+    For Instantly: Uses campaign_id to associate lead with campaign when marking
 
     Args:
         client_name: Name of the client (e.g., "Jeff Mikolai", "Lena Kadriu")
         lead_email: Email address of the lead to mark
         reply_id: (Bison only) Reply ID to mark as interested
-        lead_id: (Instantly only) Lead UUID from Instantly API (recommended for accuracy)
+        lead_id: (Instantly only) Lead UUID from Instantly API (for context)
+        campaign_id: (Instantly only) Campaign UUID - REQUIRED for marking to work properly
         interest_value: (Instantly only) Interest status value (default: 1)
             1 = Interested, 2 = Meeting Booked, 3 = Meeting Completed,
             4 = Closed, -1 = Not Interested, -2 = Wrong Person, -3 = Lost
@@ -3325,7 +3331,7 @@ async def mark_lead_as_interested(
 
     Example:
         mark_lead_as_interested("Jeff Mikolai", "john@example.com", reply_id=123)
-        mark_lead_as_interested("Lena Kadriu", "jane@example.com", lead_id="abc-123-def")
+        mark_lead_as_interested("Lena Kadriu", "jane@example.com", campaign_id="abc-123-def")
     """
     try:
         # Import required functions
@@ -3360,7 +3366,8 @@ async def mark_lead_as_interested(
             result = mark_instantly_lead_as_interested(
                 api_key=api_key,
                 lead_email=lead_email,
-                interest_value=interest_value
+                interest_value=interest_value,
+                campaign_id=campaign_id  # Pass campaign_id for proper association
             )
 
             # Check if the result contains an error

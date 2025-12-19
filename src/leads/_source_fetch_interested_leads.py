@@ -547,6 +547,7 @@ def fetch_all_campaign_replies(
                     "timestamp": email.get("timestamp_email", ""),
                     "lead_id": email.get("lead"),
                     "thread_id": email.get("thread_id"),
+                    "campaign_id": email.get("campaign"),  # Include campaign for context
                     "i_status": email.get("i_status")  # Include the status
                 }
                 all_leads.append(lead_data)
