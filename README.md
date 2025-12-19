@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 37 tools across Gmail, Calendar, Fathom AI, lead management, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 45 tools across Gmail, Calendar, Fathom AI, campaign management, lead intelligence, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -62,6 +62,12 @@ Ask Claude things like:
 > - "Set up an Instantly campaign for Brian Bliss targeting speakers"
 > - "Use fuzzy matching to find client 'source 1 parcel' and create a campaign"
 >
+> **💎 Hidden Gems (AI Lead Intelligence)**:
+> - "Find hidden gems for Lena Kadriu in the last 90 days"
+> - "Show me missed opportunities for Michael Hernandez this month"
+> - "Analyze Rick Pendrick's replies and mark any interested leads"
+> - *AI analyzes ALL replies, identifies HOT/WARM leads that weren't marked, and marks them with one click*
+>
 > **📊 Lead Analytics**:
 > - "Show me interested leads from our top performing clients this week"
 > - "Which clients are underperforming and need attention?"
@@ -76,36 +82,26 @@ Ask Claude things like:
 
 ## 🎯 Key Features
 
-### 37 Production Tools Across 5 Platforms
+### 45 Production Tools Across 6 Categories
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-**📧 Gmail (13 tools)**
+**📧 Gmail (5 tools)**
 - Unreplied email detection with smart filtering
 - Thread context & conversation history
 - Send emails & reply to threads
 - Draft management
-- Inbox analytics & label management
 - Search with Gmail query syntax
 
 **📅 Google Calendar (7 tools)**
 - Natural language scheduling ("tomorrow at 2pm")
-- Automatic timezone detection
-- Email invitations sent to attendees
+- Automatic timezone detection & Google Meet links
+- Email invitations sent to attendees automatically
 - Multi-calendar support
 - Event CRUD operations
 - Quick add with natural language
-
-**🛡️ Spam Detection (3 tools)**
-- Ad-hoc subject & body spam checking
-- Bison campaign sequence scanning
-- Instantly campaign variant scanning
-- EmailGuard API integration with quota detection
-
-</td>
-<td width="50%" valign="top">
 
 **🎙️ Fathom AI (6 tools)**
 - Meeting transcripts with timestamps
@@ -115,21 +111,44 @@ Ask Claude things like:
 - Calendar event cross-reference
 - Meeting analytics
 
-**🎯 Campaign Management (8 tools)**
+</td>
+<td width="50%" valign="top">
+
+**🎯 Campaign Management (10 tools)**
 - **Bison** & **Instantly** integrations
 - Create email campaigns with sequences
 - Auto-convert placeholders ({{firstname}} → {FIRST_NAME})
 - HTML email formatting for Instantly
 - Campaign analytics & performance tracking
-- Interested lead identification
-- Fuzzy client name matching
-- Track 88+ clients across both platforms
+- Fuzzy client name matching (60% similarity)
+- Track 89+ clients across both platforms
+
+**💎 Lead Intelligence (14 tools)**
+- **Hidden Gems** - AI-powered missed opportunity detection
+- HOT/WARM/COLD lead categorization with Claude API
+- Interested lead identification & tracking
+- One-click marking (green "Interested" tag on first reply)
+- Smart deduplication (1 person = 1 hidden gem)
+- Cross-platform support (Instantly + Bison)
+
+**🛡️ Spam Detection (3 tools)**
+- Ad-hoc subject & body spam checking
+- Bison campaign sequence scanning
+- Instantly campaign variant scanning
+- EmailGuard API integration
 
 </td>
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.4.0)
+### 🆕 Latest Features (v2.5.0 - December 19, 2024)
+
+- 💎 **Hidden Gems Deduplication** - Smart grouping by email to show 1 person = 1 hidden gem (not multiple replies)
+- 🏷️ **Green Tag Support** - Marks only the first reply per person to trigger Bison's green "Interested" status
+- ⚡ **More Efficient** - Reduces API calls and shows cleaner results for missed opportunities
+- 🎯 **Better UX** - Hidden gems now show unique people instead of duplicate entries
+
+### Recent Features (v2.4.0)
 
 - 🛡️ **Spam Checking** - Integrated EmailGuard API for campaign spam detection with 13 comprehensive tests
 - 📊 **100 Unit Tests** - Complete test coverage across all features (27 email analysis, 14 campaign management, 14 lead fetching, 13 spam checking, 18 workspace management, 14 Gmail integration)
@@ -137,7 +156,6 @@ Ask Claude things like:
 - 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words in subjects and bodies
 - 🎯 **Bison A/B Testing Fix** - Corrected documentation to properly support A/B test variants using `variant_from_step` parameter
 - ⏰ **Smart Delay Defaults** - Intelligent wait times based on email position (step 1→3→5→7 days) for optimal follow-up cadence
-- 🧪 **Enhanced Test Suite** - Comprehensive coverage for leads fetching, campaign management, and workspace loading
 
 ### Recent Features (v2.3.1)
 
@@ -340,7 +358,7 @@ Users just need to:
 - 🔍 **Multi-Variant Support**: Scans all A/B test variants in Instantly campaigns
 - ⚠️ **Smart Error Handling**: Graceful handling of API quota exhaustion
 
-**Total: 37 tools** 🎉
+**Total: 45 tools** 🎉
 
 ---
 
@@ -519,6 +537,13 @@ This helps your team stay informed about new features and decide when to update!
 
 > 💡 **See full visual timeline**: Visit `/changelog` on your Railway deployment for a beautiful timeline view!
 
+**v2.5.0** (December 19, 2024) - **Hidden Gems Intelligence & Deduplication**
+- 💎 **Hidden Gems Deduplication** - Groups replies by email address and keeps only the earliest reply per person
+- 🏷️ **Green Tag Support** - Marks only first reply to trigger Bison's green "Interested" status (matches Bison UX)
+- ⚡ **Performance Optimization** - Reduced API calls by marking one reply per person instead of all replies
+- 🎯 **Cleaner Results** - Hidden gems now show 1 person = 1 opportunity instead of multiple duplicate entries
+- 🛠️ **Technical**: Added email deduplication logic with timestamp-based earliest reply selection
+
 **v2.4.0** (December 17, 2024) - **Spam Detection & Enhanced Testing**
 - 🛡️ **EmailGuard API Integration** - Industry-standard spam detection for campaigns
 - 📊 **100 Unit Tests** - Complete coverage across all features (up from 41)
@@ -611,7 +636,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 37 tools**
+**Production-ready multi-tenant MCP server with 45 tools**
 
 ⭐ Star this repo if you found it helpful!
 
