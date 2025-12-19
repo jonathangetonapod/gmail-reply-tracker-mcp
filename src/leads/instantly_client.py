@@ -417,26 +417,64 @@ def get_instantly_campaign_details(api_key: str, campaign_id: str):
 
 def get_thread_emails(thread_id: str, api_key: str):
     """
+    DEPRECATED: Use get_lead_emails() instead.
     Fetch all emails in a thread from Instantly API.
-    
+
     Args:
         thread_id: Thread ID to fetch
         api_key: Instantly API key
-    
+
     Returns:
         List of email dicts with timestamp_email and ue_type fields
         ue_type: 1 = sent (outbound), 2 = received (reply)
     """
     url = "https://api.instantly.ai/api/v2/emails"
     headers = {"Authorization": f"Bearer {api_key}"}
-    
+
     params = {
         "thread_id": thread_id,
         "limit": 100  # Should be enough for most threads
     }
-    
+
     response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
-    
+
+    data = response.json()
+    return data.get("items", [])
+
+
+def get_lead_emails(lead_email: str, api_key: str, campaign_id: str = None, sort_order: str = "asc"):
+    """
+    Fetch all emails for a specific lead from Instantly API.
+
+    This uses the 'lead' parameter to filter emails by the lead's email address,
+    which returns ALL emails (sent and received) for that specific lead across
+    all campaigns (or filtered by campaign_id if provided).
+
+    Args:
+        lead_email: Lead's email address to filter by
+        api_key: Instantly API key
+        campaign_id: Optional campaign ID to filter by specific campaign
+        sort_order: Sort order - "asc" (oldest first) or "desc" (newest first)
+
+    Returns:
+        List of email dicts with timestamp_email and ue_type fields
+        ue_type: 1 = Sent from campaign, 2 = Received, 3 = Sent (manual), 4 = Scheduled
+    """
+    url = "https://api.instantly.ai/api/v2/emails"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    params = {
+        "lead": lead_email,
+        "limit": 100,  # Should be enough for most leads
+        "sort_order": sort_order
+    }
+
+    if campaign_id:
+        params["campaign_id"] = campaign_id
+
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+
     data = response.json()
     return data.get("items", [])

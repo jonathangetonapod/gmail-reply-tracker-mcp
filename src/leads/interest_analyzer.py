@@ -22,7 +22,7 @@ _thread_cache = {}
 
 
 def is_instant_auto_reply(
-    thread_id: str,
+    lead_email: str,
     reply_timestamp: str,
     api_key: str,
     threshold_minutes: int = 2
@@ -30,11 +30,11 @@ def is_instant_auto_reply(
     """
     Check if reply came suspiciously fast after sent email (likely automated).
 
-    Uses thread-based timing: fetches all emails in the thread, finds the most
+    Uses lead-based timing: fetches all emails for the specific lead, finds the most
     recent SENT email before this reply, and calculates time difference.
 
     Args:
-        thread_id: Thread ID from Instantly API
+        lead_email: Lead's email address to check
         reply_timestamp: ISO timestamp of the reply
         api_key: Instantly API key
         threshold_minutes: Max minutes for human response (default: 2)
@@ -43,22 +43,22 @@ def is_instant_auto_reply(
         True if reply came within threshold minutes (likely automated)
     """
     try:
-        from .instantly_client import get_thread_emails
+        from .instantly_client import get_lead_emails
         import requests
 
-        logger.info(f"DEBUG is_instant_auto_reply: thread_id={thread_id}, reply_timestamp={reply_timestamp}")
+        logger.info(f"DEBUG is_instant_auto_reply: lead_email={lead_email}, reply_timestamp={reply_timestamp}")
 
         # Check cache first to avoid duplicate API calls
-        if thread_id in _thread_cache:
-            thread_emails = _thread_cache[thread_id]
-            logger.info(f"DEBUG: Using cached thread emails ({len(thread_emails)} emails)")
+        if lead_email in _thread_cache:
+            thread_emails = _thread_cache[lead_email]
+            logger.info(f"DEBUG: Using cached lead emails ({len(thread_emails)} emails)")
         else:
-            # Fetch thread emails (no retries - let circuit breaker handle failures)
-            logger.info(f"DEBUG: Fetching thread emails from API for thread_id={thread_id}")
-            thread_emails = get_thread_emails(thread_id, api_key)
+            # Fetch lead emails (no retries - let circuit breaker handle failures)
+            logger.info(f"DEBUG: Fetching lead emails from API for lead_email={lead_email}")
+            thread_emails = get_lead_emails(lead_email, api_key, sort_order="asc")
             logger.info(f"DEBUG: Got {len(thread_emails)} emails from API")
             # Cache successful result
-            _thread_cache[thread_id] = thread_emails
+            _thread_cache[lead_email] = thread_emails
 
         if not thread_emails:
             logger.info(f"DEBUG: No thread emails found, returning False")
@@ -771,7 +771,6 @@ def categorize_leads(
                 # DEBUG: Check what fields are available
                 logger.info(f"DEBUG: Checking {lead.get('email', 'unknown')} - "
                            f"platform={lead.get('platform')}, "
-                           f"thread_id={lead.get('thread_id')}, "
                            f"timestamp={lead.get('timestamp')}, "
                            f"id={lead.get('id')}")
 
@@ -780,10 +779,10 @@ def categorize_leads(
 
                     try:
                         # Check timing based on platform
-                        if platform == "instantly" and lead.get("thread_id"):
-                            logger.info(f"DEBUG: Calling is_instant_auto_reply for {lead.get('email')} with thread_id={lead['thread_id']}")
+                        if platform == "instantly" and lead.get("email"):
+                            logger.info(f"DEBUG: Calling is_instant_auto_reply for {lead.get('email')}")
                             is_timing_auto_reply = is_instant_auto_reply(
-                                thread_id=lead["thread_id"],
+                                lead_email=lead["email"],
                                 reply_timestamp=lead["timestamp"],
                                 api_key=api_key,
                                 threshold_minutes=2
