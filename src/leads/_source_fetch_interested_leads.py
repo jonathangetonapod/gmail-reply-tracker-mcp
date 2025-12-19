@@ -4,10 +4,53 @@ Simple function to fetch interested leads from Instantly API.
 
 import logging
 import requests
+import time
 from datetime import datetime
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _make_request_with_retry(url: str, headers: Dict, params: Dict, max_retries: int = 3, timeout: int = 60):
+    """
+    Make HTTP GET request with retry logic and exponential backoff.
+
+    Args:
+        url: API endpoint URL
+        headers: Request headers
+        params: Query parameters
+        max_retries: Maximum number of retry attempts (default: 3)
+        timeout: Request timeout in seconds (default: 60)
+
+    Returns:
+        Response object
+
+    Raises:
+        Exception: If all retries fail
+    """
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=timeout)
+            return response
+
+        except requests.exceptions.Timeout as e:
+            if attempt < max_retries - 1:
+                wait_time = 30 * (2 ** attempt)  # 30s, 60s
+                logger.warning(
+                    f"   ⚠️  Timeout on attempt {attempt + 1}/{max_retries}, "
+                    f"retrying in {wait_time}s... ({str(e)})"
+                )
+                time.sleep(wait_time)
+            else:
+                logger.error(
+                    f"   ❌ Failed after {max_retries} attempts: {str(e)}"
+                )
+                raise
+
+        except Exception as e:
+            # For non-timeout errors, don't retry
+            logger.error(f"   ❌ Request failed: {str(e)}")
+            raise
 
 
 def mark_instantly_lead_as_interested(
@@ -122,9 +165,9 @@ def fetch_interested_leads(
         if starting_after:
             params["starting_after"] = starting_after
 
-        # Make request
+        # Make request with retry logic
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response = _make_request_with_retry(url, headers, params, max_retries=3, timeout=60)
 
             if not response.ok:
                 # Error logging removed for MCP compatibility
@@ -322,9 +365,9 @@ def fetch_all_campaign_replies(
         if starting_after:
             params["starting_after"] = starting_after
 
-        # Make request
+        # Make request with retry logic
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response = _make_request_with_retry(url, headers, params, max_retries=3, timeout=60)
 
             if not response.ok:
                 logger.warning(f"   API returned status {response.status_code}, stopping pagination")
