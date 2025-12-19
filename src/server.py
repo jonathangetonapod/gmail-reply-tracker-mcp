@@ -3000,16 +3000,29 @@ async def find_missed_opportunities(
                 if lead.get("i_status") in POSITIVE_STATUSES
             ]
 
+            # Log status breakdown for debugging
             logger.info(
                 "Found %d already-captured opportunities: %s",
                 len(already_interested),
                 ", ".join([
-                    f"{sum(1 for l in already_interested if l.get('i_status') == 1)} Interested",
-                    f"{sum(1 for l in already_interested if l.get('i_status') == 2)} Meeting Booked",
-                    f"{sum(1 for l in already_interested if l.get('i_status') == 3)} Meeting Completed",
-                    f"{sum(1 for l in already_interested if l.get('i_status') == 4)} Closed"
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 1)} Interested (1)",
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 2)} Meeting Booked (2)",
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 3)} Meeting Completed (3)",
+                    f"{sum(1 for l in already_interested if l.get('i_status') == 4)} Closed/Won (4)"
                 ])
             )
+
+            # Debug: Log first few already-interested emails
+            if already_interested:
+                sample_emails = [lead.get("email") for lead in already_interested[:5]]
+                logger.info(f"Sample of already-interested emails: {sample_emails}")
+
+            # Debug: Log status distribution of ALL replies
+            status_counts = {}
+            for reply in all_replies:
+                status = reply.get("i_status")
+                status_counts[status] = status_counts.get(status, 0) + 1
+            logger.info(f"Status distribution of all replies: {status_counts}")
 
         # If not found in Instantly, try Bison
         if not matching_instantly_workspace:
