@@ -1551,7 +1551,7 @@ class WebServer:
 
             # 1. Database check
             try:
-                users = self.database.get_all_users()
+                users = self.database.list_users()
                 user_count = len(users)
                 checks.append({
                     "name": "Database",
