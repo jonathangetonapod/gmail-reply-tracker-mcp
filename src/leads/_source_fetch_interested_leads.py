@@ -355,7 +355,8 @@ def fetch_all_campaign_replies(
         params = {
             "min_timestamp_created": start_date,
             "max_timestamp_created": end_date,
-            "limit": limit
+            "limit": limit,
+            "sort_order": "asc"  # Try ascending order for pagination
         }
 
         # Add i_status filter if specified
