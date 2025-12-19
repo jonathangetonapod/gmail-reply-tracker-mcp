@@ -88,12 +88,14 @@ Ask Claude things like:
 <tr>
 <td width="50%" valign="top">
 
-**📧 Gmail (5 tools)**
+**📧 Gmail (13 tools)**
 - Unreplied email detection with smart filtering
 - Thread context & conversation history
-- Send emails & reply to threads
+- Send emails, replies, and reply-all
 - Draft management
 - Search with Gmail query syntax
+- Label management
+- Inbox statistics and recent emails
 
 **📅 Google Calendar (7 tools)**
 - Natural language scheduling ("tomorrow at 2pm")
