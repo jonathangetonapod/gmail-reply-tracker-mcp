@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - December 19, 2025
+
+- **🎯 CRITICAL FIX: Automatic Dual-Marking for Forwarded Replies**
+  - **THE PROBLEM**: When original lead (jhickman@brimmer.org) forwards email to actual decision-maker (aeppers@brimmer.org), marking only the responder left Unibox showing "Lead" status instead of "Interested"
+  - **ROOT CAUSE**: Instantly's Unibox threads are tied to the original lead's email, not the responder's email
+  - **THE FIX**: System now automatically detects forwarded replies and marks BOTH contacts:
+    1. Marks the responder (aeppers@brimmer.org) as interested
+    2. Automatically marks the original lead (jhickman@brimmer.org) as interested
+    3. Ensures Unibox thread displays correct "Interested" status
+  - **DETECTION LOGIC**: When `lead_id` differs from `lead_email`, system recognizes it as a forwarded reply
+  - **LOGGING**:
+    ```
+    🔄 Forwarded reply detected: also marking original lead jhickman@brimmer.org
+       This ensures the Unibox thread shows 'Interested' status
+    ✅ Successfully marked original lead jhickman@brimmer.org as interested
+    ```
+  - **IMPACT**:
+    - Sales team sees correct status in Unibox without manual intervention
+    - No more "Lead" status confusion on threads with interested responses
+    - Both contacts properly tracked in campaign for follow-up
+  - **CODE**: `src/leads/_source_fetch_interested_leads.py` lines 325-361
+  - **USER EXPERIENCE**: "I only care what people see in the Unibox" - now showing correct status! ✅
+
+- **🔗 Campaign Association via Contact Lookup**
+  - **THE PROBLEM**: When marking forwarded replies as interested, system couldn't find the campaign because responder's email wasn't in the campaign
+  - **THE FIX**: Now uses original lead's email to find campaign via `/api/v2/campaigns/search-by-contact` endpoint
+  - **FLOW**:
+    1. Receive response from aeppers@brimmer.org
+    2. System identifies original lead: jhickman@brimmer.org (via lead_id parameter)
+    3. Searches campaigns using jhickman@brimmer.org to find campaign
+    4. Associates both contacts with found campaign when marking
+  - **VALIDATION**:
+    ```
+    ✅ Found campaign for lead jhickman@brimmer.org: 0e0ec7fb-2f40-401b-b919-4afc79feaf9e
+    ✅ Marking request accepted - background job queued
+    ```
+  - **IMPACT**: Leads properly associated with campaigns, enabling background jobs to succeed
+  - **CODE**: Campaign lookup in marking workflow
+
+- **⚙️ Shared Anthropic API Key Configuration**
+  - **THE PROBLEM**: Team members (like Juliana) didn't know if they had the Claude API key configured, causing authentication errors and fallback to keyword-only analysis
+  - **SYMPTOMS**:
+    ```
+    Error code: 401 - {'type': 'authentication_error', 'message': 'invalid x-api-key'}
+    ⚠️  Claude API error: Error code: 401 - invalid x-api-key
+    ℹ️  Falling back to keyword-only analysis
+    ```
+  - **THE FIX**: Added shared Anthropic API key to default configuration files
+    1. **`.env.example`**: Now includes production Anthropic API key with usage notes
+    2. **`local_install.sh`**: Automatically adds ANTHROPIC_API_KEY to Claude Desktop MCP environment
+  - **TEAM SETUP**: New team members automatically get Claude AI working when running local install
+  - **MODEL**: Using `claude-3-5-haiku-20241022` (cheapest model: ~$0.0008 per email analyzed)
+  - **COST**: Approximately $0.001 per reply analyzed - very affordable for nuanced AI detection
+  - **IMPACT**:
+    - No more manual API key configuration required
+    - Consistent Claude AI analysis across all team members
+    - Better lead quality through nuanced AI reply analysis
+  - **FILES UPDATED**:
+    - `.env.example:54` - Added shared key with documentation
+    - `local_install.sh:495` - Added ANTHROPIC_API_KEY to MCP environment variables
+
+### Fixed - December 19, 2025
+
+- **📧 Lead ID Parameter Tracking**
+  - **THE PROBLEM**: System wasn't automatically passing `lead_id` parameter when marking leads, causing campaign lookup failures
+  - **SYMPTOMS**:
+    ```
+    ⚠️  WARNING: Marking lead WITHOUT lead_id - this may fail!
+    ⚠️  Campaign lookup may not work without lead_id
+    ```
+  - **THE FIX**: System now automatically extracts and passes `lead_id` from reply metadata throughout the marking workflow
+  - **RESULT**: Campaign lookups now work reliably for all forwarded reply scenarios
+
 ### Fixed - December 18, 2025
 
 - **🔧 FIX: STOP Detection Now Works with Quoted Replies**
