@@ -11,9 +11,62 @@ from typing import List, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def get_lead_by_email(api_key: str, lead_email: str) -> Optional[Dict]:
+    """
+    Get lead details by email address using v2 API.
+    First searches for the lead, then fetches full details by UUID.
+
+    Args:
+        api_key: Instantly API key
+        lead_email: Email of the lead to look up
+
+    Returns:
+        Full lead data dict or None
+    """
+    # Step 1: Search for lead by email to get UUID
+    search_url = "https://api.instantly.ai/api/v2/leads"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    params = {"email": lead_email, "limit": 1}
+
+    try:
+        search_response = requests.get(search_url, headers=headers, params=params, timeout=10)
+
+        if search_response.status_code == 200:
+            search_data = search_response.json()
+            leads = search_data.get("data", [])
+
+            if not leads or len(leads) == 0:
+                logger.warning(f"⚠️  Lead not found: {lead_email}")
+                return None
+
+            # Get the lead UUID
+            lead_uuid = leads[0].get("id")
+            if not lead_uuid:
+                logger.warning(f"⚠️  Lead found but has no UUID: {lead_email}")
+                return None
+
+            # Step 2: Get full lead details by UUID
+            get_url = f"https://api.instantly.ai/api/v2/leads/{lead_uuid}"
+            get_response = requests.get(get_url, headers=headers, timeout=10)
+
+            if get_response.status_code == 200:
+                lead_data = get_response.json()
+                logger.info(f"✅ Lead found: {lead_email} (UUID: {lead_uuid})")
+                return lead_data
+            else:
+                logger.warning(f"⚠️  Could not fetch lead details: {get_response.status_code}")
+                return None
+        else:
+            logger.warning(f"⚠️  Could not search for lead {lead_email}: {search_response.status_code}")
+            return None
+    except Exception as e:
+        logger.error(f"Error getting lead by email: {e}")
+        return None
+
+
 def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
     """
-    Get the campaign_id from an existing lead in Instantly.
+    Get the campaign_id from an existing lead in Instantly using v2 API.
 
     Args:
         api_key: Instantly API key
@@ -22,52 +75,24 @@ def get_campaign_from_lead(api_key: str, lead_email: str) -> Optional[str]:
     Returns:
         campaign_id (UUID string) or None
     """
-    url = "https://api.instantly.ai/api/v1/lead/get"
-    # v1 endpoints use API key as query parameter, not Bearer token
-    params = {
-        "api_key": api_key,
-        "email": lead_email
-    }
+    lead_data = get_lead_by_email(api_key, lead_email)
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"✅ Lead found: {lead_email}")
-            logger.info(f"   Lead data keys: {list(data.keys())}")
-
-            # Try to extract campaign from various possible locations
-            campaign_id = None
-
-            # Check if there's a campaigns array
-            if data.get("campaigns") and isinstance(data["campaigns"], list) and len(data["campaigns"]) > 0:
-                campaign_id = data["campaigns"][0].get("id")
-
-            # Check direct fields
-            if not campaign_id:
-                campaign_id = data.get("campaign_id")
-            if not campaign_id:
-                campaign_id = data.get("campaign")
-
-            if campaign_id:
-                logger.info(f"✅ Found campaign for lead {lead_email}: {campaign_id}")
-            else:
-                logger.warning(f"⚠️  Lead {lead_email} has no campaign association")
-                logger.warning(f"   Available data: {data}")
-            return campaign_id
-        else:
-            logger.warning(f"⚠️  Could not fetch lead {lead_email}: {response.status_code}")
-            logger.warning(f"   Response: {response.text}")
-            return None
-    except Exception as e:
-        logger.error(f"Error getting campaign from lead: {e}")
+    if not lead_data:
         return None
+
+    campaign_id = lead_data.get("campaign")
+
+    if campaign_id:
+        logger.info(f"✅ Found campaign for lead {lead_email}: {campaign_id}")
+    else:
+        logger.warning(f"⚠️  Lead {lead_email} has no campaign association")
+
+    return campaign_id
 
 
 def verify_lead_exists_in_instantly(api_key: str, lead_email: str) -> Dict:
     """
-    Verify that a lead exists in Instantly before trying to mark it.
+    Verify that a lead exists in Instantly using v2 API.
 
     Args:
         api_key: Instantly API key
@@ -80,39 +105,22 @@ def verify_lead_exists_in_instantly(api_key: str, lead_email: str) -> Dict:
             "message": str
         }
     """
-    url = "https://api.instantly.ai/api/v1/lead/get"
-    # v1 endpoints use API key as query parameter, not Bearer token
-    params = {
-        "api_key": api_key,
-        "email": lead_email
-    }
-
     try:
-        response = requests.get(url, params=params, timeout=10)
+        lead_data = get_lead_by_email(api_key, lead_email)
 
-        if response.status_code == 200:
-            data = response.json()
+        if lead_data:
             logger.info(f"✅ Lead exists in Instantly: {lead_email}")
-            logger.info(f"   Lead data: {data}")
             return {
                 "exists": True,
-                "lead_data": data,
+                "lead_data": lead_data,
                 "message": "Lead found in Instantly"
             }
-        elif response.status_code == 404:
+        else:
             logger.warning(f"❌ Lead NOT found in Instantly: {lead_email}")
             return {
                 "exists": False,
                 "lead_data": None,
                 "message": f"Lead {lead_email} does not exist in this Instantly workspace"
-            }
-        else:
-            logger.warning(f"⚠️  Unexpected status checking lead: {response.status_code}")
-            logger.warning(f"   Response: {response.text}")
-            return {
-                "exists": False,
-                "lead_data": None,
-                "message": f"Error checking lead: {response.status_code}"
             }
     except Exception as e:
         logger.error(f"Error verifying lead exists: {e}")
