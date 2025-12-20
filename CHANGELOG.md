@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - December 20, 2025
+
+- **🔧 CRITICAL FIX: Bison Sender Emails Pagination**
+  - **THE PROBLEM**: Only fetching 15 sender email accounts instead of all 50-80+ per client
+  - **SYMPTOMS**: Client emails appearing as "interested leads" in hidden gems results
+    - Example: `mike.h@bookbiggerstages.org`, `jeff@sugarpixelspro.com`, `rich.c@tryflyingpoint.com`
+    - These are the CLIENT'S own sending emails, not prospects!
+  - **ROOT CAUSE**: Bison API returns 15 results per page (fixed), doesn't support `per_page` parameter
+    - Initial pagination code used `while` loop with `per_page=100` parameter
+    - API ignored `per_page`, always returned 15 results
+    - Loop stopped after first page because it got 15 < 100 results
+  - **THE FIX**: Explicit page fetching with proper pagination logic
+    - Fetch up to 10 pages (150 emails max) to handle clients with 50-80 inboxes
+    - Stop early when empty page or < 15 results detected
+    - Added comprehensive logging to track pagination progress
+  - **PRODUCTION VALIDATION**: Jeff Mikolai test shows working pagination:
+    ```
+    - Fetching sender emails page 1 → 15 emails (total: 15)
+    - Fetching sender emails page 2 → 15 emails (total: 30)
+    - Fetching sender emails page 3 → 15 emails (total: 45)
+    - Fetching sender emails page 4 → 5 emails (total: 50)
+    - Got 5 < 15 results, last page reached
+    - Pagination complete: fetched 50 total sender emails across 4 pages
+    ```
+  - **IMPACT**:
+    - **Before**: Found 15 sender email accounts → 35+ client emails appearing as leads ❌
+    - **After**: Found 50 sender email accounts → All client emails properly filtered ✅
+    - **Result**: Hidden gems now show ONLY actual prospect replies, not client replies
+  - **CODE**: `src/leads/bison_client.py` lines 553-617 (get_bison_sender_emails function)
+  - **COMMITS**:
+    - `ca18f7a` - Add detailed logging to debug pagination
+    - `aa081fb` - Fix pagination with explicit page fetching
+
+- **🎯 CRITICAL FIX: Detect Already-Interested Leads from Client Replies**
+  - **THE PROBLEM**: Leads already marked as interested in Bison were appearing as "warm hidden gems"
+  - **EXAMPLE**: Tracy Wallace (tracy@feast26.com) for Justin Ashcraft
+    - Tracy replied with interest about debt financing
+    - Justin replied back and clicked gray "Interested" tag in Bison
+    - Tracy still showing up as "1 warm lead (75% confidence)" ❌
+  - **ROOT CAUSE**: When you mark a thread as interested in Bison, the `interested=true` flag is often on the CLIENT'S reply to the lead, not the lead's incoming reply
+    - Old logic: Only checked interested flag on incoming lead replies (to_email = client email)
+    - Issue: Tracy's incoming reply had `interested=false`
+    - Issue: Justin's outbound reply had `interested=true`, but was filtered out as client reply
+    - Result: Tracy's email never added to `already_interested` list
+  - **THE FIX**: Also extract lead emails from client replies marked as interested
+    - When `interested=true` on client reply (is_to_client=False):
+      - Extract lead email from TO field (the person client is replying to)
+      - Add that email to `already_interested` list
+      - Properly exclude them from hidden gems
+  - **DETECTION LOGIC**:
+    ```python
+    if not is_to_client:  # This is client reply TO a lead
+        if from_email_lower in client_email_addresses:
+            # Extract lead email from TO field
+            already_interested.append({"email": to_email, ...})
+    ```
+  - **LOGGING**:
+    ```
+    Found interested tag on client reply to lead: to=tracy@feast26.com (reply_id=438907)
+    Added lead tracy@feast26.com to interested list (from client reply)
+    ```
+  - **IMPACT**:
+    - **Before**: Leads marked via client reply showing as hidden gems ❌
+    - **After**: All marked leads properly excluded, regardless of where tag is ✅
+    - Sales team sees accurate hidden gems list with no duplicates
+  - **CODE**: `src/server.py` lines 3548-3571 (interested_replies_raw processing)
+  - **COMMIT**: `fcea96e` - Extract lead emails from client replies marked as interested
+
 ### Added - December 19, 2025
 
 - **📝 GOOGLE DOCS INTEGRATION - 6 New Tools Added!**
