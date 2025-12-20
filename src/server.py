@@ -3454,7 +3454,7 @@ async def find_missed_opportunities(
                        len(all_replies_raw), len(interested_replies_raw))
 
             # Normalize Bison replies to match Instantly format
-            # Filter out client's own outbound emails using 'type' field
+            # Filter out client's own outbound emails and untracked/test replies using 'type' field
             for reply in all_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
@@ -3463,6 +3463,11 @@ async def find_missed_opportunities(
                 # Only process "received" or "inbound" types
                 if reply_type in ["sent", "outbound", "out"]:
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
+                    continue
+
+                # Skip "untracked reply" - these are often test emails or non-campaign replies
+                if "untracked" in reply_type:
+                    logger.debug(f"Skipping untracked reply (type={reply_type}) from {from_email}")
                     continue
 
                 # Log the type for debugging
@@ -3487,6 +3492,11 @@ async def find_missed_opportunities(
                 # Skip outbound emails
                 if reply_type in ["sent", "outbound", "out"]:
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
+                    continue
+
+                # Skip "untracked reply" - these are often test emails or non-campaign replies
+                if "untracked" in reply_type:
+                    logger.debug(f"Skipping untracked reply (type={reply_type}) from {from_email}")
                     continue
 
                 already_interested.append({
