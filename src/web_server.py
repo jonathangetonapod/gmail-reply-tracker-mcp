@@ -335,7 +335,7 @@ SETUP_LANDING_HTML = """
                 🔧 Troubleshooting Guide
             </button>
             <a href="/changelog" class="info-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none;">
-                ✨ What's New (v2.3.1)
+                ✨ What's New (v2.6.0)
             </a>
         </div>
 
