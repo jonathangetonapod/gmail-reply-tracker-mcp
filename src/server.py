@@ -33,6 +33,7 @@ from gmail_client import GmailClient
 from email_analyzer import EmailAnalyzer
 from calendar_client import CalendarClient
 from docs_client import DocsClient
+from sheets_client import SheetsClient
 from fathom_client import FathomClient
 from leads import (
     get_client_list, get_lead_responses, get_campaign_stats, get_workspace_info,
@@ -58,14 +59,15 @@ gmail_client: Optional[GmailClient] = None
 email_analyzer: Optional[EmailAnalyzer] = None
 calendar_client: Optional[CalendarClient] = None
 docs_client: Optional[DocsClient] = None
+sheets_client: Optional[SheetsClient] = None
 fathom_client: Optional[FathomClient] = None
 
 
 def initialize_clients():
-    """Initialize Gmail, Calendar, Docs, and Fathom clients."""
-    global auth_manager, gmail_client, email_analyzer, calendar_client, docs_client, fathom_client
+    """Initialize Gmail, Calendar, Docs, Sheets, and Fathom clients."""
+    global auth_manager, gmail_client, email_analyzer, calendar_client, docs_client, sheets_client, fathom_client
 
-    if gmail_client is not None and calendar_client is not None and docs_client is not None:
+    if gmail_client is not None and calendar_client is not None and docs_client is not None and sheets_client is not None:
         return
 
     logger.info("Initializing clients...")
@@ -107,6 +109,12 @@ def initialize_clients():
 
     # Initialize Docs client
     docs_client = DocsClient(
+        credentials,
+        config.max_requests_per_minute
+    )
+
+    # Initialize Sheets client
+    sheets_client = SheetsClient(
         credentials,
         config.max_requests_per_minute
     )
@@ -1533,6 +1541,1298 @@ async def add_heading_to_google_doc(
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error in add_heading_to_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+# ===============================================
+# Google Sheets Tools
+# ===============================================
+
+@mcp.tool()
+async def create_spreadsheet(
+    title: str,
+    sheet_names: list[str] = None
+) -> str:
+    """
+    Create a new Google Spreadsheet.
+
+    Args:
+        title: Title of the spreadsheet
+        sheet_names: Optional list of sheet names to create (default: single sheet "Sheet1")
+
+    Returns:
+        JSON string with spreadsheet ID, URL, and sheet info
+
+    Examples:
+        - create_spreadsheet("Q1 2025 Sales Report")
+        - create_spreadsheet("Project Tracker", ["Tasks", "Timeline", "Budget"])
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Creating Google Spreadsheet: {title}")
+
+        # Create the spreadsheet
+        spreadsheet = sheets_client.create_spreadsheet(title, sheet_names)
+        spreadsheet_id = spreadsheet['spreadsheetId']
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        # Get created sheet info
+        sheets = spreadsheet.get('sheets', [])
+        sheet_info = [
+            {
+                'sheet_id': s['properties']['sheetId'],
+                'title': s['properties']['title']
+            }
+            for s in sheets
+        ]
+
+        logger.info(f"Created Google Spreadsheet: {spreadsheet_url}")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "title": spreadsheet['properties']['title'],
+            "url": spreadsheet_url,
+            "sheets": sheet_info,
+            "message": f"Created spreadsheet '{title}' with {len(sheets)} sheet(s)"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in create_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def read_spreadsheet(
+    spreadsheet_id: str,
+    range_name: str
+) -> str:
+    """
+    Read data from a range in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        range_name: A1 notation range (e.g., "Sheet1!A1:D10" or "Sheet1" for entire sheet)
+
+    Returns:
+        JSON string with cell values as 2D array
+
+    Examples:
+        - read_spreadsheet("1abc...", "Sheet1!A1:D10")
+        - read_spreadsheet("1abc...", "Sales!A:C")  # Read entire columns A-C
+        - read_spreadsheet("1abc...", "Sheet1")  # Read entire sheet
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Reading range '{range_name}' from spreadsheet: {spreadsheet_id}")
+
+        # Read the data
+        values = sheets_client.read_range(spreadsheet_id, range_name)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Read {len(values)} rows")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "range": range_name,
+            "url": spreadsheet_url,
+            "row_count": len(values),
+            "values": values,
+            "message": f"Read {len(values)} rows from '{range_name}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in read_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def append_to_spreadsheet(
+    spreadsheet_id: str,
+    range_name: str,
+    values: list[list]
+) -> str:
+    """
+    Append rows to the end of a sheet in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        range_name: A1 notation range (e.g., "Sheet1" or "Sheet1!A1")
+        values: 2D array of values to append (list of rows, each row is a list)
+
+    Returns:
+        JSON string with update details
+
+    Examples:
+        - append_to_spreadsheet("1abc...", "Sheet1", [["John", "Doe", 30], ["Jane", "Smith", 25]])
+        - append_to_spreadsheet("1abc...", "Sales", [["2025-01-15", "Product A", 150.00]])
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Appending {len(values)} rows to '{range_name}' in spreadsheet: {spreadsheet_id}")
+
+        # Append the data
+        result = sheets_client.append_rows(spreadsheet_id, range_name, values)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        updated_range = result['updates']['updatedRange']
+        updated_rows = result['updates']['updatedRows']
+        updated_cells = result['updates']['updatedCells']
+
+        logger.info(f"Successfully appended {updated_rows} rows")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "updated_range": updated_range,
+            "updated_rows": updated_rows,
+            "updated_cells": updated_cells,
+            "message": f"Appended {updated_rows} row(s) to '{range_name}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in append_to_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def update_spreadsheet(
+    spreadsheet_id: str,
+    range_name: str,
+    values: list[list]
+) -> str:
+    """
+    Update specific cells in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        range_name: A1 notation range (e.g., "Sheet1!A1:C3")
+        values: 2D array of values to write (list of rows, each row is a list)
+
+    Returns:
+        JSON string with update details
+
+    Examples:
+        - update_spreadsheet("1abc...", "Sheet1!A1:B2", [["Name", "Age"], ["John", 30]])
+        - update_spreadsheet("1abc...", "Sales!D5", [[150.00]])  # Update single cell
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Updating range '{range_name}' in spreadsheet: {spreadsheet_id}")
+
+        # Update the data
+        result = sheets_client.update_range(spreadsheet_id, range_name, values)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        updated_range = result['updatedRange']
+        updated_rows = result['updatedRows']
+        updated_cells = result['updatedCells']
+
+        logger.info(f"Successfully updated {updated_cells} cells")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "updated_range": updated_range,
+            "updated_rows": updated_rows,
+            "updated_cells": updated_cells,
+            "message": f"Updated {updated_cells} cell(s) in '{range_name}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in update_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def clear_spreadsheet_range(
+    spreadsheet_id: str,
+    range_name: str
+) -> str:
+    """
+    Clear values from a range in a Google Spreadsheet (without deleting cells).
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        range_name: A1 notation range (e.g., "Sheet1!A1:D10")
+
+    Returns:
+        JSON string with cleared range
+
+    Examples:
+        - clear_spreadsheet_range("1abc...", "Sheet1!A1:D10")
+        - clear_spreadsheet_range("1abc...", "Sheet1")  # Clear entire sheet
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Clearing range '{range_name}' in spreadsheet: {spreadsheet_id}")
+
+        # Clear the range
+        result = sheets_client.clear_range(spreadsheet_id, range_name)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        cleared_range = result['clearedRange']
+
+        logger.info(f"Successfully cleared range")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "cleared_range": cleared_range,
+            "message": f"Cleared range '{cleared_range}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in clear_spreadsheet_range: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def find_replace_in_spreadsheet(
+    spreadsheet_id: str,
+    find_text: str,
+    replace_text: str,
+    sheet_name: str = None,
+    match_case: bool = False
+) -> str:
+    """
+    Find and replace text in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        find_text: Text to find
+        replace_text: Text to replace with
+        sheet_name: Optional sheet name to limit search (default: all sheets)
+        match_case: Whether to match case (default: False)
+
+    Returns:
+        JSON string with number of replacements made
+
+    Examples:
+        - find_replace_in_spreadsheet("1abc...", "{{client}}", "Acme Corp")
+        - find_replace_in_spreadsheet("1abc...", "old_name", "new_name", sheet_name="Sheet1")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Finding and replacing '{find_text}' → '{replace_text}' in spreadsheet: {spreadsheet_id}")
+
+        # Get sheet ID if sheet_name provided
+        sheet_id = None
+        if sheet_name:
+            sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+            if sheet_id is None:
+                raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Perform find and replace
+        result = sheets_client.find_replace(
+            spreadsheet_id,
+            find_text,
+            replace_text,
+            sheet_id=sheet_id,
+            match_case=match_case
+        )
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        occurrences_changed = result['replies'][0]['findReplace'].get('occurrencesChanged', 0)
+
+        logger.info(f"Replaced {occurrences_changed} occurrences")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "occurrences_changed": occurrences_changed,
+            "find_text": find_text,
+            "replace_text": replace_text,
+            "sheet_name": sheet_name or "all sheets",
+            "message": f"Replaced {occurrences_changed} occurrence(s) of '{find_text}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in find_replace_in_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def delete_spreadsheet_rows(
+    spreadsheet_id: str,
+    sheet_name: str,
+    start_row: int,
+    end_row: int
+) -> str:
+    """
+    Delete rows from a Google Spreadsheet.
+
+    ⚠️ WARNING: This permanently deletes rows. Cannot be undone!
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        start_row: Starting row number (1-indexed, inclusive)
+        end_row: Ending row number (1-indexed, inclusive)
+
+    Returns:
+        JSON string with deletion details
+
+    Examples:
+        - delete_spreadsheet_rows("1abc...", "Sheet1", 5, 10)  # Delete rows 5-10
+        - delete_spreadsheet_rows("1abc...", "Data", 2, 2)  # Delete single row 2
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Deleting rows {start_row}-{end_row} from '{sheet_name}' in spreadsheet: {spreadsheet_id}")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Convert from 1-indexed (user-friendly) to 0-indexed (API)
+        start_index = start_row - 1
+        end_index = end_row  # Exclusive in API
+
+        # Delete the rows
+        result = sheets_client.delete_rows(spreadsheet_id, sheet_id, start_index, end_index)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        rows_deleted = end_row - start_row + 1
+
+        logger.info(f"Successfully deleted {rows_deleted} rows")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "rows_deleted": rows_deleted,
+            "start_row": start_row,
+            "end_row": end_row,
+            "message": f"Deleted {rows_deleted} row(s) from '{sheet_name}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in delete_spreadsheet_rows: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def delete_spreadsheet_columns(
+    spreadsheet_id: str,
+    sheet_name: str,
+    start_column: str,
+    end_column: str
+) -> str:
+    """
+    Delete columns from a Google Spreadsheet.
+
+    ⚠️ WARNING: This permanently deletes columns. Cannot be undone!
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        start_column: Starting column letter (e.g., "A", "B", "AA")
+        end_column: Ending column letter (inclusive)
+
+    Returns:
+        JSON string with deletion details
+
+    Examples:
+        - delete_spreadsheet_columns("1abc...", "Sheet1", "C", "E")  # Delete columns C-E
+        - delete_spreadsheet_columns("1abc...", "Data", "F", "F")  # Delete single column F
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Deleting columns {start_column}-{end_column} from '{sheet_name}' in spreadsheet: {spreadsheet_id}")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Convert column letters to indices
+        def column_to_index(col):
+            index = 0
+            for char in col.upper():
+                index = index * 26 + (ord(char) - ord('A') + 1)
+            return index - 1
+
+        start_index = column_to_index(start_column)
+        end_index = column_to_index(end_column) + 1  # Exclusive in API
+
+        # Delete the columns
+        result = sheets_client.delete_columns(spreadsheet_id, sheet_id, start_index, end_index)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        columns_deleted = end_index - start_index
+
+        logger.info(f"Successfully deleted {columns_deleted} columns")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "columns_deleted": columns_deleted,
+            "start_column": start_column,
+            "end_column": end_column,
+            "message": f"Deleted {columns_deleted} column(s) from '{sheet_name}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in delete_spreadsheet_columns: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def add_sheet_to_spreadsheet(
+    spreadsheet_id: str,
+    sheet_name: str
+) -> str:
+    """
+    Add a new tab/sheet to an existing Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name for the new sheet/tab
+
+    Returns:
+        JSON string with new sheet details
+
+    Examples:
+        - add_sheet_to_spreadsheet("1abc...", "Q1 Sales")
+        - add_sheet_to_spreadsheet("1abc...", "2025 Budget")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Adding sheet '{sheet_name}' to spreadsheet: {spreadsheet_id}")
+
+        # Create the sheet
+        result = sheets_client.create_sheet(spreadsheet_id, sheet_name)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        # Extract new sheet info from result
+        new_sheet = result['replies'][0]['addSheet']['properties']
+        sheet_id = new_sheet['sheetId']
+        title = new_sheet['title']
+
+        logger.info(f"Successfully created sheet: {title}")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_id": sheet_id,
+            "sheet_name": title,
+            "message": f"Added new sheet '{title}' to spreadsheet"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in add_sheet_to_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def delete_sheet_from_spreadsheet(
+    spreadsheet_id: str,
+    sheet_name: str
+) -> str:
+    """
+    Delete a tab/sheet from a Google Spreadsheet.
+
+    ⚠️ WARNING: This permanently deletes the entire sheet and all its data. Cannot be undone!
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet to delete (e.g., "Sheet1")
+
+    Returns:
+        JSON string with deletion confirmation
+
+    Examples:
+        - delete_sheet_from_spreadsheet("1abc...", "Old Data")
+        - delete_sheet_from_spreadsheet("1abc...", "Sheet2")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Deleting sheet '{sheet_name}' from spreadsheet: {spreadsheet_id}")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Delete the sheet
+        result = sheets_client.delete_sheet(spreadsheet_id, sheet_id)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully deleted sheet")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "message": f"Deleted sheet '{sheet_name}' from spreadsheet"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in delete_sheet_from_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def list_sheets_in_spreadsheet(spreadsheet_id: str) -> str:
+    """
+    List all sheets/tabs in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+
+    Returns:
+        JSON string with list of sheets and their properties
+
+    Examples:
+        - list_sheets_in_spreadsheet("1abc...")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Listing sheets in spreadsheet: {spreadsheet_id}")
+
+        # List sheets
+        sheets = sheets_client.list_sheets(spreadsheet_id)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Found {len(sheets)} sheets")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_count": len(sheets),
+            "sheets": sheets,
+            "message": f"Found {len(sheets)} sheet(s) in spreadsheet"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in list_sheets_in_spreadsheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def rename_spreadsheet_sheet(
+    spreadsheet_id: str,
+    old_sheet_name: str,
+    new_sheet_name: str
+) -> str:
+    """
+    Rename a sheet/tab in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        old_sheet_name: Current name of the sheet
+        new_sheet_name: New name for the sheet
+
+    Returns:
+        JSON string with rename confirmation
+
+    Examples:
+        - rename_spreadsheet_sheet("1abc...", "Sheet1", "Q1 Sales")
+        - rename_spreadsheet_sheet("1abc...", "Old Name", "New Name")
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Renaming sheet '{old_sheet_name}' to '{new_sheet_name}' in spreadsheet: {spreadsheet_id}")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, old_sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{old_sheet_name}' not found in spreadsheet")
+
+        # Rename the sheet
+        result = sheets_client.rename_sheet(spreadsheet_id, sheet_id, new_sheet_name)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully renamed sheet")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "old_name": old_sheet_name,
+            "new_name": new_sheet_name,
+            "message": f"Renamed sheet from '{old_sheet_name}' to '{new_sheet_name}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in rename_spreadsheet_sheet: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def insert_spreadsheet_rows(
+    spreadsheet_id: str,
+    sheet_name: str,
+    start_row: int,
+    num_rows: int
+) -> str:
+    """
+    Insert blank rows at a specific position in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        start_row: Row number where to insert (1-indexed)
+        num_rows: Number of rows to insert
+
+    Returns:
+        JSON string with insertion details
+
+    Examples:
+        - insert_spreadsheet_rows("1abc...", "Sheet1", 10, 5)  # Insert 5 rows at row 10
+        - insert_spreadsheet_rows("1abc...", "Data", 1, 1)  # Insert 1 row at top
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Inserting {num_rows} rows at row {start_row} in '{sheet_name}'")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Convert from 1-indexed to 0-indexed
+        start_index = start_row - 1
+
+        # Insert rows
+        result = sheets_client.insert_rows(spreadsheet_id, sheet_id, start_index, num_rows)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully inserted {num_rows} rows")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "start_row": start_row,
+            "num_rows": num_rows,
+            "message": f"Inserted {num_rows} blank row(s) starting at row {start_row}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in insert_spreadsheet_rows: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def insert_spreadsheet_columns(
+    spreadsheet_id: str,
+    sheet_name: str,
+    start_column: str,
+    num_columns: int
+) -> str:
+    """
+    Insert blank columns at a specific position in a Google Spreadsheet.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        start_column: Column letter where to insert (e.g., "A", "C", "AA")
+        num_columns: Number of columns to insert
+
+    Returns:
+        JSON string with insertion details
+
+    Examples:
+        - insert_spreadsheet_columns("1abc...", "Sheet1", "C", 3)  # Insert 3 columns starting at C
+        - insert_spreadsheet_columns("1abc...", "Data", "A", 1)  # Insert 1 column at beginning
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Inserting {num_columns} columns at column {start_column} in '{sheet_name}'")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Convert column letter to index
+        def column_to_index(col):
+            index = 0
+            for char in col.upper():
+                index = index * 26 + (ord(char) - ord('A') + 1)
+            return index - 1
+
+        start_index = column_to_index(start_column)
+
+        # Insert columns
+        result = sheets_client.insert_columns(spreadsheet_id, sheet_id, start_index, num_columns)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully inserted {num_columns} columns")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "start_column": start_column,
+            "num_columns": num_columns,
+            "message": f"Inserted {num_columns} blank column(s) starting at column {start_column}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in insert_spreadsheet_columns: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def format_spreadsheet_cells(
+    spreadsheet_id: str,
+    sheet_name: str,
+    range_a1: str,
+    bold: bool = None,
+    italic: bool = None,
+    font_size: int = None,
+    background_color: dict = None,
+    text_color: dict = None,
+    horizontal_alignment: str = None
+) -> str:
+    """
+    Format cells in a Google Spreadsheet with styling.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        range_a1: Range in A1 notation (e.g., "A1:C1" for header row)
+        bold: Make text bold (true/false)
+        italic: Make text italic (true/false)
+        font_size: Font size in points (e.g., 12, 14)
+        background_color: Background color as RGB dict (e.g., {"red": 0.85, "green": 0.92, "blue": 1.0})
+        text_color: Text color as RGB dict (e.g., {"red": 1.0, "green": 0.0, "blue": 0.0})
+        horizontal_alignment: Text alignment: "LEFT", "CENTER", or "RIGHT"
+
+    Returns:
+        JSON string with formatting confirmation
+
+    Examples:
+        - format_spreadsheet_cells("1abc...", "Sheet1", "A1:E1", bold=true, horizontal_alignment="CENTER")
+        - format_spreadsheet_cells("1abc...", "Sheet1", "A2:A10", background_color={"red": 1.0, "green": 0.9, "blue": 0.9})
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Formatting cells {range_a1} in '{sheet_name}'")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Parse A1 notation to get row/col indices
+        # Simple parser for ranges like "A1:C5"
+        import re
+        match = re.match(r'([A-Z]+)(\d+):([A-Z]+)(\d+)', range_a1)
+        if not match:
+            raise ValueError(f"Invalid range format: {range_a1}. Expected format: A1:C5")
+
+        def column_to_index(col):
+            index = 0
+            for char in col.upper():
+                index = index * 26 + (ord(char) - ord('A') + 1)
+            return index - 1
+
+        start_col = column_to_index(match.group(1))
+        start_row = int(match.group(2)) - 1
+        end_col = column_to_index(match.group(3)) + 1
+        end_row = int(match.group(4))
+
+        # Format cells
+        result = sheets_client.format_cells(
+            spreadsheet_id,
+            sheet_id,
+            start_row,
+            end_row,
+            start_col,
+            end_col,
+            bold=bold,
+            italic=italic,
+            font_size=font_size,
+            background_color=background_color,
+            text_color=text_color,
+            horizontal_alignment=horizontal_alignment
+        )
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully formatted cells")
+
+        format_details = []
+        if bold is not None:
+            format_details.append(f"bold={bold}")
+        if italic is not None:
+            format_details.append(f"italic={italic}")
+        if font_size:
+            format_details.append(f"font_size={font_size}")
+        if background_color:
+            format_details.append("background_color")
+        if text_color:
+            format_details.append("text_color")
+        if horizontal_alignment:
+            format_details.append(f"align={horizontal_alignment}")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "range": range_a1,
+            "formatting": ", ".join(format_details),
+            "message": f"Formatted cells {range_a1} with: {', '.join(format_details)}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in format_spreadsheet_cells: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def sort_spreadsheet_range(
+    spreadsheet_id: str,
+    sheet_name: str,
+    range_a1: str,
+    sort_column: str,
+    ascending: bool = True
+) -> str:
+    """
+    Sort a range of data in a Google Spreadsheet by a specific column.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        range_a1: Range to sort in A1 notation (e.g., "A2:E100" - typically skip header row)
+        sort_column: Column letter to sort by (e.g., "A", "B", "C")
+        ascending: Sort ascending (true) or descending (false)
+
+    Returns:
+        JSON string with sort confirmation
+
+    Examples:
+        - sort_spreadsheet_range("1abc...", "Sheet1", "A2:E100", "B", true)  # Sort by column B ascending
+        - sort_spreadsheet_range("1abc...", "Sales", "A2:D50", "D", false)  # Sort by column D descending
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Sorting range {range_a1} in '{sheet_name}' by column {sort_column}")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Parse A1 notation
+        import re
+        match = re.match(r'([A-Z]+)(\d+):([A-Z]+)(\d+)', range_a1)
+        if not match:
+            raise ValueError(f"Invalid range format: {range_a1}. Expected format: A1:C5")
+
+        def column_to_index(col):
+            index = 0
+            for char in col.upper():
+                index = index * 26 + (ord(char) - ord('A') + 1)
+            return index - 1
+
+        start_col = column_to_index(match.group(1))
+        start_row = int(match.group(2)) - 1
+        end_col = column_to_index(match.group(3)) + 1
+        end_row = int(match.group(4))
+
+        # Calculate sort column index relative to range start
+        sort_col_index = column_to_index(sort_column) - start_col
+
+        # Sort range
+        result = sheets_client.sort_range(
+            spreadsheet_id,
+            sheet_id,
+            start_row,
+            end_row,
+            start_col,
+            end_col,
+            sort_col_index,
+            ascending
+        )
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully sorted range")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "range": range_a1,
+            "sort_column": sort_column,
+            "ascending": ascending,
+            "message": f"Sorted {range_a1} by column {sort_column} ({'ascending' if ascending else 'descending'})"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in sort_spreadsheet_range: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def freeze_spreadsheet_rows_columns(
+    spreadsheet_id: str,
+    sheet_name: str,
+    frozen_rows: int = 0,
+    frozen_columns: int = 0
+) -> str:
+    """
+    Freeze rows and/or columns in a Google Spreadsheet to keep them visible while scrolling.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        frozen_rows: Number of rows to freeze from top (default: 0)
+        frozen_columns: Number of columns to freeze from left (default: 0)
+
+    Returns:
+        JSON string with freeze confirmation
+
+    Examples:
+        - freeze_spreadsheet_rows_columns("1abc...", "Sheet1", frozen_rows=1)  # Freeze header row
+        - freeze_spreadsheet_rows_columns("1abc...", "Sheet1", frozen_rows=2, frozen_columns=1)  # Freeze 2 rows and 1 column
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Freezing {frozen_rows} rows and {frozen_columns} columns in '{sheet_name}'")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Freeze rows/columns
+        result = sheets_client.freeze_rows_columns(spreadsheet_id, sheet_id, frozen_rows, frozen_columns)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully froze rows and columns")
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "frozen_rows": frozen_rows,
+            "frozen_columns": frozen_columns,
+            "message": f"Froze {frozen_rows} row(s) and {frozen_columns} column(s)"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in freeze_spreadsheet_rows_columns: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def auto_resize_spreadsheet_columns(
+    spreadsheet_id: str,
+    sheet_name: str,
+    start_column: str,
+    end_column: str
+) -> str:
+    """
+    Auto-resize columns in a Google Spreadsheet to fit content.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        sheet_name: Name of the sheet (e.g., "Sheet1")
+        start_column: Starting column letter (e.g., "A")
+        end_column: Ending column letter (e.g., "E")
+
+    Returns:
+        JSON string with resize confirmation
+
+    Examples:
+        - auto_resize_spreadsheet_columns("1abc...", "Sheet1", "A", "E")  # Auto-resize columns A-E
+        - auto_resize_spreadsheet_columns("1abc...", "Data", "A", "Z")  # Auto-resize columns A-Z
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Auto-resizing columns {start_column}-{end_column} in '{sheet_name}'")
+
+        # Get sheet ID
+        sheet_id = sheets_client.get_sheet_id(spreadsheet_id, sheet_name)
+        if sheet_id is None:
+            raise ValueError(f"Sheet '{sheet_name}' not found in spreadsheet")
+
+        # Convert column letters to indices
+        def column_to_index(col):
+            index = 0
+            for char in col.upper():
+                index = index * 26 + (ord(char) - ord('A') + 1)
+            return index - 1
+
+        start_col = column_to_index(start_column)
+        end_col = column_to_index(end_column) + 1
+
+        # Auto-resize columns
+        result = sheets_client.auto_resize_columns(spreadsheet_id, sheet_id, start_col, end_col)
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+
+        logger.info(f"Successfully auto-resized columns")
+
+        columns_resized = end_col - start_col
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "sheet_name": sheet_name,
+            "start_column": start_column,
+            "end_column": end_column,
+            "columns_resized": columns_resized,
+            "message": f"Auto-resized {columns_resized} column(s) from {start_column} to {end_column}"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in auto_resize_spreadsheet_columns: {error_msg}")
         return json.dumps({
             "success": False,
             "error": error_msg
