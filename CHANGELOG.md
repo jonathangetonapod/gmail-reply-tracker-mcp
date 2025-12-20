@@ -7,6 +7,155 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - December 20, 2025
+
+### Added
+
+- **📊 GOOGLE SHEETS INTEGRATION - 18 Comprehensive Tools Added!**
+  - **TOTAL TOOLS NOW: 69** (up from 51)
+  - **NEW CATEGORY**: Google Sheets (18 tools) - Full CRUD operations, formatting, and organization
+  - **COMPLETE SPREADSHEET CONTROL**: Create, read, update, delete, format, sort, and organize spreadsheets
+  - **PROFESSIONAL FORMATTING**: Bold, colors, alignment, frozen headers, auto-resized columns
+  - **MULTI-TENANT SAFE**: Each user's credentials fully isolated - perfect for team deployments
+  - **RATE LIMITED**: 300 requests/minute with thread-safe token bucket algorithm
+
+  **Core Operations (10 tools):**
+  1. **`create_spreadsheet`** - Create new spreadsheets with custom sheet names
+     - Example: "Create a spreadsheet called 'Sales Tracker' with sheets Q1, Q2, Q3, Q4"
+     - Returns: spreadsheet_id, URL, sheet info
+     - OAuth scope: `https://www.googleapis.com/auth/spreadsheets`
+
+  2. **`read_spreadsheet`** - Read data from any range (A1 notation)
+     - Example: "Read Sheet1!A1:D10 from spreadsheet [ID]"
+     - Supports: Full sheets, specific ranges, entire columns
+     - Returns: 2D array of cell values
+
+  3. **`append_to_spreadsheet`** - Add rows to end of sheets
+     - Example: "Append these 5 rows to the Sales sheet"
+     - Perfect for: Logs, data collection, progressive tracking
+     - Auto-finds next empty row
+
+  4. **`update_spreadsheet`** - Update specific cell ranges
+     - Example: "Update Sheet1!A1:B2 with new header values"
+     - Precise control over any range
+     - Supports formulas and formatting
+
+  5. **`clear_spreadsheet_range`** - Clear values without deleting cells
+     - Example: "Clear all data in Sheet1!A1:Z100"
+     - Preserves formatting and structure
+     - Non-destructive operation
+
+  6. **`find_replace_in_spreadsheet`** - Find and replace text across sheets
+     - Example: "Replace '{{client}}' with 'Acme Corp' in all sheets"
+     - Optional: Limit to specific sheet, case-sensitive matching
+     - Returns: Number of replacements made
+
+  7. **`delete_spreadsheet_rows`** - Delete specific rows
+     - Example: "Delete rows 5-10 from Sheet1"
+     - ⚠️ WARNING: Permanent deletion with safety warnings
+     - 1-indexed for user convenience
+
+  8. **`delete_spreadsheet_columns`** - Delete specific columns
+     - Example: "Delete columns C-E from Data sheet"
+     - ⚠️ WARNING: Permanent deletion with safety warnings
+     - Uses column letters (A, B, AA, etc.)
+
+  9. **`add_sheet_to_spreadsheet`** - Create new tabs/sheets
+     - Example: "Add a new sheet called 'Q1 Sales' to spreadsheet [ID]"
+     - Dynamic spreadsheet organization
+     - Returns: New sheet ID and metadata
+
+  10. **`delete_sheet_from_spreadsheet`** - Delete entire sheets
+      - Example: "Delete the 'Old Data' sheet from spreadsheet [ID]"
+      - ⚠️ WARNING: Permanent deletion with safety warnings
+      - Removes entire tab and all data
+
+  **Advanced Operations (8 tools):**
+  11. **`list_sheets_in_spreadsheet`** - List all tabs with metadata
+      - Example: "Show me all sheets in spreadsheet [ID]"
+      - Returns: Sheet IDs, titles, indices, grid properties
+      - Essential for navigation and organization
+
+  12. **`rename_spreadsheet_sheet`** - Rename existing tabs
+      - Example: "Rename 'Sheet1' to 'Q1 Sales Data'"
+      - Clean up auto-generated names
+      - Better organization
+
+  13. **`insert_spreadsheet_rows`** - Insert blank rows at any position
+      - Example: "Insert 5 rows at row 10 in Sheet1"
+      - Perfect for: Adding space, reorganizing data
+      - Non-destructive insertion
+
+  14. **`insert_spreadsheet_columns`** - Insert blank columns at any position
+      - Example: "Insert 3 columns starting at column C"
+      - Flexible data structure changes
+      - Preserves existing data
+
+  15. **`format_spreadsheet_cells`** - Apply styling (bold, colors, alignment)
+      - Example: "Format A1:E1 as bold, centered, with light blue background"
+      - Options: Bold, italic, font size, text color, background color, alignment
+      - RGB color support: `{"red": 0.85, "green": 0.92, "blue": 1.0}`
+      - Professional presentation
+
+  16. **`sort_spreadsheet_range`** - Sort data by column
+      - Example: "Sort A2:E100 by column C descending"
+      - Ascending or descending
+      - Preserves header rows (skip row 1)
+      - Essential for data analysis
+
+  17. **`freeze_spreadsheet_rows_columns`** - Freeze headers for scrolling
+      - Example: "Freeze the top row in Sheet1"
+      - Keep headers visible while scrolling large datasets
+      - Freeze rows, columns, or both
+
+  18. **`auto_resize_spreadsheet_columns`** - Auto-fit column widths
+      - Example: "Auto-resize columns A through Z in Sheet1"
+      - Optimal readability
+      - Fits content automatically
+
+  **Technical Implementation:**
+  - ✅ New `src/sheets_client.py`: SheetsClient with full API wrapper
+  - ✅ Thread-safe token bucket rate limiter (300 req/min)
+  - ✅ Comprehensive error handling and retry logic
+  - ✅ Full A1 notation parsing for ranges
+  - ✅ RGB color support for cell formatting
+  - ✅ OAuth scope: `https://www.googleapis.com/auth/spreadsheets`
+  - ✅ Updated scopes in all 4 config locations
+  - ✅ Per-user credentials (multi-tenant safe)
+  - ✅ Auto-retry on transient failures (403, 429, 500, 503)
+
+  **Authentication & Security:**
+  - ✅ OAuth scope auto-configured
+  - ✅ Per-user credentials (multi-tenant safe)
+  - ✅ Encrypted token storage in SQLite
+  - ✅ Rate limiting: 300 requests/minute per user
+  - ✅ Thread-safe with proper locking
+  - ✅ Exponential backoff on rate limit errors
+
+  **Use Cases:**
+  - 📊 "Create a Q1 sales tracker with tabs for each month and format headers"
+  - 📈 "Read the latest data from the revenue sheet and analyze trends"
+  - ✨ "Format the header row as bold and centered with a blue background"
+  - 🔄 "Sort the client list by revenue descending"
+  - ⚡ "Insert 10 rows in the middle to add new data"
+  - 🎯 "Freeze the top 2 rows so headers stay visible"
+  - 📐 "Auto-resize all columns so data is readable"
+  - 🔍 "Replace all placeholder client names with actual names"
+  - 🗂️ "List all sheets in this workbook to see what we have"
+  - 📋 "Append new lead data to the tracking sheet daily"
+
+  **Platform Overview:**
+  - 📧 **Gmail** (13 tools): Email management, search, threads, drafts
+  - 📅 **Calendar** (7 tools): Events, scheduling, quick add
+  - 📝 **Docs** (6 tools): Document creation, editing, formatting
+  - 📊 **Sheets** (18 tools): Spreadsheet CRUD, formatting, organization ⭐ NEW
+  - 🎥 **Fathom** (6 tools): Meeting transcripts, summaries, action items
+  - 🚀 **Instantly** (12 tools): Campaign management, lead tracking
+  - 🦬 **Bison** (6 tools): Campaign management, lead tracking
+  - 🛡️ **EmailGuard** (1 tool): Spam checking
+
+  **TOTAL: 69 Tools Across 8 Platforms** 🎉
+
 ### Fixed - December 20, 2025
 
 - **🔧 CRITICAL FIX: Bison Sender Emails Pagination**
