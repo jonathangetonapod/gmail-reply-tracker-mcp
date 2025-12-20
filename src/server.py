@@ -3482,17 +3482,29 @@ async def find_missed_opportunities(
                            sample.get("type"))
 
             # Normalize Bison replies to match Instantly format
-            # Filter out client's own outbound emails by checking from_email against campaign sending addresses
+            # Filter out client's own outbound emails using primary_to_email_address
             for reply in all_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
                 from_email_lower = from_email.lower()
+                to_email = reply.get("primary_to_email_address", "")
+                to_email_lower = to_email.lower() if to_email else ""
                 campaign_id = reply.get("campaign_id")
                 lead_id = reply.get("lead_id")
 
-                # Skip client's sent emails: from_email matches one of the campaign sending addresses
+                # CRITICAL: Determine if this is a lead reply or client reply
+                # Lead reply: TO address is one of the client's campaign emails
+                # Client reply: TO address is NOT one of the client's campaign emails (it's to a lead)
+                is_to_client = to_email_lower in client_email_addresses if to_email_lower else False
+
+                if not is_to_client:
+                    # This reply is TO a lead (FROM the client) - skip it
+                    logger.debug(f"Skipping client reply to lead: from={from_email}, to={to_email}")
+                    continue
+
+                # Skip if from_email is also a campaign account (rare but possible)
                 if from_email_lower in client_email_addresses:
-                    logger.debug(f"Skipping client sent email from campaign account: {from_email}")
+                    logger.debug(f"Skipping reply from campaign account: {from_email}")
                     continue
 
                 # Skip if this is an outbound/sent email (backup check using type field)
@@ -3507,7 +3519,7 @@ async def find_missed_opportunities(
                     continue
 
                 # Log the type for debugging
-                logger.debug(f"Processing reply type={reply_type} from {from_email}, campaign_id={campaign_id}, lead_id={lead_id}")
+                logger.debug(f"Processing LEAD reply: from={from_email} (lead), to={to_email} (client), campaign_id={campaign_id}, lead_id={lead_id}")
 
                 all_replies.append({
                     "email": reply.get("from_email_address", "Unknown"),
@@ -3525,10 +3537,22 @@ async def find_missed_opportunities(
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
                 from_email_lower = from_email.lower()
+                to_email = reply.get("primary_to_email_address", "")
+                to_email_lower = to_email.lower() if to_email else ""
 
-                # Skip client's sent emails: from_email matches one of the campaign sending addresses
+                # CRITICAL: Determine if this is a lead reply or client reply
+                # Lead reply: TO address is one of the client's campaign emails
+                # Client reply: TO address is NOT one of the client's campaign emails (it's to a lead)
+                is_to_client = to_email_lower in client_email_addresses if to_email_lower else False
+
+                if not is_to_client:
+                    # This reply is TO a lead (FROM the client) - skip it
+                    logger.debug(f"Skipping client reply to lead in interested list: from={from_email}, to={to_email}")
+                    continue
+
+                # Skip if from_email is also a campaign account (rare but possible)
                 if from_email_lower in client_email_addresses:
-                    logger.debug(f"Skipping client sent email from interested list: {from_email}")
+                    logger.debug(f"Skipping reply from campaign account in interested list: {from_email}")
                     continue
 
                 # Skip outbound emails (backup check)
