@@ -3546,8 +3546,28 @@ async def find_missed_opportunities(
                 is_to_client = to_email_lower in client_email_addresses if to_email_lower else False
 
                 if not is_to_client:
-                    # This reply is TO a lead (FROM the client) - skip it
-                    logger.debug(f"Skipping client reply to lead in interested list: from={from_email}, to={to_email}")
+                    # This is a CLIENT reply TO a lead that's marked interested
+                    # When you mark a thread in Bison, the interested=true flag is often
+                    # on the client's outbound reply, not the lead's incoming reply
+                    # So we need to extract the LEAD's email from the TO field
+                    logger.debug(f"Found interested tag on client reply to lead: to={to_email} (reply_id={reply.get('id')})")
+
+                    # Skip if from_email is a campaign account (client sent this)
+                    if from_email_lower in client_email_addresses:
+                        # The TO address is the lead's email - add it to already_interested
+                        if to_email_lower:
+                            already_interested.append({
+                                "email": to_email,  # Use TO email (the lead's email)
+                                "reply_body": "",  # Don't have the lead's reply body here
+                                "reply_summary": f"[Thread marked interested - extracted from client reply to {to_email}]",
+                                "subject": reply.get("subject", ""),
+                                "timestamp": reply.get("date_received", ""),
+                                "id": reply.get("id"),  # Client reply ID
+                                "lead_id": reply.get("lead_id"),
+                                "interested": True,
+                                "platform": "bison"
+                            })
+                            logger.debug(f"Added lead {to_email} to interested list (from client reply)")
                     continue
 
                 # Skip if from_email is also a campaign account (rare but possible)
@@ -3560,6 +3580,7 @@ async def find_missed_opportunities(
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
                     continue
 
+                # This is a LEAD reply TO client that's marked interested
                 already_interested.append({
                     "email": reply.get("from_email_address", "Unknown"),
                     "reply_body": reply.get("text_body", ""),
