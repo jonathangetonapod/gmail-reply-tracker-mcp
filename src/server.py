@@ -3428,8 +3428,29 @@ async def find_missed_opportunities(
                     "error": f"No API key found for Bison client '{client_name}'"
                 }, indent=2)
 
-            logger.info("Found client in Bison, fetching replies...")
+            logger.info("Found client in Bison, fetching campaigns and replies...")
             platform_used = "bison"
+
+            # Step 0: Fetch campaigns to get client's sending email addresses
+            logger.info("Step 3a/7: Fetching Bison campaigns to identify client email addresses...")
+            from leads.bison_client import list_bison_campaigns
+            campaigns_result = list_bison_campaigns(api_key=api_key)
+            campaigns = campaigns_result.get("data", [])
+            logger.info("Found %d campaigns", len(campaigns))
+
+            # Extract all unique email addresses from campaigns
+            client_email_addresses = set()
+            for campaign in campaigns:
+                email_accounts = campaign.get("email_accounts", [])
+                for account in email_accounts:
+                    email_address = account.get("email_address", "").lower()
+                    if email_address:
+                        client_email_addresses.add(email_address)
+                        logger.debug(f"Found client email: {email_address}")
+
+            logger.info("Identified %d client email addresses: %s",
+                       len(client_email_addresses),
+                       list(client_email_addresses)[:5])  # Show first 5
 
             # Step 1: Fetch ALL campaign replies (excluding auto-replies if requested)
             # Use status="not_automated_reply" to exclude OOO messages and other auto-replies
@@ -3463,18 +3484,17 @@ async def find_missed_opportunities(
                            sample.get("type"))
 
             # Normalize Bison replies to match Instantly format
-            # Filter out client's own outbound emails using 'sender_email_id' field
+            # Filter out client's own outbound emails by checking from_email against campaign sending addresses
             for reply in all_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
+                from_email_lower = from_email.lower()
                 campaign_id = reply.get("campaign_id")
                 lead_id = reply.get("lead_id")
-                sender_email_id = reply.get("sender_email_id")
 
-                # Skip client's sent emails: sender_email_id is present when CLIENT sent the email
-                # Lead replies have sender_email_id = None
-                if sender_email_id is not None:
-                    logger.debug(f"Skipping client sent email (sender_email_id={sender_email_id}) from {from_email}")
+                # Skip client's sent emails: from_email matches one of the campaign sending addresses
+                if from_email_lower in client_email_addresses:
+                    logger.debug(f"Skipping client sent email from campaign account: {from_email}")
                     continue
 
                 # Skip if this is an outbound/sent email (backup check using type field)
@@ -3489,7 +3509,7 @@ async def find_missed_opportunities(
                     continue
 
                 # Log the type for debugging
-                logger.debug(f"Processing reply type={reply_type} from {from_email}, sender_email_id={sender_email_id}, campaign_id={campaign_id}, lead_id={lead_id}")
+                logger.debug(f"Processing reply type={reply_type} from {from_email}, campaign_id={campaign_id}, lead_id={lead_id}")
 
                 all_replies.append({
                     "email": reply.get("from_email_address", "Unknown"),
@@ -3506,11 +3526,11 @@ async def find_missed_opportunities(
             for reply in interested_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
-                sender_email_id = reply.get("sender_email_id")
+                from_email_lower = from_email.lower()
 
-                # Skip client's sent emails: sender_email_id is present when CLIENT sent the email
-                if sender_email_id is not None:
-                    logger.debug(f"Skipping client sent email from interested list (sender_email_id={sender_email_id}) from {from_email}")
+                # Skip client's sent emails: from_email matches one of the campaign sending addresses
+                if from_email_lower in client_email_addresses:
+                    logger.debug(f"Skipping client sent email from interested list: {from_email}")
                     continue
 
                 # Skip outbound emails (backup check)
