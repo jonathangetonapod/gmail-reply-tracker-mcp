@@ -3442,18 +3442,13 @@ async def find_missed_opportunities(
             )
             logger.info("Fetched %d total Bison replies", len(all_replies_result.get("data", [])))
 
-            # Step 2: Fetch replies already marked as interested
-            logger.info("Step 5/7: Fetching interested Bison replies...")
-            interested_replies_result = get_bison_lead_replies(
-                api_key=api_key,
-                status="interested",
-                folder="all"
-            )
-            logger.info("Fetched %d interested Bison replies", len(interested_replies_result.get("data", [])))
-
-            # Convert Bison format to standard format
+            # Step 2: Filter for already-marked interested leads using the "interested" field (GRAY TAG)
+            # NOTE: Don't use status="interested" API filter - it only returns GREEN status (new unreplied)
+            # The "interested" field is the persistent GRAY TAG that survives after you reply back
+            logger.info("Step 5/7: Filtering for Bison interested tag (persistent gray label)...")
             all_replies_raw = all_replies_result.get("data", [])
-            interested_replies_raw = interested_replies_result.get("data", [])
+            interested_replies_raw = [r for r in all_replies_raw if r.get("interested", False)]
+            logger.info("Found %d Bison replies with interested=true (gray tag)", len(interested_replies_raw))
 
             logger.info("Bison raw counts - All replies: %d, Interested replies: %d",
                        len(all_replies_raw), len(interested_replies_raw))
