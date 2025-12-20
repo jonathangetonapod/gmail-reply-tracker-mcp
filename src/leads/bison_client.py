@@ -2,9 +2,12 @@
 Bison/LeadGenJay API wrapper functions.
 """
 
+import logging
 import requests
 from datetime import datetime
 from typing import Optional, List
+
+logger = logging.getLogger(__name__)
 
 
 def get_bison_lead_replies(api_key: str, status: str = "interested", folder: str = "all"):
@@ -574,16 +577,23 @@ def get_bison_sender_emails(api_key: str):
     page = 1
     per_page = 100  # Fetch 100 per page to minimize API calls
 
+    logger.info(f"Starting pagination for sender emails (per_page={per_page})")
+
     while True:
+        logger.info(f"Fetching sender emails page {page}")
         params = {"page": page, "per_page": per_page}
         response = requests.get(url, headers=headers, params=params, timeout=30)
         response.raise_for_status()
 
         result = response.json()
+        logger.info(f"API response keys: {list(result.keys())}")
+
         data = result.get("data", [])
+        logger.info(f"Page {page} returned {len(data)} emails (total so far: {len(all_emails) + len(data)})")
 
         if not data:
             # No more data, we've fetched all pages
+            logger.info(f"No data on page {page}, stopping pagination")
             break
 
         all_emails.extend(data)
@@ -591,8 +601,11 @@ def get_bison_sender_emails(api_key: str):
         # Check if there are more pages
         # If we got less than per_page results, we're on the last page
         if len(data) < per_page:
+            logger.info(f"Got {len(data)} < {per_page} results, last page reached")
             break
 
+        logger.info(f"Got {len(data)} results, fetching next page...")
         page += 1
 
+    logger.info(f"Pagination complete: fetched {len(all_emails)} total sender emails across {page} pages")
     return {"data": all_emails}
