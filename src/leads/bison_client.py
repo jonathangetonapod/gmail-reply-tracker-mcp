@@ -554,6 +554,10 @@ def get_bison_sender_emails(api_key: str):
     """
     Fetch ALL sender email accounts from Bison API with pagination.
 
+    Note: Bison API returns 15 results per page by default and doesn't support
+    per_page parameter. Standard clients have 50+ inboxes, so we fetch multiple
+    pages explicitly.
+
     Args:
         api_key: Bison API key
 
@@ -574,16 +578,22 @@ def get_bison_sender_emails(api_key: str):
     headers = {"Authorization": f"Bearer {api_key}"}
 
     all_emails = []
-    page = 1
-    per_page = 100  # Fetch 100 per page to minimize API calls
 
-    logger.info(f"Starting pagination for sender emails (per_page={per_page})")
+    # Bison API returns 15 per page, standard clients have 50-80 inboxes
+    # Fetch up to 10 pages (150 emails) to ensure we get everything
+    max_pages = 10
+    logger.info(f"Starting pagination for sender emails (fetching up to {max_pages} pages)")
 
-    while True:
+    for page in range(1, max_pages + 1):
         logger.info(f"Fetching sender emails page {page}")
-        params = {"page": page, "per_page": per_page}
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
+        params = {"page": page}
+
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+        except Exception as e:
+            logger.warning(f"Error fetching page {page}: {e}")
+            break
 
         result = response.json()
         logger.info(f"API response keys: {list(result.keys())}")
@@ -598,14 +608,10 @@ def get_bison_sender_emails(api_key: str):
 
         all_emails.extend(data)
 
-        # Check if there are more pages
-        # If we got less than per_page results, we're on the last page
-        if len(data) < per_page:
-            logger.info(f"Got {len(data)} < {per_page} results, last page reached")
+        # If we got less than 15 results, we're on the last page
+        if len(data) < 15:
+            logger.info(f"Got {len(data)} < 15 results, last page reached")
             break
-
-        logger.info(f"Got {len(data)} results, fetching next page...")
-        page += 1
 
     logger.info(f"Pagination complete: fetched {len(all_emails)} total sender emails across {page} pages")
     return {"data": all_emails}
