@@ -86,11 +86,12 @@ def load_bison_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: st
     Bison sheet structure:
     - Column A: Client Name
     - Column B: API Key
+    - Column C: Client Email (optional - used to filter out client's own test emails)
 
     Returns:
         [
-            {"client_name": "ABC Corp", "api_key": "..."},
-            {"client_name": "XYZ Ltd", "api_key": "..."},
+            {"client_name": "ABC Corp", "api_key": "...", "client_email": "abc@example.com"},
+            {"client_name": "XYZ Ltd", "api_key": "...", "client_email": "xyz@example.com"},
             ...
         ]
     """
@@ -116,6 +117,7 @@ def load_bison_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: st
             continue
         raw_name = (row[0] or "").strip()
         raw_key = (row[1] or "").strip()
+        raw_email = (row[2] or "").strip() if len(row) > 2 else ""  # Column C
 
         # Skip empty
         if not raw_name or not raw_key:
@@ -131,7 +133,8 @@ def load_bison_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: st
 
         workspaces.append({
             "client_name": raw_name,
-            "api_key": raw_key
+            "api_key": raw_key,
+            "client_email": raw_email  # Column C - client's email to filter out
         })
 
     # Silently return (print removed for MCP compatibility)

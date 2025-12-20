@@ -3349,11 +3349,31 @@ async def find_missed_opportunities(
 
             # Step 2: Split replies into already-captured (positive status) vs missed opportunities
             logger.info("Step 4/7: Filtering Instantly replies by status...")
-            all_replies = all_replies_result.get("leads", [])
+            all_replies_raw = all_replies_result.get("leads", [])
 
-            # Add platform field to Instantly replies for timing detection
-            for reply in all_replies:
+            # Get client email for filtering
+            client_email = matching_instantly_workspace.get("client_email", "").lower()
+            client_domain = client_email.split("@")[1] if client_email and "@" in client_email else ""
+
+            # Filter out client's own emails and add platform field
+            all_replies = []
+            for reply in all_replies_raw:
+                from_email = reply.get("email", "")
+                from_email_lower = from_email.lower()
+
+                # Skip client's own emails (when client tests campaigns with their email)
+                if client_email and from_email_lower == client_email:
+                    logger.debug(f"Skipping client's own email: {from_email}")
+                    continue
+
+                # Skip emails from client's domain (alternative client emails)
+                if client_domain and "@" in from_email_lower and from_email_lower.split("@")[1] == client_domain:
+                    logger.debug(f"Skipping client domain email: {from_email} (domain: {client_domain})")
+                    continue
+
+                # Add platform field to Instantly replies for timing detection
                 reply["platform"] = "instantly"
+                all_replies.append(reply)
 
             # Positive statuses that indicate already-captured opportunities
             POSITIVE_STATUSES = [1, 2, 3, 4]  # Interested, Meeting Booked, Meeting Completed, Closed
@@ -3455,9 +3475,14 @@ async def find_missed_opportunities(
 
             # Normalize Bison replies to match Instantly format
             # Filter out client's own outbound emails using 'type' field
+            # Get client email for filtering
+            client_email = matching_bison_workspace.get("client_email", "").lower()
+            client_domain = client_email.split("@")[1] if client_email and "@" in client_email else ""
+
             for reply in all_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
+                from_email_lower = from_email.lower()
                 campaign_id = reply.get("campaign_id")
                 lead_id = reply.get("lead_id")
 
@@ -3471,6 +3496,16 @@ async def find_missed_opportunities(
                 # Real campaign replies ALWAYS have campaign_id and lead_id
                 if campaign_id is None and lead_id is None:
                     logger.debug(f"Skipping test/untracked email (no campaign_id/lead_id) from {from_email}")
+                    continue
+
+                # Skip client's own emails (when client tests campaigns with their email)
+                if client_email and from_email_lower == client_email:
+                    logger.debug(f"Skipping client's own email: {from_email}")
+                    continue
+
+                # Skip emails from client's domain (alternative client emails)
+                if client_domain and "@" in from_email_lower and from_email_lower.split("@")[1] == client_domain:
+                    logger.debug(f"Skipping client domain email: {from_email} (domain: {client_domain})")
                     continue
 
                 # Log the type for debugging
@@ -3491,10 +3526,21 @@ async def find_missed_opportunities(
             for reply in interested_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
+                from_email_lower = from_email.lower()
 
                 # Skip outbound emails
                 if reply_type in ["sent", "outbound", "out"]:
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
+                    continue
+
+                # Skip client's own emails (when client tests campaigns with their email)
+                if client_email and from_email_lower == client_email:
+                    logger.debug(f"Skipping client's own email from interested list: {from_email}")
+                    continue
+
+                # Skip emails from client's domain (alternative client emails)
+                if client_domain and "@" in from_email_lower and from_email_lower.split("@")[1] == client_domain:
+                    logger.debug(f"Skipping client domain email from interested list: {from_email} (domain: {client_domain})")
                     continue
 
                 already_interested.append({
