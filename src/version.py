@@ -2,11 +2,92 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.5.1"
+VERSION = "2.6.0"
 RELEASE_DATE = "2025-12-20"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.6.0": {
+        "date": "December 20, 2025",
+        "title": "📊 GOOGLE SHEETS INTEGRATION - 18 Comprehensive Tools! (69 Total Tools)",
+        "highlights": [
+            {
+                "icon": "📊",
+                "category": "Major Feature",
+                "title": "Google Sheets Integration - 18 New Tools Added!",
+                "description": "Complete spreadsheet control with CRUD operations, professional formatting, and advanced organization",
+                "details": "TOTAL TOOLS NOW: 69 (up from 51). NEW CATEGORY: Google Sheets (18 tools) - Full CRUD operations, formatting, and organization. COMPLETE SPREADSHEET CONTROL: Create, read, update, delete, format, sort, and organize spreadsheets. PROFESSIONAL FORMATTING: Bold, colors, alignment, frozen headers, auto-resized columns. MULTI-TENANT SAFE: Each user's credentials fully isolated - perfect for team deployments. RATE LIMITED: 300 requests/minute with thread-safe token bucket algorithm. CORE OPERATIONS (10 tools): (1) create_spreadsheet - Create new spreadsheets with custom sheet names. (2) read_spreadsheet - Read data from any range (A1 notation). (3) append_to_spreadsheet - Add rows to end of sheets. (4) update_spreadsheet - Update specific cell ranges. (5) clear_spreadsheet_range - Clear values without deleting cells. (6) find_replace_in_spreadsheet - Find and replace text across sheets. (7) delete_spreadsheet_rows - Delete specific rows. (8) delete_spreadsheet_columns - Delete specific columns. (9) add_sheet_to_spreadsheet - Create new tabs/sheets. (10) delete_sheet_from_spreadsheet - Delete entire sheets. ADVANCED OPERATIONS (8 tools): (11) list_sheets_in_spreadsheet - List all tabs with metadata. (12) rename_spreadsheet_sheet - Rename existing tabs. (13) insert_spreadsheet_rows - Insert blank rows at any position. (14) insert_spreadsheet_columns - Insert blank columns at any position. (15) format_spreadsheet_cells - Apply styling (bold, colors, alignment). (16) sort_spreadsheet_range - Sort data by column. (17) freeze_spreadsheet_rows_columns - Freeze headers for scrolling. (18) auto_resize_spreadsheet_columns - Auto-fit column widths.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🎨",
+                "category": "Formatting",
+                "title": "Professional Cell Formatting",
+                "description": "Make your spreadsheets beautiful with bold, colors, alignment, and auto-sizing",
+                "details": "FORMATTING OPTIONS: Bold, italic, font size for text emphasis. Background colors with RGB support (e.g., light blue headers). Text colors with RGB support (e.g., red for negatives). Horizontal alignment: LEFT, CENTER, RIGHT. Vertical alignment: TOP, MIDDLE, BOTTOM. RGB COLOR SUPPORT: Use color dicts like {'red': 0.85, 'green': 0.92, 'blue': 1.0} for precise colors. Perfect for: Color-coded status columns, branded headers, data visualization. EXAMPLES: Format header row A1:E1 as bold, centered, light blue background. Color negative numbers red in column D. Make title row 16pt bold with dark blue text.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔄",
+                "category": "Data Organization",
+                "title": "Sort, Insert, Freeze & Auto-Resize",
+                "description": "Powerful data organization tools for managing large spreadsheets",
+                "details": "SORTING: Sort any range by column (ascending or descending). Preserve header rows (skip row 1). Essential for data analysis and reporting. INSERTION: Insert blank rows or columns at any position. Non-destructive - preserves existing data. Perfect for adding space or reorganizing. FREEZING: Freeze rows or columns to keep headers visible while scrolling. Freeze top row (headers), first column, or both. Essential for large datasets. AUTO-RESIZE: Automatically fit column widths to content. One command resizes A-Z or any range. Optimal readability without manual adjustments.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔐",
+                "category": "Security",
+                "title": "Multi-Tenant Architecture & Rate Limiting",
+                "description": "Enterprise-ready with per-user credentials and intelligent rate limiting",
+                "details": "AUTHENTICATION & SECURITY: OAuth scope: https://www.googleapis.com/auth/spreadsheets. Per-user credentials (multi-tenant safe). Encrypted token storage in SQLite. Rate limiting: 300 requests/minute per user. Thread-safe with proper locking. Auto-retry on transient failures (403, 429, 500, 503). THREAD-SAFE RATE LIMITER: Token bucket algorithm. Tracks request timestamps across threads. Sleeps outside lock to prevent blocking. Exponential backoff on rate limit errors. LOCAL MODE: Fully functional, each user uses own Google account. Full isolation - zero cross-contamination. MULTI-TENANT RAILWAY MODE: Architecture ready, credentials isolated per user.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🎯",
+                "category": "Use Cases",
+                "title": "Real-World Spreadsheet Automation",
+                "description": "Perfect for sales trackers, analytics dashboards, data collection, and reporting",
+                "details": "COMMON USE CASES: 📊 'Create a Q1 sales tracker with tabs for each month and format headers'. 📈 'Read the latest data from the revenue sheet and analyze trends'. ✨ 'Format the header row as bold and centered with a blue background'. 🔄 'Sort the client list by revenue descending'. ⚡ 'Insert 10 rows in the middle to add new data'. 🎯 'Freeze the top 2 rows so headers stay visible'. 📐 'Auto-resize all columns so data is readable'. 🔍 'Replace all placeholder client names with actual names'. 🗂️ 'List all sheets in this workbook to see what we have'. 📋 'Append new lead data to the tracking sheet daily'. WORKFLOW EXAMPLES: Sales tracking: Create spreadsheet → Format headers → Freeze top row → Auto-resize columns. Data analysis: Read data → Sort by key metric → Format with color coding → Export insights. Template population: Create from template → Find/replace placeholders → Format → Share.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📚",
+                "category": "Platform Overview",
+                "title": "69 Tools Across 8 Platforms",
+                "description": "Complete productivity ecosystem from email to spreadsheets",
+                "details": "TOOL BREAKDOWN BY PLATFORM: 📧 Gmail (13 tools): Email management, search, threads, drafts. 📅 Calendar (7 tools): Events, scheduling, Google Meet integration. 📝 Docs (6 tools): Document creation, editing, formatting. 📊 Sheets (18 tools): Spreadsheet CRUD, formatting, organization ⭐ NEW. 🎥 Fathom (6 tools): Meeting transcripts, summaries, action items. 🚀 Instantly (12 tools): Campaign management, lead tracking. 🦬 Bison (6 tools): Campaign management, lead tracking. 🛡️ EmailGuard (1 tool): Spam checking. TOTAL: 69 production-ready tools across 8 platforms. All categories fully functional. Multi-tenant architecture throughout.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added src/sheets_client.py with SheetsClient class (~1,000 lines)",
+            "SheetsClient includes thread-safe RateLimiter with token bucket implementation",
+            "Rate limiting: 300 requests/minute per user (matches Google Sheets API quota)",
+            "Added 18 MCP tools to src/server.py for complete Sheets operations",
+            "OAuth scope added: https://www.googleapis.com/auth/spreadsheets",
+            "OAuth scope auto-configured in all 4 config locations",
+            "Full A1 notation parsing for ranges (e.g., A1:C5, Sheet1!A1:D10)",
+            "RGB color support: {'red': 0.85, 'green': 0.92, 'blue': 1.0}",
+            "Auto-retry logic: Exponential backoff on 403, 429, 500, 503 errors",
+            "Thread-safe locking prevents race conditions in multi-tenant environment",
+            "Column letter conversion: Handles A-Z, AA-ZZ notation",
+            "Delete operations include safety warnings in tool descriptions",
+            "Format operations support: bold, italic, font size, colors, alignment",
+            "Sort operations preserve header rows with user-friendly 1-indexed rows",
+            "Insert operations are non-destructive (preserve existing data)",
+            "Freeze operations: rows, columns, or both independently",
+            "Auto-resize uses Google's automatic column width calculation",
+            "All operations return spreadsheet URL for easy access",
+            "Comprehensive error handling with user-friendly messages",
+            "Multi-tenant isolation: Each user's credentials completely separate",
+            "Updated modal to show 69 tools across 8 platforms",
+            "Added Google Sheets examples to 'How It Works' modal",
+            "Updated changelog page with v2.6.0 release notes",
+            "Commits: 669de13 (Sheets integration), 39bd900 (Changelog), 45df38a (Modal)",
+        ],
+    },
     "2.5.1": {
         "date": "December 20, 2025",
         "title": "🔧 CRITICAL FIXES: Pagination & Already-Interested Detection",
