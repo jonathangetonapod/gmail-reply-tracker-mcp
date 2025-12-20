@@ -378,19 +378,20 @@ SETUP_LANDING_HTML = """
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>🚀 Your AI Productivity Command Center</h2>
-                <p>45 powerful tools that transform Claude into your personal productivity assistant</p>
+                <p>51 powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>💫 The Complete Toolkit - 45 Tools Across 5 Platforms</h3>
+                    <h3>💫 The Complete Toolkit - 51 Tools Across 7 Platforms</h3>
                     <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
-                        <strong>📧 Gmail</strong><span class="tool-count">5 tools</span>
+                        <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Smart unreplied email detection (auto-filters newsletters & automated emails)<br>
                         • Thread-aware replies (never creates duplicate threads)<br>
                         • Send emails, create drafts, search with Gmail query syntax<br>
-                        • Full conversation history & inbox analytics</p>
+                        • Full conversation history & inbox analytics<br>
+                        • Reply to email threads, reply all, unreplied by sender</p>
 
                         <strong>📅 Google Calendar</strong><span class="tool-count">7 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Natural language scheduling ("tomorrow at 2pm")<br>
@@ -399,13 +400,20 @@ SETUP_LANDING_HTML = """
                         • Email invitations sent to all attendees<br>
                         • Recurring events, multi-calendar support</p>
 
+                        <strong>📝 Google Docs</strong><span class="tool-count">6 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Create, read, and edit Google Docs directly from Claude<br>
+                        • Append content, insert at specific positions<br>
+                        • Find and replace text (template population)<br>
+                        • Add formatted headings (H1-H6)<br>
+                        • Multi-tenant safe with per-user OAuth</p>
+
                         <strong>🎙️ Fathom AI</strong><span class="tool-count">6 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Full meeting transcripts with timestamps<br>
                         • AI-generated summaries & action item extraction<br>
                         • Search recordings by title or attendee<br>
                         • Calendar event cross-reference</p>
 
-                        <strong>🎯 Campaign Management</strong><span class="tool-count">10 tools</span>
+                        <strong>🎯 Campaign Management</strong><span class="tool-count">4 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Create email sequences for Instantly & Bison (88+ clients)<br>
                         • Auto-convert placeholders ({{firstname}} → {FIRST_NAME})<br>
                         • HTML email formatting for Instantly campaigns<br>
@@ -417,9 +425,10 @@ SETUP_LANDING_HTML = """
                         • Mark leads as interested with one command<br>
                         • Track 88+ clients across Instantly & Bison<br>
                         • Campaign analytics, top performers, underperforming clients<br>
-                        • Weekly summaries & detailed lead breakdowns</p>
+                        • Weekly summaries & detailed lead breakdowns<br>
+                        • Fixed pagination: fetches all 50-80+ sender emails per client ✨</p>
 
-                        <strong>🛡️ Spam Detection</strong><span class="tool-count">3 tools</span>
+                        <strong>🛡️ Spam Detection</strong><span class="tool-count">1 tool</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Check any email subject/body for spam words<br>
                         • Scan entire Bison & Instantly campaigns<br>
                         • EmailGuard API integration with detailed scoring</p>
@@ -441,6 +450,7 @@ SETUP_LANDING_HTML = """
                         <ul>
                             <li>Gmail: Read, send, and modify (gmail.modify scope)</li>
                             <li>Calendar: Full access to create/edit events</li>
+                            <li>Google Docs: Create, read, and edit documents (documents scope)</li>
                             <li>Fathom: Read-only via your API key (optional)</li>
                         </ul>
                         <p style="margin-top: 12px; font-size: 13px; color: #666;">
@@ -477,6 +487,13 @@ SETUP_LANDING_HTML = """
                     <div class="example-prompt">"What's on my calendar this week?"</div>
                     <div class="example-prompt">"Create a recurring Monday standup at 9am and invite the team"</div>
 
+                    <p style="margin-top: 15px;"><strong>📝 Google Docs Automation:</strong></p>
+                    <div class="example-prompt">"Create a meeting notes doc called 'Q4 Planning - Dec 20'"</div>
+                    <div class="example-prompt">"Read the proposal doc and summarize the key points"</div>
+                    <div class="example-prompt">"Append these action items to the meeting notes doc"</div>
+                    <div class="example-prompt">"Replace all {{client_name}} with 'Acme Corp' in the template"</div>
+                    <div class="example-prompt">"Add an H2 heading 'Budget Analysis' to the report doc"</div>
+
                     <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence (Fathom):</strong></p>
                     <div class="example-prompt">"What were the action items from yesterday's client call?"</div>
                     <div class="example-prompt">"Summarize the Project Phoenix kickoff meeting"</div>
@@ -509,7 +526,9 @@ SETUP_LANDING_HTML = """
 
                     <p style="margin-top: 15px;"><strong>🔀 Cross-Platform Magic:</strong></p>
                     <div class="example-prompt">"What's the status of the ABC Corp deal? Check emails, calendar, and Fathom"</div>
+                    <div class="example-prompt">"Create meeting notes doc, add attendees, schedule follow-up for next week" <span style="color: #4caf50;">← 3 platforms!</span></div>
                     <div class="example-prompt">"Find all action items from this week across meetings and emails"</div>
+                    <div class="example-prompt">"Summarize the client call and create a Google Doc with the notes"</div>
                     <div class="example-prompt">"Who have I been meeting with most this month?"</div>
                     <div class="example-prompt">"Show me all communication with john@company.com - emails, meetings, everything"</div>
                 </div>
@@ -519,12 +538,14 @@ SETUP_LANDING_HTML = """
                     <ul>
                         <li><strong>Natural language everything</strong> - No more clicking through interfaces, menus, or forms</li>
                         <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across all platforms</li>
+                        <li><strong>Google Docs automation</strong> - Create, edit, and format documents without leaving Claude</li>
                         <li><strong>Hidden gems discovery</strong> - AI finds interested leads that other AIs missed (unique feature!)</li>
+                        <li><strong>Fixed pagination</strong> - Fetches all 50-80+ sender emails per client to eliminate false positives</li>
                         <li><strong>Fuzzy matching</strong> - Handles typos in names ("brian blis" → "Brian Bliss")</li>
                         <li><strong>Thread-aware replies</strong> - Never creates duplicate email threads (smart detection)</li>
                         <li><strong>Auto Google Meet</strong> - Every meeting gets a Meet link automatically</li>
                         <li><strong>Smart filtering</strong> - Automatically filters newsletters, automated emails, auto-replies</li>
-                        <li><strong>Multi-platform queries</strong> - Ask about emails, calendar, meetings, campaigns in one go</li>
+                        <li><strong>Multi-platform queries</strong> - Ask about emails, calendar, docs, meetings, campaigns in one go</li>
                         <li><strong>Real-time analytics</strong> - Track campaign performance, reply rates, interested leads</li>
                         <li><strong>One-command marking</strong> - Mark leads as interested without switching tools</li>
                     </ul>
@@ -551,7 +572,8 @@ SETUP_LANDING_HTML = """
                 <div class="section">
                     <h3>💡 Unique Features You Won't Find Elsewhere</h3>
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring with confidence levels. This alone can recover 10-20% more leads.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring with confidence levels. Fixed pagination now fetches all 50-80+ sender emails per client to eliminate false positives where client's own emails appeared as leads. This alone can recover 10-20% more leads.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Google Docs Integration:</strong> Create, read, and edit Google Docs directly from Claude. Template population with find/replace, progressive documentation with append, formatted headings. Multi-tenant safe with per-user OAuth isolation.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Use fuzzy matching to find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📧 Thread Detection:</strong> Never creates duplicate email threads. System auto-detects existing conversations and suggests the correct reply tool.</p>
                         <p style="margin: 0; font-size: 16px; line-height: 1.6;"><strong>🎥 Auto Google Meet:</strong> Every calendar event with attendees automatically gets a Google Meet link. No more "forgot to add the link".</p>
