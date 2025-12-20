@@ -3453,6 +3453,15 @@ async def find_missed_opportunities(
             logger.info("Bison raw counts - All replies: %d, Interested replies: %d",
                        len(all_replies_raw), len(interested_replies_raw))
 
+            # DEBUG: Check if sender_email_id field exists and what values it has
+            if all_replies_raw:
+                sample = all_replies_raw[0]
+                logger.info("DEBUG - Sample reply fields: %s", list(sample.keys()))
+                logger.info("DEBUG - Sample: from=%s, sender_email_id=%s, type=%s",
+                           sample.get("from_email_address"),
+                           sample.get("sender_email_id"),
+                           sample.get("type"))
+
             # Normalize Bison replies to match Instantly format
             # Filter out client's own outbound emails using 'sender_email_id' field
             for reply in all_replies_raw:
