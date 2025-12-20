@@ -309,6 +309,15 @@ AUTO_REPLY_KEYWORDS = [
     r'\bnot expected to (check|respond)\b',  # "not expected to check or respond to emails"
 ]
 
+# Test/setup emails that should be filtered (Bison connection tests, etc.)
+TEST_EMAIL_PATTERNS = [
+    r'\blead gen jay connection test\b',  # Bison's email deliverability test
+    r'\bif you receive this email.*everything is working correctly\b',  # Bison test message body
+    r'\bemail deliverability test\b',
+    r'\bconnection test\b',
+    r'\btest email\b',
+]
+
 
 def analyze_reply_with_keywords(reply_text: str, subject: str = "") -> Dict:
     """
@@ -337,7 +346,17 @@ def analyze_reply_with_keywords(reply_text: str, subject: str = "") -> Dict:
     text_lower = reply_text.lower()
     subject_lower = subject.lower() if subject else ""
 
-    # Check for auto-replies first (highest priority)
+    # Check for test/setup emails FIRST (Bison connection tests, etc.)
+    for pattern in TEST_EMAIL_PATTERNS:
+        if re.search(pattern, subject_lower, re.IGNORECASE) or re.search(pattern, text_lower, re.IGNORECASE):
+            return {
+                "category": "auto_reply",  # Categorize as auto_reply to filter out
+                "confidence": 100,
+                "matched_keywords": [pattern],
+                "reason": "Test/setup email (Bison connection test or similar)"
+            }
+
+    # Check for auto-replies next (highest priority)
     # Check BOTH subject line and body
     auto_matches = []
 
