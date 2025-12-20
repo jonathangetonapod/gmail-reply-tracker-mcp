@@ -3454,15 +3454,21 @@ async def find_missed_opportunities(
                        len(all_replies_raw), len(interested_replies_raw))
 
             # Normalize Bison replies to match Instantly format
-            # Filter out client's own outbound emails using 'type' field
+            # Filter out client's own outbound emails using 'sender_email_id' field
             for reply in all_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
                 campaign_id = reply.get("campaign_id")
                 lead_id = reply.get("lead_id")
+                sender_email_id = reply.get("sender_email_id")
 
-                # Skip if this is an outbound/sent email (not a received reply from a lead)
-                # Only process "received" or "inbound" types
+                # Skip client's sent emails: sender_email_id is present when CLIENT sent the email
+                # Lead replies have sender_email_id = None
+                if sender_email_id is not None:
+                    logger.debug(f"Skipping client sent email (sender_email_id={sender_email_id}) from {from_email}")
+                    continue
+
+                # Skip if this is an outbound/sent email (backup check using type field)
                 if reply_type in ["sent", "outbound", "out"]:
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
                     continue
@@ -3474,7 +3480,7 @@ async def find_missed_opportunities(
                     continue
 
                 # Log the type for debugging
-                logger.debug(f"Processing reply type={reply_type} from {from_email}, campaign_id={campaign_id}, lead_id={lead_id}")
+                logger.debug(f"Processing reply type={reply_type} from {from_email}, sender_email_id={sender_email_id}, campaign_id={campaign_id}, lead_id={lead_id}")
 
                 all_replies.append({
                     "email": reply.get("from_email_address", "Unknown"),
@@ -3491,8 +3497,14 @@ async def find_missed_opportunities(
             for reply in interested_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
+                sender_email_id = reply.get("sender_email_id")
 
-                # Skip outbound emails
+                # Skip client's sent emails: sender_email_id is present when CLIENT sent the email
+                if sender_email_id is not None:
+                    logger.debug(f"Skipping client sent email from interested list (sender_email_id={sender_email_id}) from {from_email}")
+                    continue
+
+                # Skip outbound emails (backup check)
                 if reply_type in ["sent", "outbound", "out"]:
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
                     continue
