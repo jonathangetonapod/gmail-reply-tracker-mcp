@@ -549,11 +549,11 @@ def create_bison_campaign_with_sequences(
 
 def get_bison_sender_emails(api_key: str):
     """
-    Fetch all sender email accounts from Bison API.
-    
+    Fetch ALL sender email accounts from Bison API with pagination.
+
     Args:
         api_key: Bison API key
-    
+
     Returns:
         {
             "data": [
@@ -569,8 +569,30 @@ def get_bison_sender_emails(api_key: str):
     """
     url = "https://send.leadgenjay.com/api/sender-emails"
     headers = {"Authorization": f"Bearer {api_key}"}
-    
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
-    
-    return response.json()
+
+    all_emails = []
+    page = 1
+    per_page = 100  # Fetch 100 per page to minimize API calls
+
+    while True:
+        params = {"page": page, "per_page": per_page}
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response.raise_for_status()
+
+        result = response.json()
+        data = result.get("data", [])
+
+        if not data:
+            # No more data, we've fetched all pages
+            break
+
+        all_emails.extend(data)
+
+        # Check if there are more pages
+        # If we got less than per_page results, we're on the last page
+        if len(data) < per_page:
+            break
+
+        page += 1
+
+    return {"data": all_emails}
