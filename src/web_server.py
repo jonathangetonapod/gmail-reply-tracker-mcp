@@ -378,12 +378,12 @@ SETUP_LANDING_HTML = """
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>🚀 Your AI Productivity Command Center</h2>
-                <p>51 powerful tools that transform Claude into your personal productivity assistant</p>
+                <p>69 powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>💫 The Complete Toolkit - 51 Tools Across 7 Platforms</h3>
+                    <h3>💫 The Complete Toolkit - 69 Tools Across 8 Platforms</h3>
                     <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
                         <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
@@ -406,6 +406,13 @@ SETUP_LANDING_HTML = """
                         • Find and replace text (template population)<br>
                         • Add formatted headings (H1-H6)<br>
                         • Multi-tenant safe with per-user OAuth</p>
+
+                        <strong>📊 Google Sheets</strong><span class="tool-count">18 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• <strong>Full CRUD:</strong> Create, read, update, delete spreadsheets & sheets<br>
+                        • <strong>Professional formatting:</strong> Bold, colors, alignment, frozen headers<br>
+                        • Insert/delete rows & columns, sort by column, auto-resize<br>
+                        • List tabs, rename sheets, find & replace across workbooks<br>
+                        • A1 notation support, RGB colors, 300 req/min rate limiting</p>
 
                         <strong>🎙️ Fathom AI</strong><span class="tool-count">6 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Full meeting transcripts with timestamps<br>
@@ -451,6 +458,7 @@ SETUP_LANDING_HTML = """
                             <li>Gmail: Read, send, and modify (gmail.modify scope)</li>
                             <li>Calendar: Full access to create/edit events</li>
                             <li>Google Docs: Create, read, and edit documents (documents scope)</li>
+                            <li>Google Sheets: Create, read, and edit spreadsheets (spreadsheets scope)</li>
                             <li>Fathom: Read-only via your API key (optional)</li>
                         </ul>
                         <p style="margin-top: 12px; font-size: 13px; color: #666;">
@@ -493,6 +501,14 @@ SETUP_LANDING_HTML = """
                     <div class="example-prompt">"Append these action items to the meeting notes doc"</div>
                     <div class="example-prompt">"Replace all {{client_name}} with 'Acme Corp' in the template"</div>
                     <div class="example-prompt">"Add an H2 heading 'Budget Analysis' to the report doc"</div>
+
+                    <p style="margin-top: 15px;"><strong>📊 Google Sheets Powerhouse:</strong></p>
+                    <div class="example-prompt">"Create a spreadsheet called 'Q1 Sales Tracker' with sheets for Jan, Feb, Mar"</div>
+                    <div class="example-prompt">"Format the header row A1:E1 as bold, centered, with a light blue background"</div>
+                    <div class="example-prompt">"Sort the data by column C descending and freeze the top row"</div>
+                    <div class="example-prompt">"Insert 5 rows at row 10 to make space for new data"</div>
+                    <div class="example-prompt">"Auto-resize columns A through Z so everything is readable"</div>
+                    <div class="example-prompt">"List all sheets in this workbook and show me their names"</div>
 
                     <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence (Fathom):</strong></p>
                     <div class="example-prompt">"What were the action items from yesterday's client call?"</div>
