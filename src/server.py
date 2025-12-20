@@ -3458,6 +3458,8 @@ async def find_missed_opportunities(
             for reply in all_replies_raw:
                 reply_type = reply.get("type", "").lower()
                 from_email = reply.get("from_email_address", "")
+                campaign_id = reply.get("campaign_id")
+                lead_id = reply.get("lead_id")
 
                 # Skip if this is an outbound/sent email (not a received reply from a lead)
                 # Only process "received" or "inbound" types
@@ -3465,8 +3467,14 @@ async def find_missed_opportunities(
                     logger.debug(f"Skipping outbound email (type={reply_type}) from {from_email}")
                     continue
 
+                # Skip test emails: no campaign AND no lead = test/untracked email (not a real campaign reply)
+                # Real campaign replies ALWAYS have campaign_id and lead_id
+                if campaign_id is None and lead_id is None:
+                    logger.debug(f"Skipping test/untracked email (no campaign_id/lead_id) from {from_email}")
+                    continue
+
                 # Log the type for debugging
-                logger.debug(f"Processing reply type={reply_type} from {from_email}")
+                logger.debug(f"Processing reply type={reply_type} from {from_email}, campaign_id={campaign_id}, lead_id={lead_id}")
 
                 all_replies.append({
                     "email": reply.get("from_email_address", "Unknown"),
