@@ -3431,26 +3431,24 @@ async def find_missed_opportunities(
             logger.info("Found client in Bison, fetching campaigns and replies...")
             platform_used = "bison"
 
-            # Step 0: Fetch campaigns to get client's sending email addresses
-            logger.info("Step 3a/7: Fetching Bison campaigns to identify client email addresses...")
-            from leads.bison_client import list_bison_campaigns
-            campaigns_result = list_bison_campaigns(api_key=api_key)
-            campaigns = campaigns_result.get("data", [])
-            logger.info("Found %d campaigns", len(campaigns))
+            # Step 0: Fetch sender email accounts to identify client's email addresses
+            logger.info("Step 3a/7: Fetching Bison sender email accounts...")
+            from leads.bison_client import get_bison_sender_emails
+            sender_emails_result = get_bison_sender_emails(api_key=api_key)
+            sender_accounts = sender_emails_result.get("data", [])
+            logger.info("Found %d sender email accounts", len(sender_accounts))
 
-            # Extract all unique email addresses from campaigns
+            # Extract all unique email addresses from sender accounts
             client_email_addresses = set()
-            for campaign in campaigns:
-                email_accounts = campaign.get("email_accounts", [])
-                for account in email_accounts:
-                    email_address = account.get("email_address", "").lower()
-                    if email_address:
-                        client_email_addresses.add(email_address)
-                        logger.debug(f"Found client email: {email_address}")
+            for account in sender_accounts:
+                email_address = account.get("email", "").lower()
+                if email_address:
+                    client_email_addresses.add(email_address)
+                    logger.debug(f"Found client email: {email_address} (status: {account.get('status')})")
 
             logger.info("Identified %d client email addresses: %s",
                        len(client_email_addresses),
-                       list(client_email_addresses)[:5])  # Show first 5
+                       list(client_email_addresses)[:5] if len(client_email_addresses) > 5 else list(client_email_addresses))
 
             # Step 1: Fetch ALL campaign replies (excluding auto-replies if requested)
             # Use status="not_automated_reply" to exclude OOO messages and other auto-replies

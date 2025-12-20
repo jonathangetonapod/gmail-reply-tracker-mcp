@@ -545,3 +545,32 @@ def create_bison_campaign_with_sequences(
         "campaign": campaign_result,
         "sequence": sequence_result
     }
+
+
+def get_bison_sender_emails(api_key: str):
+    """
+    Fetch all sender email accounts from Bison API.
+    
+    Args:
+        api_key: Bison API key
+    
+    Returns:
+        {
+            "data": [
+                {
+                    "id": int,
+                    "name": str,
+                    "email": str,
+                    "status": str,
+                    ...
+                }
+            ]
+        }
+    """
+    url = "https://send.leadgenjay.com/api/sender-emails"
+    headers = {"Authorization": f"Bearer {api_key}"}
+    
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    
+    return response.json()
