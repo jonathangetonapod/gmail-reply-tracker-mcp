@@ -2,11 +2,49 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.5.0"
-RELEASE_DATE = "2025-12-19"
+VERSION = "2.5.1"
+RELEASE_DATE = "2025-12-20"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.5.1": {
+        "date": "December 20, 2025",
+        "title": "🔧 CRITICAL FIXES: Pagination & Already-Interested Detection",
+        "highlights": [
+            {
+                "icon": "🔧",
+                "category": "Critical Fix",
+                "title": "Bison Sender Emails Pagination Fixed",
+                "description": "Now fetches all 50-80+ sender emails per client instead of just 15, eliminating false positives where client's own emails appeared as leads",
+                "details": "THE PROBLEM: Only fetching 15 sender email accounts instead of all 50-80+ per client. Client emails like mike.h@bookbiggerstages.org, jeff@sugarpixelspro.com, rich.c@tryflyingpoint.com were appearing as 'interested leads' in hidden gems results. ROOT CAUSE: Bison API returns 15 results per page (fixed), doesn't support per_page parameter. Initial pagination code used while loop with per_page=100, but API ignored it and always returned 15 results. Loop stopped after first page because it got 15 < 100 results. THE FIX: Explicit page fetching up to 10 pages (150 emails max). Stops early when empty page or < 15 results detected. PRODUCTION VALIDATION: Jeff Mikolai test shows page 1→15, page 2→15, page 3→15, page 4→5 emails. Total: 50 sender emails across 4 pages. IMPACT: Before: 15 sender emails → 35+ client emails appearing as leads ❌. After: 50 sender emails → All client emails properly filtered ✅.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🎯",
+                "category": "Critical Fix",
+                "title": "Already-Interested Lead Detection from Client Replies",
+                "description": "Fixed detection of leads already marked as interested when the tag is on the client's reply instead of the lead's incoming message",
+                "details": "THE PROBLEM: Leads already marked as interested in Bison were appearing as 'warm hidden gems'. Example: Tracy Wallace (tracy@feast26.com) for Justin Ashcraft - marked interested but still showing as hidden gem. ROOT CAUSE: When you mark a thread as interested in Bison, the interested=true flag is often on the CLIENT'S reply to the lead, not the lead's incoming reply. Old logic only checked interested flag on incoming lead replies. Tracy's incoming reply had interested=false. Justin's outbound reply had interested=true but was filtered out as client reply. Result: Tracy's email never added to already_interested list. THE FIX: Also extract lead emails from client replies marked as interested. When interested=true on client reply (is_to_client=False), extract lead email from TO field and add to already_interested list. IMPACT: Before: Leads marked via client reply showing as hidden gems ❌. After: All marked leads properly excluded ✅.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "src/leads/bison_client.py lines 553-617: Fixed get_bison_sender_emails() pagination",
+            "Changed from while loop with per_page parameter to explicit page fetching (1-10)",
+            "Bison API returns 15 results per page (fixed), doesn't support per_page override",
+            "Added comprehensive logging: 'Fetching sender emails page X', 'Page X returned Y emails'",
+            "Pagination stops when: (1) empty page, (2) < 15 results, (3) reached max 10 pages",
+            "Production validated: Jeff Mikolai 50 emails across 4 pages, Matthew Gadjus 50 emails across 4 pages",
+            "src/server.py lines 3548-3571: Added client reply interested tag extraction",
+            "When interested=true on client reply (not lead reply), extracts lead email from TO field",
+            "Detection: if not is_to_client and from_email_lower in client_email_addresses",
+            "Adds lead's email to already_interested list with metadata",
+            "Logging: 'Found interested tag on client reply to lead: to={lead_email}'",
+            "Covers both cases: (1) interested=true on lead's incoming reply, (2) interested=true on client's outbound reply",
+            "Commits: ca18f7a (debug logging), aa081fb (pagination fix), fcea96e (interested tag extraction)",
+        ],
+    },
     "2.5.0": {
         "date": "December 19, 2025",
         "title": "📝 GOOGLE DOCS INTEGRATION - 6 New Tools! (51 Total Tools)",
