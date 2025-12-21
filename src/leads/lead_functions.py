@@ -1923,11 +1923,12 @@ def get_bison_sender_replies(
             if not accounts:
                 raise ValueError(f"Sender email {sender_email} not found for client {client_name}")
 
-        # Fetch replies for each sender
+        # Fetch replies for each sender in parallel
         all_replies = []
         sender_summaries = []
 
-        for account in accounts:
+        def fetch_sender_replies(account):
+            """Fetch and process replies for a single sender."""
             sender_id = account.get("id")
             sender_email_addr = account.get("email", "Unknown")
 
@@ -1939,8 +1940,6 @@ def get_bison_sender_replies(
                 interested=interested_only if interested_only else None,
                 max_results=limit if limit else None
             )
-
-            total_replies = len(replies)
 
             # Process replies
             processed_replies = []
@@ -1958,15 +1957,34 @@ def get_bison_sender_replies(
                     "sequence_step": reply.get("sequence_step", 0)
                 })
 
-            sender_summaries.append({
+            summary = {
                 "sender_email": sender_email_addr,
                 "sender_id": sender_id,
-                "total_replies": total_replies,
+                "total_replies": len(replies),
                 "showing": len(processed_replies),
                 "interested_count": sum(1 for r in processed_replies if r["interested"])
-            })
+            }
 
-            all_replies.extend(processed_replies)
+            return processed_replies, summary
+
+        # Use ThreadPoolExecutor for parallel fetching (up to 15 workers)
+        max_workers = min(15, len(accounts))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all fetch tasks
+            future_to_account = {
+                executor.submit(fetch_sender_replies, account): account
+                for account in accounts
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_account):
+                try:
+                    processed_replies, summary = future.result()
+                    all_replies.extend(processed_replies)
+                    sender_summaries.append(summary)
+                except Exception as e:
+                    account = future_to_account[future]
+                    logger.error(f"Error fetching replies for sender {account.get('email')}: {e}")
 
         logger.info(
             f"Bison client {client_name}: Fetched {len(all_replies)} replies from {len(sender_summaries)} sender(s)"
