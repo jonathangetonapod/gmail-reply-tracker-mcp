@@ -1544,57 +1544,36 @@ def _fetch_instantly_accounts(api_key: str, limit: int = 100) -> List[Dict[str, 
 
 def _fetch_emailbison_accounts(api_key: str) -> List[Dict[str, Any]]:
     """
-    Fetch email accounts from Email Bison API with pagination.
+    Fetch sender emails from LeadGenJay API.
 
     Args:
-        api_key: Email Bison API key
+        api_key: LeadGenJay API key
 
     Returns:
-        List of account dictionaries
+        List of sender email dictionaries
     """
     headers = {"Authorization": f"Bearer {api_key}"}
-    all_accounts = []
-    page = 1
 
     try:
-        while True:
-            params = {"page": page}
+        resp = requests.get(
+            EMAIL_BISON_ACCOUNTS_URL,
+            headers=headers,
+            timeout=30
+        )
 
-            resp = requests.get(
-                EMAIL_BISON_ACCOUNTS_URL,
-                headers=headers,
-                params=params,
-                timeout=30
-            )
+        if not resp.ok:
+            logger.warning(f"Error fetching LeadGenJay sender emails: {resp.status_code}")
+            resp.raise_for_status()
 
-            if not resp.ok:
-                logger.warning(f"Error fetching Email Bison accounts (page {page}): {resp.status_code}")
-                resp.raise_for_status()
+        data = resp.json()
+        accounts = data.get("data", [])
 
-            data = resp.json()
-            accounts = data.get("data", [])
-            all_accounts.extend(accounts)
-
-            # Check pagination
-            meta = data.get("meta", {})
-            links = data.get("links", {})
-            current_page = meta.get("current_page", page)
-            last_page = meta.get("last_page", 1)
-            next_url = links.get("next")
-
-            logger.info(f"Fetched Email Bison page {current_page}/{last_page} ({len(accounts)} accounts)")
-
-            if not next_url or current_page >= last_page:
-                break
-
-            page += 1
-
-        logger.info(f"Fetched total {len(all_accounts)} Email Bison accounts")
-        return all_accounts
+        logger.info(f"Fetched {len(accounts)} LeadGenJay sender emails")
+        return accounts
 
     except Exception as e:
-        logger.error(f"Exception fetching Email Bison accounts: {e}")
-        return all_accounts if all_accounts else []
+        logger.error(f"Exception fetching LeadGenJay sender emails: {e}")
+        return []
 
 
 def get_instantly_mailboxes(
@@ -1758,12 +1737,17 @@ def get_bison_mailboxes(
                 "emails_sent": account.get("emails_sent_count", 0),
                 "total_replies": account.get("total_replied_count", 0),
                 "unique_replies": account.get("unique_replied_count", 0),
-                "opens": account.get("total_opened_count", 0),
+                "unique_opens": account.get("unique_opened_count", 0),
+                "total_opens": account.get("total_opened_count", 0),
+                "unsubscribed": account.get("unsubscribed_count", 0),
                 "bounces": account.get("bounced_count", 0),
                 "interested_leads": account.get("interested_leads_count", 0),
+                "total_leads_contacted": account.get("total_leads_contacted_count", 0),
                 "health": health,
                 "tags": tag_names,
-                "type": account.get("type", "")
+                "type": account.get("type", ""),
+                "created_at": account.get("created_at", ""),
+                "updated_at": account.get("updated_at", "")
             })
 
         logger.info(
