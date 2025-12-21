@@ -2,11 +2,35 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.7.2"
+VERSION = "2.7.3"
 RELEASE_DATE = "2025-12-21"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.7.3": {
+        "date": "December 21, 2025",
+        "title": "🔧 Instantly API Cleanup - Removed Deprecated Endpoint (78 Total Tools)",
+        "highlights": [
+            {
+                "icon": "🔧",
+                "category": "Bug Fix",
+                "title": "Removed Deprecated Workspace Info Endpoint",
+                "description": "Eliminated 404 error spam from deprecated Instantly API v1 workspace endpoint",
+                "details": "THE PROBLEM: System was calling /api/v1/workspaces/current to fetch workspace names, generating hundreds of 404 errors in logs. THE FIX: Removed _fetch_workspace_info() function entirely and updated get_instantly_mailboxes() to use workspace_id directly (which is already available from Google Sheets). IMPACT: Clean logs with no 404 spam, slightly faster mailbox health checks (one less API call per workspace), system continues working identically (workspace name was only used for display). TECHNICAL: Removed INSTANTLY_WORKSPACE_URL constant, removed _fetch_workspace_info() helper function, updated get_instantly_mailboxes() to use workspace.get('workspace_name') or workspace_id fallback.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Removed INSTANTLY_WORKSPACE_URL = 'https://api.instantly.ai/api/v1/workspaces/current'",
+            "Removed _fetch_workspace_info() function (lines 1469-1494)",
+            "Updated get_instantly_mailboxes() to use workspace_name from Google Sheets",
+            "Fallback logic: workspace.get('workspace_name') or workspace_id",
+            "No functional changes - workspace name was only used for logging/display",
+            "Performance improvement: One less API call per workspace (56 workspaces = 56 fewer API calls)",
+            "Total tool count remains 78 (no new tools, cleanup only)",
+        ],
+    },
     "2.7.2": {
         "date": "December 21, 2025",
         "title": "⚡ Parallel Processing for Mailbox Health - 16x Faster! (78 Total Tools)",
