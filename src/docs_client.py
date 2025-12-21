@@ -433,3 +433,293 @@ class DocsClient:
             print(f"Open doc at: {url}")
         """
         return f"https://docs.google.com/document/d/{document_id}/edit"
+
+    def insert_table(
+        self,
+        document_id: str,
+        rows: int,
+        columns: int,
+        index: int = 1
+    ) -> Dict[str, Any]:
+        """
+        Insert a table into the document.
+
+        Args:
+            document_id: The ID of the document
+            rows: Number of rows
+            columns: Number of columns
+            index: Where to insert the table (default: 1)
+
+        Returns:
+            Result of the batch update with table location info
+
+        Example:
+            result = client.insert_table("1abc...", rows=3, columns=4, index=1)
+        """
+        logger.info(f"Inserting {rows}x{columns} table at index {index} in document: {document_id}")
+
+        requests = [{
+            'insertTable': {
+                'rows': rows,
+                'columns': columns,
+                'location': {
+                    'index': index
+                }
+            }
+        }]
+
+        body = {'requests': requests}
+        request = self.service.documents().batchUpdate(
+            documentId=document_id,
+            body=body
+        )
+
+        result = self._execute_with_retry(request)
+        logger.info(f"Successfully inserted table")
+        return result
+
+    def find_text_ranges(self, document_id: str, search_text: str) -> List[Dict[str, int]]:
+        """
+        Find all occurrences of text in the document and return their ranges.
+
+        Args:
+            document_id: The ID of the document
+            search_text: Text to search for
+
+        Returns:
+            List of dicts with 'startIndex' and 'endIndex' for each match
+
+        Example:
+            ranges = client.find_text_ranges("1abc...", "Important")
+            # Returns: [{'startIndex': 10, 'endIndex': 19}, ...]
+        """
+        logger.info(f"Finding text '{search_text}' in document: {document_id}")
+
+        doc = self.get_document(document_id)
+        ranges = []
+
+        # Extract all text with indices
+        for element in doc.get('body', {}).get('content', []):
+            if 'paragraph' in element:
+                for text_run in element['paragraph'].get('elements', []):
+                    if 'textRun' in text_run:
+                        content = text_run['textRun']['content']
+                        start_idx = text_run['startIndex']
+
+                        # Find all occurrences in this text run
+                        offset = 0
+                        while True:
+                            pos = content.find(search_text, offset)
+                            if pos == -1:
+                                break
+                            ranges.append({
+                                'startIndex': start_idx + pos,
+                                'endIndex': start_idx + pos + len(search_text)
+                            })
+                            offset = pos + 1
+
+        logger.info(f"Found {len(ranges)} occurrences of '{search_text}'")
+        return ranges
+
+    def update_table_cell(
+        self,
+        document_id: str,
+        table_start_index: int,
+        row: int,
+        column: int,
+        text: str
+    ) -> Dict[str, Any]:
+        """
+        Update the content of a specific table cell.
+
+        Args:
+            document_id: The ID of the document
+            table_start_index: Start index of the table in the document
+            row: Row number (0-indexed)
+            column: Column number (0-indexed)
+            text: Text to insert in the cell
+
+        Returns:
+            Result of the batch update
+
+        Example:
+            # Update cell at row 0, column 1
+            result = client.update_table_cell("1abc...", 10, 0, 1, "Header 2")
+        """
+        logger.info(f"Updating table cell [{row}, {column}] at table index {table_start_index}")
+
+        # Get document to find cell location
+        doc = self.get_document(document_id)
+
+        # Find the table and cell
+        cell_index = None
+        for element in doc.get('body', {}).get('content', []):
+            if element.get('startIndex') == table_start_index and 'table' in element:
+                table = element['table']
+                if row < len(table['tableRows']):
+                    table_row = table['tableRows'][row]
+                    if column < len(table_row['tableCells']):
+                        cell = table_row['tableCells'][column]
+                        # Get first content element in cell (after the cell start)
+                        cell_content = cell.get('content', [])
+                        if cell_content:
+                            cell_index = cell_content[0].get('startIndex', None)
+                        break
+
+        if cell_index is None:
+            raise ValueError(f"Could not find cell at row {row}, column {column}")
+
+        # Insert text at cell location
+        return self.insert_text(document_id, text, index=cell_index)
+
+    def format_table_cells(
+        self,
+        document_id: str,
+        table_start_index: int,
+        row_range: Optional[tuple] = None,
+        column_range: Optional[tuple] = None,
+        background_color: Optional[Dict[str, float]] = None,
+        bold: Optional[bool] = None,
+        text_alignment: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Format table cells with styling.
+
+        Args:
+            document_id: The ID of the document
+            table_start_index: Start index of the table
+            row_range: Tuple of (start_row, end_row) inclusive, or None for all rows
+            column_range: Tuple of (start_col, end_col) inclusive, or None for all columns
+            background_color: Background color as RGB dict
+            bold: Make text bold
+            text_alignment: Text alignment: "START", "CENTER", "END"
+
+        Returns:
+            Result of the batch update
+
+        Example:
+            # Format header row with gray background and bold text
+            result = client.format_table_cells(
+                "1abc...",
+                table_start_index=10,
+                row_range=(0, 0),
+                background_color={'red': 0.9, 'green': 0.9, 'blue': 0.9},
+                bold=True
+            )
+        """
+        logger.info(f"Formatting table cells at index {table_start_index}")
+
+        doc = self.get_document(document_id)
+        requests = []
+
+        # Find the table
+        table_element = None
+        for element in doc.get('body', {}).get('content', []):
+            if element.get('startIndex') == table_start_index and 'table' in element:
+                table_element = element
+                break
+
+        if not table_element:
+            raise ValueError(f"No table found at index {table_start_index}")
+
+        table = table_element['table']
+
+        # Determine row and column ranges
+        start_row = row_range[0] if row_range else 0
+        end_row = row_range[1] if row_range else len(table['tableRows']) - 1
+
+        # Process each row in range
+        for row_idx in range(start_row, end_row + 1):
+            if row_idx >= len(table['tableRows']):
+                break
+
+            table_row = table['tableRows'][row_idx]
+            start_col = column_range[0] if column_range else 0
+            end_col = column_range[1] if column_range else len(table_row['tableCells']) - 1
+
+            # Process each cell in range
+            for col_idx in range(start_col, end_col + 1):
+                if col_idx >= len(table_row['tableCells']):
+                    break
+
+                cell = table_row['tableCells'][col_idx]
+
+                # Format cell background
+                if background_color:
+                    requests.append({
+                        'updateTableCellStyle': {
+                            'tableStartLocation': {
+                                'index': table_start_index
+                            },
+                            'tableRange': {
+                                'tableCellLocation': {
+                                    'tableStartLocation': {
+                                        'index': table_start_index
+                                    },
+                                    'rowIndex': row_idx,
+                                    'columnIndex': col_idx
+                                }
+                            },
+                            'tableCellStyle': {
+                                'backgroundColor': {
+                                    'color': {
+                                        'rgbColor': background_color
+                                    }
+                                }
+                            },
+                            'fields': 'backgroundColor'
+                        }
+                    })
+
+                # Format text in cell
+                if bold is not None or text_alignment is not None:
+                    cell_content = cell.get('content', [])
+                    if cell_content:
+                        for content_element in cell_content:
+                            if 'paragraph' in content_element:
+                                para_start = content_element['startIndex']
+                                para_end = content_element['endIndex']
+
+                                # Apply text style
+                                if bold is not None:
+                                    requests.append({
+                                        'updateTextStyle': {
+                                            'range': {
+                                                'startIndex': para_start,
+                                                'endIndex': para_end - 1  # Exclude newline
+                                            },
+                                            'textStyle': {
+                                                'bold': bold
+                                            },
+                                            'fields': 'bold'
+                                        }
+                                    })
+
+                                # Apply paragraph alignment
+                                if text_alignment:
+                                    requests.append({
+                                        'updateParagraphStyle': {
+                                            'range': {
+                                                'startIndex': para_start,
+                                                'endIndex': para_end
+                                            },
+                                            'paragraphStyle': {
+                                                'alignment': text_alignment
+                                            },
+                                            'fields': 'alignment'
+                                        }
+                                    })
+
+        if not requests:
+            logger.info("No formatting changes to apply")
+            return {}
+
+        body = {'requests': requests}
+        request = self.service.documents().batchUpdate(
+            documentId=document_id,
+            body=body
+        )
+
+        result = self._execute_with_retry(request)
+        logger.info(f"Successfully formatted table cells")
+        return result

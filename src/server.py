@@ -1547,6 +1547,291 @@ async def add_heading_to_google_doc(
         }, indent=2)
 
 
+@mcp.tool()
+async def create_table_in_google_doc(
+    document_id: str,
+    table_data: list[list[str]],
+    index: int = None,
+    header_row: bool = True
+) -> str:
+    """
+    Create a table in a Google Doc with data.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        table_data: 2D array of table data (rows and columns)
+        index: Position to insert table (default: end of document)
+        header_row: Format first row as header with bold text and gray background
+
+    Returns:
+        JSON string with success status and table location
+
+    Example:
+        table_data = [
+            ["Plan", "Price", "Features"],
+            ["Starter", "$1,000/mo", "2 podcasts/month"],
+            ["Growth", "$2,000/mo", "4 podcasts/month"]
+        ]
+        create_table_in_google_doc("1abc...", table_data, header_row=True)
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Creating table in Google Doc: {document_id}")
+
+        if not table_data or not table_data[0]:
+            raise ValueError("table_data must be a non-empty 2D array")
+
+        rows = len(table_data)
+        columns = len(table_data[0])
+
+        # Get insertion index if not provided
+        if index is None:
+            doc = docs_client.get_document(document_id)
+            index = doc['body']['content'][-1]['endIndex'] - 1
+
+        # Insert the table
+        docs_client.insert_table(document_id, rows, columns, index)
+
+        # Get document to find table location
+        doc = docs_client.get_document(document_id)
+        table_start_index = None
+        for element in doc.get('body', {}).get('content', []):
+            if element.get('startIndex', 0) >= index and 'table' in element:
+                table_start_index = element['startIndex']
+                break
+
+        if table_start_index is None:
+            raise ValueError("Could not find newly created table")
+
+        # Fill table with data
+        for row_idx, row_data in enumerate(table_data):
+            for col_idx, cell_data in enumerate(row_data):
+                if cell_data:  # Only update non-empty cells
+                    docs_client.update_table_cell(
+                        document_id,
+                        table_start_index,
+                        row_idx,
+                        col_idx,
+                        str(cell_data)
+                    )
+
+        # Format header row if requested
+        if header_row and rows > 0:
+            docs_client.format_table_cells(
+                document_id,
+                table_start_index,
+                row_range=(0, 0),
+                background_color={'red': 0.9, 'green': 0.9, 'blue': 0.9},
+                bold=True
+            )
+
+        doc_url = docs_client.get_document_url(document_id)
+        logger.info(f"Successfully created and populated table")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "table_start_index": table_start_index,
+            "rows": rows,
+            "columns": columns,
+            "message": f"Created {rows}x{columns} table"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in create_table_in_google_doc: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def format_google_doc_section(
+    document_id: str,
+    search_text: str,
+    bold: bool = None,
+    font_size: int = None,
+    color: dict = None
+) -> str:
+    """
+    Find and format specific text in a Google Doc.
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        search_text: Text to search for and format
+        bold: Make text bold (optional)
+        font_size: Font size in points (optional)
+        color: Text color as RGB dict, e.g., {"red": 1.0, "green": 0.0, "blue": 0.0} (optional)
+
+    Returns:
+        JSON string with success status and number of matches formatted
+
+    Example:
+        # Make all instances of "IMPORTANT" bold and red
+        format_google_doc_section(
+            "1abc...",
+            "IMPORTANT",
+            bold=True,
+            color={"red": 1.0, "green": 0.0, "blue": 0.0}
+        )
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Formatting text '{search_text}' in Google Doc: {document_id}")
+
+        # Find all occurrences
+        ranges = docs_client.find_text_ranges(document_id, search_text)
+
+        if not ranges:
+            return json.dumps({
+                "success": True,
+                "document_id": document_id,
+                "matches_found": 0,
+                "message": f"No occurrences of '{search_text}' found"
+            }, indent=2)
+
+        # Format each occurrence
+        for text_range in ranges:
+            docs_client.format_text(
+                document_id,
+                start_index=text_range['startIndex'],
+                end_index=text_range['endIndex'],
+                bold=bold,
+                font_size=font_size,
+                foreground_color=color
+            )
+
+        doc_url = docs_client.get_document_url(document_id)
+        logger.info(f"Successfully formatted {len(ranges)} occurrences")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "matches_found": len(ranges),
+            "message": f"Formatted {len(ranges)} occurrences of '{search_text}'"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in format_google_doc_section: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def format_google_doc_professional(
+    document_id: str,
+    title_text: str = None,
+    section_headings: list[str] = None
+) -> str:
+    """
+    Apply professional formatting to a Google Doc with one command.
+
+    This tool applies a professional style to your document:
+    - Makes the title large (24pt) and bold
+    - Makes section headings bold and larger (16pt)
+    - Adds proper spacing
+
+    Args:
+        document_id: The ID of the document (from the URL)
+        title_text: Text of the main title to format (will search for it)
+        section_headings: List of section heading texts to format
+
+    Returns:
+        JSON string with success status
+
+    Example:
+        format_google_doc_professional(
+            "1abc...",
+            title_text="AUTHORITY LAB",
+            section_headings=["The Problem", "What You Get", "Choose Your Plan"]
+        )
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Applying professional formatting to Google Doc: {document_id}")
+
+        formatted_count = 0
+
+        # Format title if provided
+        if title_text:
+            title_ranges = docs_client.find_text_ranges(document_id, title_text)
+            for text_range in title_ranges:
+                docs_client.format_text(
+                    document_id,
+                    start_index=text_range['startIndex'],
+                    end_index=text_range['endIndex'],
+                    bold=True,
+                    font_size=24
+                )
+                formatted_count += 1
+
+        # Format section headings if provided
+        if section_headings:
+            for heading in section_headings:
+                heading_ranges = docs_client.find_text_ranges(document_id, heading)
+                for text_range in heading_ranges:
+                    docs_client.format_text(
+                        document_id,
+                        start_index=text_range['startIndex'],
+                        end_index=text_range['endIndex'],
+                        bold=True,
+                        font_size=16
+                    )
+                    formatted_count += 1
+
+        doc_url = docs_client.get_document_url(document_id)
+        logger.info(f"Successfully applied professional formatting")
+
+        return json.dumps({
+            "success": True,
+            "document_id": document_id,
+            "url": doc_url,
+            "sections_formatted": formatted_count,
+            "message": f"Applied professional formatting to {formatted_count} sections"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Docs API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in format_google_doc_professional: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
 # ===============================================
 # Google Sheets Tools
 # ===============================================
