@@ -1460,7 +1460,7 @@ if __name__ == "__main__":
             print(f"   - Opportunities: {stats['opportunities']}")
         except Exception as e:
             print(f"Error: {e}")
-INSTANTLY_ACCOUNTS_URL = "https://api.instantly.ai/api/v1/account/list"
+INSTANTLY_ACCOUNTS_URL = "https://api.instantly.ai/api/v2/accounts"
 INSTANTLY_WORKSPACE_URL = "https://api.instantly.ai/api/v1/workspaces/current"
 EMAIL_BISON_ACCOUNTS_URL = "https://send.leadgenjay.com/api/sender-emails"
 EMAIL_BISON_REPLIES_URL = "https://send.leadgenjay.com/api/sender-emails/{sender_id}/replies"
