@@ -1463,6 +1463,7 @@ if __name__ == "__main__":
 INSTANTLY_ACCOUNTS_URL = "https://api.instantly.ai/api/v1/account/list"
 INSTANTLY_WORKSPACE_URL = "https://api.instantly.ai/api/v1/workspaces/current"
 EMAIL_BISON_ACCOUNTS_URL = "https://send.leadgenjay.com/api/sender-emails"
+EMAIL_BISON_REPLIES_URL = "https://send.leadgenjay.com/api/sender-emails/{sender_id}/replies"
 
 
 def _fetch_workspace_info(api_key: str) -> Dict[str, str]:
@@ -1573,6 +1574,89 @@ def _fetch_emailbison_accounts(api_key: str) -> List[Dict[str, Any]]:
 
     except Exception as e:
         logger.error(f"Exception fetching LeadGenJay sender emails: {e}")
+        return []
+
+
+def _fetch_emailbison_sender_replies(
+    api_key: str,
+    sender_id: int,
+    per_page: int = 15,
+    search: str = None,
+    interested: bool = None,
+    status: str = None,
+    max_results: int = None
+) -> List[Dict[str, Any]]:
+    """
+    Fetch ALL replies for a specific sender email from LeadGenJay API with pagination.
+
+    Args:
+        api_key: LeadGenJay API key
+        sender_id: Sender email ID
+        per_page: Results per page (max 15 for Bison)
+        search: Search query
+        interested: Filter by interested status (True/False)
+        status: Filter by reply status
+        max_results: Maximum total results to fetch (optional)
+
+    Returns:
+        List of all reply dictionaries
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+    url = EMAIL_BISON_REPLIES_URL.format(sender_id=sender_id)
+
+    all_replies = []
+    page = 1
+
+    # Build base query parameters
+    params = {"per_page": min(per_page, 15)}  # Bison max is 15
+    if search:
+        params["search"] = search
+    if interested is not None:
+        params["interested"] = "true" if interested else "false"
+    if status:
+        params["status"] = status
+
+    try:
+        while True:
+            # Add page number
+            params["page"] = page
+
+            resp = requests.get(url, headers=headers, params=params, timeout=30)
+
+            if not resp.ok:
+                logger.warning(f"Error fetching sender replies: {resp.status_code}")
+                resp.raise_for_status()
+
+            data = resp.json()
+            replies = data.get("data", [])
+
+            if not replies:
+                # No more results
+                break
+
+            all_replies.extend(replies)
+            logger.info(f"Fetched page {page} with {len(replies)} replies for sender {sender_id}")
+
+            # Check if we've reached max_results
+            if max_results and len(all_replies) >= max_results:
+                all_replies = all_replies[:max_results]
+                break
+
+            # Check if there are more pages
+            meta = data.get("meta", {})
+            current_page = meta.get("current_page", page)
+            last_page = meta.get("last_page", page)
+
+            if current_page >= last_page:
+                break
+
+            page += 1
+
+        logger.info(f"Fetched total of {len(all_replies)} replies for sender {sender_id}")
+        return all_replies
+
+    except Exception as e:
+        logger.error(f"Exception fetching sender replies: {e}")
         return []
 
 
@@ -1767,6 +1851,112 @@ def get_bison_mailboxes(
 
     except Exception as e:
         logger.error(f"Error getting Bison mailboxes: {e}")
+        raise
+
+
+def get_bison_sender_replies(
+    sheet_url: str,
+    bison_gid: str,
+    client_name: str,
+    sender_email: str = None,
+    interested_only: bool = False,
+    limit: int = 100
+) -> Dict[str, Any]:
+    """
+    Get email replies for Bison sender email(s).
+
+    Args:
+        sheet_url: Google Sheets URL with API keys
+        bison_gid: Bison sheet GID
+        client_name: Client name to query
+        sender_email: Specific sender email address (optional, gets all if not provided)
+        interested_only: Filter to only interested leads
+        limit: Max replies to return per sender
+
+    Returns:
+        Dictionary with reply data for sender email(s)
+    """
+    try:
+        # Load clients
+        workspaces = load_bison_workspaces_from_sheet(sheet_url, gid=bison_gid)
+
+        # Find the client
+        workspace = next((ws for ws in workspaces if ws['client_name'].lower() == client_name.lower()), None)
+        if not workspace:
+            raise ValueError(f"Client {client_name} not found")
+
+        api_key = workspace['api_key']
+
+        # Fetch sender accounts
+        accounts = _fetch_emailbison_accounts(api_key)
+
+        # Filter to specific sender if provided
+        if sender_email:
+            accounts = [acc for acc in accounts if acc.get("email", "").lower() == sender_email.lower()]
+            if not accounts:
+                raise ValueError(f"Sender email {sender_email} not found for client {client_name}")
+
+        # Fetch replies for each sender
+        all_replies = []
+        sender_summaries = []
+
+        for account in accounts:
+            sender_id = account.get("id")
+            sender_email_addr = account.get("email", "Unknown")
+
+            # Fetch ALL replies with pagination
+            replies = _fetch_emailbison_sender_replies(
+                api_key=api_key,
+                sender_id=sender_id,
+                per_page=15,  # Bison max
+                interested=interested_only if interested_only else None,
+                max_results=limit if limit else None
+            )
+
+            total_replies = len(replies)
+
+            # Process replies
+            processed_replies = []
+            for reply in replies:
+                processed_replies.append({
+                    "id": reply.get("id"),
+                    "lead_email": reply.get("lead_email", "Unknown"),
+                    "lead_name": reply.get("lead_name", ""),
+                    "company": reply.get("company", ""),
+                    "reply_text": reply.get("reply_text", ""),
+                    "interested": reply.get("interested", False),
+                    "status": reply.get("status", ""),
+                    "replied_at": reply.get("replied_at", ""),
+                    "campaign_name": reply.get("campaign_name", ""),
+                    "sequence_step": reply.get("sequence_step", 0)
+                })
+
+            sender_summaries.append({
+                "sender_email": sender_email_addr,
+                "sender_id": sender_id,
+                "total_replies": total_replies,
+                "showing": len(processed_replies),
+                "interested_count": sum(1 for r in processed_replies if r["interested"])
+            })
+
+            all_replies.extend(processed_replies)
+
+        logger.info(
+            f"Bison client {client_name}: Fetched {len(all_replies)} replies from {len(sender_summaries)} sender(s)"
+        )
+
+        return {
+            "client_name": client_name,
+            "platform": "bison",
+            "total_senders": len(sender_summaries),
+            "total_replies": len(all_replies),
+            "interested_count": sum(1 for r in all_replies if r["interested"]),
+            "sender_summaries": sender_summaries,
+            "replies": all_replies
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting Bison sender replies: {e}")
         raise
 
 

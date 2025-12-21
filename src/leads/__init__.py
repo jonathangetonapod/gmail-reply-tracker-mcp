@@ -24,6 +24,7 @@ from .lead_functions import (
     # Mailbox health monitoring
     get_instantly_mailboxes,
     get_bison_mailboxes,
+    get_bison_sender_replies,
     get_all_mailbox_health,
     get_unhealthy_mailboxes,
 )
@@ -48,6 +49,7 @@ __all__ = [
     # Mailbox health monitoring
     "get_instantly_mailboxes",
     "get_bison_mailboxes",
+    "get_bison_sender_replies",
     "get_all_mailbox_health",
     "get_unhealthy_mailboxes",
 ]

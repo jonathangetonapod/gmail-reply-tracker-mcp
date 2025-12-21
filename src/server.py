@@ -40,8 +40,8 @@ from leads import (
     get_bison_client_list, get_bison_lead_responses, get_bison_campaign_stats,
     get_all_clients, get_all_platform_stats, get_top_performing_clients,
     get_underperforming_clients, get_weekly_summary,
-    get_instantly_mailboxes, get_bison_mailboxes, get_all_mailbox_health,
-    get_unhealthy_mailboxes
+    get_instantly_mailboxes, get_bison_mailboxes, get_bison_sender_replies,
+    get_all_mailbox_health, get_unhealthy_mailboxes
 )
 
 
@@ -6021,6 +6021,82 @@ async def get_bison_mailbox_health(client_name: str) -> str:
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in get_bison_mailbox_health: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_bison_sender_email_replies(
+    client_name: str,
+    sender_email: str = None,
+    interested_only: bool = False,
+    limit: int = 100
+) -> str:
+    """
+    Get email replies for Bison sender email(s) with full pagination support.
+
+    This tool fetches ALL replies from one or more sender emails for a specific
+    Bison client. Automatically handles pagination (Bison returns max 15 per page).
+
+    Args:
+        client_name: Bison client name (e.g., "Jeff Mikolai")
+        sender_email: Specific sender email address (optional - gets ALL senders if not provided)
+        interested_only: Filter to only show interested/positive replies (default: False)
+        limit: Maximum total replies to return per sender (default: 100, set to 0 for unlimited)
+
+    Returns:
+        JSON string with reply data including:
+        - Total replies across all sender(s)
+        - Interested leads count
+        - Per-sender summaries (email, total replies, interested count)
+        - Full reply details (lead email, name, company, reply text, status, timestamp, campaign, step)
+
+    Use Cases:
+        - "Get all replies for Jeff Mikolai" (all senders, all replies)
+        - "Get interested replies for Jeff Mikolai" (all senders, interested only)
+        - "Get replies from jeff.mikolai@yoursugarpixels.com" (specific sender, all replies)
+        - "Get 50 interested replies from jeff.mikolai@getsugarpixels.com" (specific sender, filtered, limited)
+
+    Examples:
+        get_bison_sender_email_replies("Jeff Mikolai")
+        get_bison_sender_email_replies("Jeff Mikolai", interested_only=True)
+        get_bison_sender_email_replies("Jeff Mikolai", sender_email="jeff.mikolai@yoursugarpixels.com")
+        get_bison_sender_email_replies("Rich Cave", sender_email="rich@mycave.com", limit=50)
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Getting Bison sender replies for client: %s", client_name)
+
+        result = await asyncio.to_thread(
+            get_bison_sender_replies,
+            sheet_url=config.lead_sheets_url,
+            bison_gid=config.lead_sheets_gid_bison,
+            client_name=client_name,
+            sender_email=sender_email,
+            interested_only=interested_only,
+            limit=limit if limit > 0 else None
+        )
+
+        logger.info("Found %d replies from %d sender(s) for Bison client %s",
+                   result.get('total_replies', 0),
+                   result.get('total_senders', 0),
+                   client_name)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_bison_sender_email_replies: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg
