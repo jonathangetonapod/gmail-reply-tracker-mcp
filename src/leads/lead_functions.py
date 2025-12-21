@@ -1462,7 +1462,7 @@ if __name__ == "__main__":
             print(f"Error: {e}")
 INSTANTLY_ACCOUNTS_URL = "https://api.instantly.ai/api/v1/account/list"
 INSTANTLY_WORKSPACE_URL = "https://api.instantly.ai/api/v1/workspaces/current"
-EMAIL_BISON_ACCOUNTS_URL = "https://app.emailbison.com/api/sender-email-accounts"
+EMAIL_BISON_ACCOUNTS_URL = "https://send.leadgenjay.com/api/sender-emails"
 
 
 def _fetch_workspace_info(api_key: str) -> Dict[str, str]:
