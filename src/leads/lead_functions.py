@@ -2012,6 +2012,7 @@ def get_all_mailbox_health(
 ) -> Dict[str, Any]:
     """
     Get aggregated mailbox health across all clients and platforms.
+    Uses parallel processing to fetch mailboxes from multiple clients simultaneously.
 
     Args:
         sheet_url: Google Sheets URL
@@ -2035,51 +2036,91 @@ def get_all_mailbox_health(
 
         client_summaries = []
 
-        # Process each client
-        for client in all_clients['clients']:
+        # Helper function to process a single client
+        def process_client_mailboxes(client):
+            """Fetch and process mailboxes for a single client."""
             try:
                 if client['platform'] == 'instantly':
                     mailboxes = get_instantly_mailboxes(
                         sheet_url, instantly_gid,
                         client['workspace_id']
                     )
-
-                    instantly_totals['accounts'] += mailboxes['total_accounts']
-                    instantly_totals['healthy'] += mailboxes['healthy_count']
-                    instantly_totals['at_risk'] += mailboxes['at_risk_count']
-                    instantly_totals['early'] += mailboxes['early_count']
-
-                    total_accounts += mailboxes['total_accounts']
-                    total_healthy += mailboxes['healthy_count']
-                    total_at_risk += mailboxes['at_risk_count']
-                    total_early += mailboxes['early_count']
-
                 elif client['platform'] == 'bison':
                     mailboxes = get_bison_mailboxes(
                         sheet_url, bison_gid,
                         client['client_name']
                     )
+                else:
+                    return None
 
-                    bison_totals['accounts'] += mailboxes['total_accounts']
-                    bison_totals['healthy'] += mailboxes['healthy_count']
-                    bison_totals['at_risk'] += mailboxes['at_risk_count']
-
-                    total_accounts += mailboxes['total_accounts']
-                    total_healthy += mailboxes['healthy_count']
-                    total_at_risk += mailboxes['at_risk_count']
-
-                # Add to summaries
-                client_summaries.append({
+                # Return mailboxes with client info
+                return {
                     'client_name': client.get('client_name') or client.get('workspace_name'),
                     'platform': client['platform'],
-                    'total_accounts': mailboxes['total_accounts'],
-                    'healthy': mailboxes['healthy_count'],
-                    'at_risk': mailboxes['at_risk_count'],
-                    'early': mailboxes.get('early_count', 0)
-                })
+                    'mailboxes': mailboxes
+                }
 
             except Exception as e:
                 logger.warning(f"Error getting mailboxes for {client}: {e}")
+                return None
+
+        # Use ThreadPoolExecutor for parallel fetching (up to 20 workers)
+        max_workers = min(20, len(all_clients['clients']))
+        logger.info(f"Fetching mailboxes for {len(all_clients['clients'])} clients with {max_workers} parallel workers")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all fetch tasks
+            future_to_client = {
+                executor.submit(process_client_mailboxes, client): client
+                for client in all_clients['clients']
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_client):
+                try:
+                    result = future.result()
+                    if result is None:
+                        continue
+
+                    mailboxes = result['mailboxes']
+                    platform = result['platform']
+
+                    # Update platform-specific totals
+                    if platform == 'instantly':
+                        instantly_totals['accounts'] += mailboxes['total_accounts']
+                        instantly_totals['healthy'] += mailboxes['healthy_count']
+                        instantly_totals['at_risk'] += mailboxes['at_risk_count']
+                        instantly_totals['early'] += mailboxes['early_count']
+
+                        total_accounts += mailboxes['total_accounts']
+                        total_healthy += mailboxes['healthy_count']
+                        total_at_risk += mailboxes['at_risk_count']
+                        total_early += mailboxes['early_count']
+
+                    elif platform == 'bison':
+                        bison_totals['accounts'] += mailboxes['total_accounts']
+                        bison_totals['healthy'] += mailboxes['healthy_count']
+                        bison_totals['at_risk'] += mailboxes['at_risk_count']
+
+                        total_accounts += mailboxes['total_accounts']
+                        total_healthy += mailboxes['healthy_count']
+                        total_at_risk += mailboxes['at_risk_count']
+
+                    # Add to summaries
+                    client_summaries.append({
+                        'client_name': result['client_name'],
+                        'platform': platform,
+                        'total_accounts': mailboxes['total_accounts'],
+                        'healthy': mailboxes['healthy_count'],
+                        'at_risk': mailboxes['at_risk_count'],
+                        'early': mailboxes.get('early_count', 0)
+                    })
+
+                except Exception as e:
+                    client = future_to_client[future]
+                    logger.error(f"Error processing mailboxes for client {client}: {e}")
+
+        logger.info(f"Processed mailboxes for {len(client_summaries)} clients successfully")
 
         # Calculate health percentage
         health_percentage = round((total_healthy / total_accounts * 100), 2) if total_accounts > 0 else 0
@@ -2108,6 +2149,7 @@ def get_unhealthy_mailboxes(
 ) -> Dict[str, Any]:
     """
     Get all unhealthy (at_risk) mailboxes across all platforms.
+    Uses parallel processing to check mailboxes from multiple clients simultaneously.
 
     Args:
         sheet_url: Google Sheets URL
@@ -2123,8 +2165,9 @@ def get_unhealthy_mailboxes(
 
         unhealthy_mailboxes = []
 
-        # Process each client
-        for client in all_clients['clients']:
+        # Helper function to process a single client
+        def process_client_unhealthy(client):
+            """Check for unhealthy mailboxes for a single client."""
             try:
                 if client['platform'] == 'instantly':
                     mailboxes = get_instantly_mailboxes(
@@ -2137,12 +2180,13 @@ def get_unhealthy_mailboxes(
                         client['client_name']
                     )
                 else:
-                    continue
+                    return []
 
                 # Filter for unhealthy accounts
+                client_unhealthy = []
                 for account in mailboxes['accounts']:
                     if account['health'] == 'at_risk':
-                        unhealthy_mailboxes.append({
+                        client_unhealthy.append({
                             'client_name': client.get('client_name') or client.get('workspace_name'),
                             'platform': client['platform'],
                             'email': account['email'],
@@ -2151,8 +2195,32 @@ def get_unhealthy_mailboxes(
                             'issue': account.get('status')
                         })
 
+                return client_unhealthy
+
             except Exception as e:
                 logger.warning(f"Error checking mailboxes for {client}: {e}")
+                return []
+
+        # Use ThreadPoolExecutor for parallel fetching (up to 20 workers)
+        max_workers = min(20, len(all_clients['clients']))
+        logger.info(f"Checking mailboxes for {len(all_clients['clients'])} clients with {max_workers} parallel workers")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all fetch tasks
+            future_to_client = {
+                executor.submit(process_client_unhealthy, client): client
+                for client in all_clients['clients']
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_client):
+                try:
+                    client_unhealthy = future.result()
+                    unhealthy_mailboxes.extend(client_unhealthy)
+
+                except Exception as e:
+                    client = future_to_client[future]
+                    logger.error(f"Error processing client {client}: {e}")
 
         logger.info(f"Found {len(unhealthy_mailboxes)} unhealthy mailboxes across all platforms")
 
