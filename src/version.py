@@ -2,11 +2,56 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.7.0"
+VERSION = "2.7.1"
 RELEASE_DATE = "2025-12-21"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.7.1": {
+        "date": "December 21, 2025",
+        "title": "📧 Bison Sender Email Replies - Full Reply-Level Analytics (78 Total Tools)",
+        "highlights": [
+            {
+                "icon": "📧",
+                "category": "Major Feature",
+                "title": "Reply-Level Analytics for Bison Sender Emails",
+                "description": "Get detailed reply data from all sender emails with automatic pagination handling",
+                "details": "NEW TOOL ADDED: get_bison_sender_email_replies with full pagination support. TOTAL TOOLS: 78 (up from 77). HANDLES PAGINATION: Bison API returns max 15 replies per page - tool automatically fetches ALL pages. FLEXIBLE FILTERING: Get all replies for a client, filter by specific sender email, show only interested leads, or limit result count. COMPREHENSIVE DATA: Each reply includes lead email/name/company, full reply text, interested status, campaign name, sequence step, and timestamp. USE CASES: 'Get all replies for Jeff Mikolai' (all 15 senders), 'Get interested replies for Rich Cave', 'Get 50 replies from jeff@sugarpixels.com'.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🔄",
+                "category": "Technical Implementation",
+                "title": "Smart Pagination with Bison's 15-Item Limit",
+                "description": "Automatically loops through all pages to fetch complete reply history",
+                "details": "PAGINATION LOGIC: Fetches page 1 (up to 15 items), checks pagination metadata (current_page, last_page), continues fetching until current_page >= last_page. SAFETY FEATURES: Breaks early if page returns empty results, respects max_results limit to prevent excessive API calls, tracks total replies fetched across all pages. PERFORMANCE: Efficient multi-page fetching with proper error handling, comprehensive logging for debugging ('Fetched page 2 with 15 replies'), minimal API overhead with smart break conditions.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📊",
+                "category": "Data Structure",
+                "title": "Rich Reply Details with Campaign Context",
+                "description": "Every reply includes full context for follow-up and analysis",
+                "details": "REPLY FIELDS: id - Unique reply identifier. lead_email - Who replied. lead_name - Lead's full name. company - Lead's company. reply_text - Full reply message. interested - Boolean flag (marked by user or AI). status - Reply status. replied_at - ISO timestamp. campaign_name - Which campaign generated this reply. sequence_step - Which step in sequence triggered reply. SUMMARY DATA: Per-sender summaries showing total replies, number shown (respecting limit), and interested lead count. Aggregated totals across all senders queried.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added EMAIL_BISON_REPLIES_URL constant for sender replies endpoint",
+            "Added _fetch_emailbison_sender_replies() helper function with full pagination",
+            "Pagination uses page numbers (1, 2, 3...) with per_page=15 (Bison max)",
+            "Checks meta.current_page and meta.last_page to determine when to stop",
+            "Added get_bison_sender_replies() main function in lead_functions.py",
+            "Exported get_bison_sender_replies in leads/__init__.py",
+            "Added MCP tool get_bison_sender_email_replies in server.py",
+            "Tool signature: client_name (required), sender_email (optional), interested_only (bool), limit (int)",
+            "Default limit=100, set to 0 for unlimited results",
+            "Returns JSON with total_senders, total_replies, interested_count, sender_summaries, replies",
+            "All 3 files modified: lead_functions.py (+108 lines), __init__.py (+2 lines), server.py (+74 lines)",
+            "Total implementation: ~184 lines of new code",
+        ],
+    },
     "2.7.0": {
         "date": "December 21, 2025",
         "title": "🔌 MAILBOX HEALTH MONITORING - 5 New Tools! (77 Total Tools)",
