@@ -1543,34 +1543,61 @@ def _fetch_instantly_accounts(api_key: str, limit: int = 100) -> List[Dict[str, 
         return []
 
 
-def _fetch_emailbison_accounts(api_key: str) -> List[Dict[str, Any]]:
+def _fetch_emailbison_accounts(api_key: str, per_page: int = 15) -> List[Dict[str, Any]]:
     """
-    Fetch sender emails from LeadGenJay API.
+    Fetch ALL sender emails from LeadGenJay API with pagination.
 
     Args:
         api_key: LeadGenJay API key
+        per_page: Results per page (max 15 for Bison)
 
     Returns:
-        List of sender email dictionaries
+        List of all sender email dictionaries
     """
     headers = {"Authorization": f"Bearer {api_key}"}
+    all_accounts = []
+    page = 1
 
     try:
-        resp = requests.get(
-            EMAIL_BISON_ACCOUNTS_URL,
-            headers=headers,
-            timeout=30
-        )
+        while True:
+            params = {
+                "page": page,
+                "per_page": min(per_page, 15)  # Bison max is 15
+            }
 
-        if not resp.ok:
-            logger.warning(f"Error fetching LeadGenJay sender emails: {resp.status_code}")
-            resp.raise_for_status()
+            resp = requests.get(
+                EMAIL_BISON_ACCOUNTS_URL,
+                headers=headers,
+                params=params,
+                timeout=30
+            )
 
-        data = resp.json()
-        accounts = data.get("data", [])
+            if not resp.ok:
+                logger.warning(f"Error fetching LeadGenJay sender emails: {resp.status_code}")
+                resp.raise_for_status()
 
-        logger.info(f"Fetched {len(accounts)} LeadGenJay sender emails")
-        return accounts
+            data = resp.json()
+            accounts = data.get("data", [])
+
+            if not accounts:
+                # No more results
+                break
+
+            all_accounts.extend(accounts)
+            logger.info(f"Fetched page {page} with {len(accounts)} sender emails")
+
+            # Check if there are more pages
+            meta = data.get("meta", {})
+            current_page = meta.get("current_page", page)
+            last_page = meta.get("last_page", page)
+
+            if current_page >= last_page:
+                break
+
+            page += 1
+
+        logger.info(f"Fetched total of {len(all_accounts)} LeadGenJay sender emails")
+        return all_accounts
 
     except Exception as e:
         logger.error(f"Exception fetching LeadGenJay sender emails: {e}")
