@@ -39,7 +39,9 @@ from leads import (
     get_client_list, get_lead_responses, get_campaign_stats, get_workspace_info,
     get_bison_client_list, get_bison_lead_responses, get_bison_campaign_stats,
     get_all_clients, get_all_platform_stats, get_top_performing_clients,
-    get_underperforming_clients, get_weekly_summary
+    get_underperforming_clients, get_weekly_summary,
+    get_instantly_mailboxes, get_bison_mailboxes, get_all_mailbox_health,
+    get_unhealthy_mailboxes
 )
 
 
@@ -5899,6 +5901,361 @@ async def get_lead_weekly_summary() -> str:
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in get_lead_weekly_summary: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+# ============================================================================
+# MAILBOX HEALTH MONITORING TOOLS
+# ============================================================================
+
+@mcp.tool()
+async def get_instantly_mailbox_health(workspace_id: str) -> str:
+    """
+    Get connected email accounts (mailboxes) for an Instantly workspace with health status.
+
+    This tool shows all email accounts connected to a specific Instantly workspace,
+    including their status, health, warmup scores, and daily limits.
+
+    Args:
+        workspace_id: Instantly workspace ID
+
+    Returns:
+        JSON string with mailbox data including:
+        - List of all email accounts
+        - Health status (healthy/early/at_risk)
+        - Warmup scores and status
+        - Daily sending limits
+        - Last used timestamps
+        - Status breakdown
+
+    Health Status:
+        - healthy: Account is active and working (status code 1)
+        - early: Account is paused (status code 2)
+        - at_risk: Connection errors, bounces, or sending errors (status code < 0)
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Getting Instantly mailboxes for workspace: %s", workspace_id)
+
+        result = await asyncio.to_thread(
+            get_instantly_mailboxes,
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            workspace_id=workspace_id
+        )
+
+        logger.info("Found %d mailboxes for Instantly workspace %s",
+                   result.get('total_accounts', 0), workspace_id)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_instantly_mailbox_health: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_bison_mailbox_health(client_name: str) -> str:
+    """
+    Get connected email accounts (mailboxes) for a Bison client with health status.
+
+    This tool shows all email accounts connected to a specific Bison client,
+    including their status, health, metrics, and performance data.
+
+    Args:
+        client_name: Bison client name
+
+    Returns:
+        JSON string with mailbox data including:
+        - List of all email accounts
+        - Health status (healthy/at_risk)
+        - All-time metrics (emails sent, replies, opens, bounces)
+        - Interested leads count
+        - Daily sending limits
+        - Account tags
+        - Status breakdown
+
+    Health Status:
+        - healthy: Account is connected and working
+        - at_risk: Account is disconnected or has issues
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Getting Bison mailboxes for client: %s", client_name)
+
+        result = await asyncio.to_thread(
+            get_bison_mailboxes,
+            sheet_url=config.lead_sheets_url,
+            bison_gid=config.lead_sheets_gid_bison,
+            client_name=client_name
+        )
+
+        logger.info("Found %d mailboxes for Bison client %s",
+                   result.get('total_accounts', 0), client_name)
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_bison_mailbox_health: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_all_mailbox_health_summary() -> str:
+    """
+    Get aggregated mailbox health across all clients and platforms.
+
+    This tool provides a comprehensive overview of email account health across
+    both Instantly and Bison platforms for all 88+ clients.
+
+    Returns:
+        JSON string with aggregated health data including:
+        - Total accounts across all platforms
+        - Healthy, at_risk, and early counts
+        - Overall health percentage
+        - Platform-specific totals (Instantly vs Bison)
+        - Per-client summaries
+        - Total client count
+
+    Use this to:
+        - Get a quick overview of overall mailbox health
+        - Identify how many accounts need attention
+        - Compare health across platforms
+        - Monitor account health trends
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Getting aggregated mailbox health across all platforms...")
+
+        result = await asyncio.to_thread(
+            get_all_mailbox_health,
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison
+        )
+
+        logger.info("Found %d total mailboxes: %d healthy, %d at_risk",
+                   result.get('total_accounts', 0),
+                   result.get('healthy_count', 0),
+                   result.get('at_risk_count', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_all_mailbox_health_summary: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_unhealthy_mailboxes_alert() -> str:
+    """
+    Get all unhealthy (at_risk) mailboxes that need immediate attention.
+
+    This tool identifies email accounts with problems across all platforms,
+    filtering for only those with 'at_risk' health status.
+
+    Returns:
+        JSON string with unhealthy mailboxes including:
+        - Count of unhealthy accounts
+        - List of problem accounts with:
+          * Client name
+          * Platform (Instantly/Bison)
+          * Email address
+          * Status/issue description
+          * Daily limit
+
+    Common Issues:
+        - Connection errors (can't connect to email provider)
+        - Soft bounce errors (deliverability problems)
+        - Sending errors (failed to send emails)
+        - Disconnected accounts (Bison)
+
+    Use this to:
+        - Quickly identify accounts needing fixes
+        - Prioritize mailbox maintenance
+        - Alert clients about account issues
+        - Monitor deliverability health
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Finding all unhealthy mailboxes...")
+
+        result = await asyncio.to_thread(
+            get_unhealthy_mailboxes,
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison
+        )
+
+        logger.info("Found %d unhealthy mailboxes needing attention",
+                   result.get('count', 0))
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_unhealthy_mailboxes_alert: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_mailbox_capacity_report() -> str:
+    """
+    Get total daily sending capacity across all connected mailboxes.
+
+    This tool calculates the total email sending capacity by aggregating
+    daily limits from all connected email accounts across both platforms.
+
+    Returns:
+        JSON string with capacity report including:
+        - Total daily capacity (sum of all limits)
+        - Per-platform capacity breakdown
+        - Number of accounts contributing to capacity
+        - Average capacity per account
+        - Health-adjusted capacity (healthy accounts only)
+
+    Use this to:
+        - Plan campaign volume and scheduling
+        - Understand total sending capacity
+        - Calculate campaign distribution
+        - Assess infrastructure scalability
+        - Identify capacity constraints
+    """
+    try:
+        if not config.lead_sheets_url:
+            return json.dumps({
+                "success": False,
+                "error": "Lead management not configured. Please set LEAD_SHEETS_URL in your environment."
+            }, indent=2)
+
+        logger.info("Calculating mailbox capacity report...")
+
+        health_data = await asyncio.to_thread(
+            get_all_mailbox_health,
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison
+        )
+
+        # Calculate capacity from mailbox data
+        instantly_capacity = 0
+        bison_capacity = 0
+        healthy_capacity = 0
+
+        # Get detailed capacity by fetching individual mailboxes
+        all_clients = await asyncio.to_thread(
+            get_all_clients,
+            sheet_url=config.lead_sheets_url,
+            instantly_gid=config.lead_sheets_gid_instantly,
+            bison_gid=config.lead_sheets_gid_bison
+        )
+
+        for client in all_clients['clients']:
+            try:
+                if client['platform'] == 'instantly':
+                    mailboxes = await asyncio.to_thread(
+                        get_instantly_mailboxes,
+                        sheet_url=config.lead_sheets_url,
+                        instantly_gid=config.lead_sheets_gid_instantly,
+                        workspace_id=client['workspace_id']
+                    )
+                    for account in mailboxes['accounts']:
+                        limit = account.get('daily_limit', 0)
+                        instantly_capacity += limit
+                        if account.get('health') == 'healthy':
+                            healthy_capacity += limit
+
+                elif client['platform'] == 'bison':
+                    mailboxes = await asyncio.to_thread(
+                        get_bison_mailboxes,
+                        sheet_url=config.lead_sheets_url,
+                        bison_gid=config.lead_sheets_gid_bison,
+                        client_name=client['client_name']
+                    )
+                    for account in mailboxes['accounts']:
+                        limit = account.get('daily_limit', 0)
+                        bison_capacity += limit
+                        if account.get('health') == 'healthy':
+                            healthy_capacity += limit
+
+            except Exception as e:
+                logger.warning(f"Error calculating capacity for {client}: {e}")
+
+        total_capacity = instantly_capacity + bison_capacity
+        avg_capacity = round(total_capacity / health_data['total_accounts'], 2) if health_data['total_accounts'] > 0 else 0
+
+        result = {
+            'total_daily_capacity': total_capacity,
+            'healthy_daily_capacity': healthy_capacity,
+            'instantly_capacity': instantly_capacity,
+            'bison_capacity': bison_capacity,
+            'total_accounts': health_data['total_accounts'],
+            'healthy_accounts': health_data['healthy_count'],
+            'average_capacity_per_account': avg_capacity,
+            'capacity_utilization_percentage': round((healthy_capacity / total_capacity * 100), 2) if total_capacity > 0 else 0
+        }
+
+        logger.info("Total daily capacity: %d emails across %d accounts",
+                   total_capacity, health_data['total_accounts'])
+
+        return json.dumps({
+            "success": True,
+            **result
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_mailbox_capacity_report: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg

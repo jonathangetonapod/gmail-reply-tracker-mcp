@@ -2,11 +2,67 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.6.1"
+VERSION = "2.7.0"
 RELEASE_DATE = "2025-12-21"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.7.0": {
+        "date": "December 21, 2025",
+        "title": "🔌 MAILBOX HEALTH MONITORING - 5 New Tools! (77 Total Tools)",
+        "highlights": [
+            {
+                "icon": "🔌",
+                "category": "Major Feature",
+                "title": "Mailbox Health Monitoring - Complete Email Account Oversight",
+                "description": "Monitor all connected email accounts across Instantly & Bison with health status, warmup scores, and capacity tracking",
+                "details": "NEW CATEGORY ADDED: Mailbox Health Monitoring (5 tools). TOTAL TOOLS: 77 (up from 72). MONITORS 88+ CLIENTS: Track email account health across both platforms in real-time. HEALTH CLASSIFICATION: 3-tier system (healthy/early/at_risk) with automatic problem detection. WARMUP TRACKING: Instantly accounts show warmup scores (0-100) and warmup status. CAPACITY PLANNING: Calculate total daily sending capacity across all accounts. INSTANT ALERTS: Identify unhealthy mailboxes needing immediate attention. API INTEGRATIONS: Direct integration with Instantly API (https://api.instantly.ai/api/v1/account/list) and Email Bison API (https://app.emailbison.com/api/sender-email-accounts). PAGINATION SUPPORT: Handles cursor-based (Instantly) and offset-based (Email Bison) pagination automatically. 545 LINES OF CODE: Complete mailbox monitoring implementation in leads.py with helper functions for workspace info and account fetching.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📊",
+                "category": "Tool Breakdown",
+                "title": "5 Powerful Mailbox Monitoring Tools",
+                "description": "Get granular insights into email account health, status, and performance across all platforms",
+                "details": "TOOL 1: get_instantly_mailbox_health(workspace_id) - View all Instantly email accounts for a workspace with status codes (1=Active, 2=Paused, -1/-2/-3=Errors), warmup scores, daily limits, last used timestamps, and provider info (Gmail/Outlook). TOOL 2: get_bison_mailbox_health(client_name) - View all Bison email accounts for a client with connection status, all-time metrics (emails sent, replies, opens, bounces), interested leads count, tags, and account types. TOOL 3: get_all_mailbox_health_summary() - Aggregated health across ALL 88+ clients showing total accounts, healthy/at_risk/early counts, health percentage, platform-specific totals, and per-client summaries. TOOL 4: get_unhealthy_mailboxes_alert() - Filter for only at_risk mailboxes needing attention, including client name, platform, email, status/issue, and daily limit. TOOL 5: get_mailbox_capacity_report() - Calculate total daily sending capacity by aggregating limits from all accounts, with platform breakdown, average per account, and health-adjusted capacity.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🎯",
+                "category": "Key Features",
+                "title": "Real-Time Account Health & Status Monitoring",
+                "description": "Advanced health classification system with status code mapping and instant problem detection",
+                "details": "INSTANTLY STATUS MAPPING: (1) Active=Healthy sending normally. (2) Paused=Early temporarily disabled. (-1) Connection Error=At Risk can't connect to provider. (-2) Soft Bounce Error=At Risk deliverability issues. (-3) Sending Error=At Risk failed to send. BISON STATUS MAPPING: Connected=Healthy working normally. Disconnected/Unknown=At Risk needs attention. WARMUP INTELLIGENCE: Track email reputation building with warmup scores (0-100 scale), warmup status (Active/Inactive), and provider-specific warmup strategies. METRICS TRACKING: Instantly shows last_used timestamps and provider codes. Bison shows all-time emails_sent, total_replied, unique_replied, total_opened, bounced, and interested_leads_count. CAPACITY PLANNING: Calculate total daily capacity for campaign volume planning (sum of all daily_limit fields), platform-specific capacity breakdown (Instantly vs Bison), healthy-only capacity (excludes at_risk accounts), and average capacity per account.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added 545 lines to leads.py for mailbox monitoring functionality",
+            "Implemented _fetch_workspace_info() helper for Instantly workspace metadata",
+            "Implemented _fetch_instantly_accounts() with cursor-based pagination (next_starting_after)",
+            "Implemented _fetch_emailbison_accounts() with offset-based pagination (page numbers + Laravel meta)",
+            "Added get_instantly_mailboxes() - fetches and processes Instantly email accounts with health classification",
+            "Added get_bison_mailboxes() - fetches and processes Bison email accounts with metrics",
+            "Added get_all_mailbox_health() - aggregates health across all 88+ clients and both platforms",
+            "Added get_unhealthy_mailboxes() - filters for at_risk accounts needing attention",
+            "Added 354 lines to server.py for 5 new MCP tools",
+            "Tool 1: get_instantly_mailbox_health - Returns workspace accounts with warmup scores and status codes",
+            "Tool 2: get_bison_mailbox_health - Returns client accounts with all-time metrics and tags",
+            "Tool 3: get_all_mailbox_health_summary - Returns aggregated health across all platforms with percentages",
+            "Tool 4: get_unhealthy_mailboxes_alert - Returns filtered list of at_risk accounts for quick fixes",
+            "Tool 5: get_mailbox_capacity_report - Returns total daily capacity calculation with platform breakdown",
+            "Updated imports in server.py to include 4 new mailbox functions from leads module",
+            "Integrated with existing Google Sheets infrastructure for API key management",
+            "Supports both Instantly (cursor pagination) and Email Bison (offset pagination) APIs",
+            "Health classification logic: Instantly uses numeric status codes, Bison uses string statuses",
+            "Status breakdown tracking for debugging and analytics in both platforms",
+            "Total tool count increased from 72 to 77 (5 new mailbox tools)",
+            "New category: Mailbox Health Monitoring joins existing 8 categories",
+            "Code integrated from leadgenjay_client_health_tracker repository",
+            "Commits: Integration of mailbox monitoring from leadgenjay project",
+        ],
+    },
     "2.6.1": {
         "date": "December 21, 2025",
         "title": "📝 Enhanced Google Docs + Complete Documentation Update (72 Total Tools)",

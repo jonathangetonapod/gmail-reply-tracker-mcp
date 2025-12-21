@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 72 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 77 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -82,7 +82,7 @@ Ask Claude things like:
 
 ## 🎯 Key Features
 
-### 72 Production Tools Across 8 Categories
+### 77 Production Tools Across 9 Categories
 
 <table>
 <tr>
@@ -156,11 +156,27 @@ Ask Claude things like:
 - Instantly campaign variant scanning
 - EmailGuard API integration
 
+**📮 Mailbox Health Monitoring (5 tools)**
+- **Instantly & Bison** email account monitoring
+- Real-time warmup scores (0-100 scale)
+- Health classification (healthy/early/at_risk)
+- Daily sending capacity tracking
+- Multi-platform aggregated dashboard
+
 </td>
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.6.1 - December 21, 2025)
+### 🆕 Latest Features (v2.7.0 - December 21, 2025)
+
+- 📮 **Mailbox Health Monitoring** - Added 5 new tools for email account monitoring (77 total)
+- 🔍 **Instantly Account Health** - Track warmup scores, daily limits, and account status across all workspaces
+- 📊 **Bison Sender Email Monitoring** - Monitor all sender email accounts with real-time connection status
+- 🚨 **Unhealthy Mailbox Alerts** - Automatically identify at-risk accounts requiring attention
+- 📈 **Capacity Planning** - Aggregate daily sending limits across all healthy accounts
+- 🎯 **Health Classification** - 3-tier system: healthy (active/connected), early (paused), at_risk (errors)
+
+### Recent Features (v2.6.1 - December 21, 2025)
 
 - 📝 **Enhanced Google Docs** - Added 3 new tools: tables, formatting, professional styling (9 total)
 - 📊 **Table Creation** - Insert structured tables with header row support and custom formatting
@@ -299,7 +315,7 @@ Users just need to:
 
 ---
 
-## 🛠️ Complete Tool List (72 Tools)
+## 🛠️ Complete Tool List (77 Tools)
 
 ### 📧 Gmail Tools (13)
 
@@ -426,7 +442,25 @@ Users just need to:
 - 📊 **Detailed Reports**: Spam scores, word counts, and specific spam words identified
 - ⚠️ **Smart Error Handling**: Graceful handling of API quota exhaustion
 
-**Total: 72 tools across 8 platforms** 🎉
+### 📮 Mailbox Health Monitoring Tools (5)
+
+| Tool | Description |
+|------|-------------|
+| `get_instantly_mailbox_health` | Monitor Instantly email accounts with warmup scores and status |
+| `get_bison_mailbox_health` | Monitor Bison sender email accounts with connection status |
+| `get_all_mailbox_health_summary` | Aggregated health dashboard across all platforms |
+| `get_unhealthy_mailboxes_alert` | Filter for at-risk accounts requiring attention |
+| `get_mailbox_capacity_report` | Calculate total daily sending capacity |
+
+**Mailbox Health Monitoring Features:**
+- 📮 **Multi-Platform Support**: Monitor both Instantly and Bison email accounts
+- 🔍 **Warmup Score Tracking**: Real-time warmup scores (0-100) for Instantly accounts
+- 📊 **All-Time Metrics**: Track sent, opened, clicked, replied, bounced, spam, and unsubscribed for Bison
+- 🚨 **Health Classification**: 3-tier system - healthy (active/connected), early (paused), at_risk (errors)
+- 📈 **Capacity Planning**: Aggregate daily sending limits across all healthy accounts
+- ⚡ **Parallel Processing**: Fast health checks across 88+ clients simultaneously
+
+**Total: 77 tools across 9 platforms** 🎉
 
 ---
 
@@ -537,12 +571,13 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ### 4. Comprehensive Integration
 
-- 72 tools across 8 platforms
+- 77 tools across 9 platforms
 - Complete Google Workspace integration (Gmail, Calendar, Docs, Sheets)
 - Advanced document automation (tables, formatting, professional styling)
 - Lead management with 88+ clients
 - Campaign automation and analytics
 - Hidden gems discovery with AI
+- Mailbox health monitoring with real-time status
 
 ---
 
@@ -704,7 +739,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 72 tools across 8 platforms**
+**Production-ready multi-tenant MCP server with 77 tools across 9 platforms**
 
 ⭐ Star this repo if you found it helpful!
 

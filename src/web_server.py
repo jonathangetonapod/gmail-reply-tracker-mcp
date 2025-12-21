@@ -335,7 +335,7 @@ SETUP_LANDING_HTML = """
                 🔧 Troubleshooting Guide
             </button>
             <a href="/changelog" class="info-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none;">
-                ✨ What's New (v2.6.1)
+                ✨ What's New (v2.7.0)
             </a>
         </div>
 
@@ -378,12 +378,12 @@ SETUP_LANDING_HTML = """
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>🚀 Your AI Productivity Command Center</h2>
-                <p>72 powerful tools that transform Claude into your personal productivity assistant</p>
+                <p>77 powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>💫 The Complete Toolkit - 72 Tools Across 8 Platforms</h3>
+                    <h3>💫 The Complete Toolkit - 77 Tools Across 9 Platforms</h3>
                     <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
                         <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
@@ -442,6 +442,14 @@ SETUP_LANDING_HTML = """
                         <p style="margin-top: 8px; font-size: 14px;">• Check any email subject/body for spam words<br>
                         • Scan entire Bison & Instantly campaigns<br>
                         • EmailGuard API integration with detailed scoring</p>
+
+                        <strong>📮 Mailbox Health Monitoring</strong><span class="tool-count">5 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Monitor Instantly & Bison email account health<br>
+                        • Real-time warmup scores (0-100) for Instantly<br>
+                        • Track connection status & all-time metrics for Bison<br>
+                        • 3-tier health classification (healthy/early/at_risk)<br>
+                        • Aggregate daily sending capacity planning<br>
+                        • Unhealthy mailbox alerts with parallel processing</p>
                     </div>
                 </div>
 
@@ -560,7 +568,7 @@ SETUP_LANDING_HTML = """
                         <li><strong>Natural language everything</strong> - No more clicking through interfaces, menus, or forms</li>
                         <li><strong>Complete Google Workspace</strong> - Gmail, Calendar, Docs, AND Sheets in one place</li>
                         <li><strong>Spreadsheet powerhouse</strong> - 18 tools for formatting, organizing, and automating Sheets</li>
-                        <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across 8 platforms</li>
+                        <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across 9 platforms</li>
                         <li><strong>Hidden gems discovery</strong> - AI finds interested leads that other AIs missed (unique feature!)</li>
                         <li><strong>Dual-marking</strong> - Automatically marks responder AND original lead for forwarded replies</li>
                         <li><strong>Fixed pagination</strong> - Fetches all 50-80+ sender emails per client (eliminates false positives)</li>
@@ -593,7 +601,7 @@ SETUP_LANDING_HTML = """
                 <div class="section">
                     <h3>💡 Unique Features You Won't Find Elsewhere</h3>
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. 72 tools across all 4 platforms. Create spreadsheets with tables, format cells with colors, apply professional document styling - all from Claude.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. 77 tools across all 4 platforms plus mailbox health monitoring. Create spreadsheets with tables, format cells with colors, apply professional document styling - all from Claude.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring. Fixed pagination fetches all 50-80+ sender emails per client. Dual-marking automatically marks both responder AND original lead. This alone can recover 10-20% more leads.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Document & Spreadsheet Automation:</strong> Create, edit, format Google Docs AND Sheets. Insert tables with data, apply professional styling, find/replace with RGB colors. Template population, bold/italic formatting, alignment. Multi-tenant safe with per-user OAuth isolation.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully across 88+ clients.</p>
