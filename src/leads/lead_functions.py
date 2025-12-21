@@ -3,9 +3,12 @@ MCP-ready functions that combine Google Sheets + Instantly API + Bison API.
 These will be the tools exposed to Claude via MCP.
 """
 
+import logging
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any, List
+
+logger = logging.getLogger(__name__)
 
 # Import from our modular files
 from .date_utils import validate_and_parse_dates
