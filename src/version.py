@@ -9,26 +9,26 @@ RELEASE_DATE = "2025-12-21"
 CHANGELOG = {
     "2.7.3": {
         "date": "December 21, 2025",
-        "title": "🔧 Instantly API Cleanup - Removed Deprecated Endpoint (78 Total Tools)",
+        "title": "🔧 Instantly API v2 Migration - Fixed Workspace Info (78 Total Tools)",
         "highlights": [
             {
                 "icon": "🔧",
                 "category": "Bug Fix",
-                "title": "Removed Deprecated Workspace Info Endpoint",
-                "description": "Eliminated 404 error spam from deprecated Instantly API v1 workspace endpoint",
-                "details": "THE PROBLEM: System was calling /api/v1/workspaces/current to fetch workspace names, generating hundreds of 404 errors in logs. THE FIX: Removed _fetch_workspace_info() function entirely and updated get_instantly_mailboxes() to use workspace_id directly (which is already available from Google Sheets). IMPACT: Clean logs with no 404 spam, slightly faster mailbox health checks (one less API call per workspace), system continues working identically (workspace name was only used for display). TECHNICAL: Removed INSTANTLY_WORKSPACE_URL constant, removed _fetch_workspace_info() helper function, updated get_instantly_mailboxes() to use workspace.get('workspace_name') or workspace_id fallback.",
+                "title": "Updated Workspace Info to API v2",
+                "description": "Fixed 404 error spam by migrating from deprecated v1 to v2 workspace endpoint",
+                "details": "THE PROBLEM: System was calling /api/v1/workspaces/current to fetch workspace names, generating hundreds of 404 errors in logs (v1 endpoint deprecated). THE FIX: Updated INSTANTLY_WORKSPACE_URL from /api/v1/workspaces/current to /api/v2/workspaces/current. Now successfully fetches workspace names from Instantly API v2. IMPACT: Clean logs with no 404 errors, proper workspace names displayed instead of IDs (e.g., 'My Workspace' instead of '019b3dad-ecfc-78e2-83c9-ec422d634a78'), better user experience with human-readable names. TECHNICAL: Updated endpoint URL, _fetch_workspace_info() now uses v2 API, triple fallback: API v2 name → Google Sheets name → workspace_id.",
                 "screenshot": None,
             },
         ],
         "breaking_changes": [],
         "technical_notes": [
-            "Removed INSTANTLY_WORKSPACE_URL = 'https://api.instantly.ai/api/v1/workspaces/current'",
-            "Removed _fetch_workspace_info() function (lines 1469-1494)",
-            "Updated get_instantly_mailboxes() to use workspace_name from Google Sheets",
-            "Fallback logic: workspace.get('workspace_name') or workspace_id",
-            "No functional changes - workspace name was only used for logging/display",
-            "Performance improvement: One less API call per workspace (56 workspaces = 56 fewer API calls)",
-            "Total tool count remains 78 (no new tools, cleanup only)",
+            "Updated INSTANTLY_WORKSPACE_URL from '/api/v1/workspaces/current' to '/api/v2/workspaces/current'",
+            "Updated _fetch_workspace_info() docstring to reference API v2",
+            "Triple fallback logic: workspace_info.get('workspace_name') or workspace.get('workspace_name') or workspace_id",
+            "API v2 endpoint returns: id, timestamp_created, timestamp_updated, owner, name, plan_id, and more",
+            "Primary benefit: Human-readable workspace names in logs and output",
+            "No functional changes to mailbox health logic",
+            "Total tool count remains 78 (no new tools, bug fix only)",
         ],
     },
     "2.7.2": {

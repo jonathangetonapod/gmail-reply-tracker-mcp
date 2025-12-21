@@ -1461,8 +1461,37 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error: {e}")
 INSTANTLY_ACCOUNTS_URL = "https://api.instantly.ai/api/v2/accounts"
+INSTANTLY_WORKSPACE_URL = "https://api.instantly.ai/api/v2/workspaces/current"
 EMAIL_BISON_ACCOUNTS_URL = "https://send.leadgenjay.com/api/sender-emails"
 EMAIL_BISON_REPLIES_URL = "https://send.leadgenjay.com/api/sender-emails/{sender_id}/replies"
+
+
+def _fetch_workspace_info(api_key: str) -> Dict[str, str]:
+    """
+    Fetch workspace info from Instantly API v2.
+
+    Args:
+        api_key: Instantly API key
+
+    Returns:
+        Dictionary with workspace_id and workspace_name
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        resp = requests.get(INSTANTLY_WORKSPACE_URL, headers=headers, timeout=30)
+        if not resp.ok:
+            logger.warning(f"Error fetching workspace info: {resp.status_code}")
+            resp.raise_for_status()
+
+        data = resp.json()
+        return {
+            "workspace_id": data.get("id", ""),
+            "workspace_name": data.get("name", "")
+        }
+    except Exception as e:
+        logger.error(f"Exception fetching workspace info: {e}")
+        return {"workspace_id": "", "workspace_name": ""}
 
 
 def _fetch_instantly_accounts(api_key: str, limit: int = 100) -> List[Dict[str, Any]]:
@@ -1685,8 +1714,9 @@ def get_instantly_mailboxes(
 
         api_key = workspace['api_key']
 
-        # Use workspace_id as the name (workspace info endpoint deprecated)
-        workspace_name = workspace.get('workspace_name') or workspace_id
+        # Get workspace info from API v2
+        workspace_info = _fetch_workspace_info(api_key)
+        workspace_name = workspace_info.get("workspace_name") or workspace.get('workspace_name') or workspace_id
 
         # Fetch accounts
         accounts = _fetch_instantly_accounts(api_key)
