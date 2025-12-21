@@ -421,19 +421,19 @@ SETUP_LANDING_HTML = """
                         • Calendar event cross-reference</p>
 
                         <strong>🎯 Campaign Management</strong><span class="tool-count">4 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">• Create email sequences for Instantly & Bison (88+ clients)<br>
+                        <p style="margin-top: 8px; font-size: 14px;">• Create Bison sequences & Instantly campaigns (88+ clients)<br>
                         • Auto-convert placeholders ({{firstname}} → {FIRST_NAME})<br>
                         • HTML email formatting for Instantly campaigns<br>
-                        • Performance tracking & analytics<br>
+                        • Check campaign spam with EmailGuard API<br>
                         • Fuzzy client name matching (handles typos)</p>
 
                         <strong>💎 Lead Intelligence</strong><span class="tool-count">14 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• <strong>Hidden Gems:</strong> Find interested leads AI missed (HOT/WARM/COLD scoring)<br>
-                        • Mark leads as interested with one command<br>
-                        • Track 88+ clients across Instantly & Bison<br>
-                        • Campaign analytics, top performers, underperforming clients<br>
-                        • Weekly summaries & detailed lead breakdowns<br>
-                        • Fixed pagination: fetches all 50-80+ sender emails per client ✨</p>
+                        • Dual-marking: Automatically marks responder AND original lead ✨<br>
+                        • Fixed pagination: fetches all 50-80+ sender emails per client<br>
+                        • Mark leads as interested across Instantly & Bison<br>
+                        • Fast parallel search across 88+ clients<br>
+                        • Campaign analytics, top performers, weekly summaries</p>
 
                         <strong>🛡️ Spam Detection</strong><span class="tool-count">1 tool</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Check any email subject/body for spam words<br>
@@ -503,12 +503,13 @@ SETUP_LANDING_HTML = """
                     <div class="example-prompt">"Add an H2 heading 'Budget Analysis' to the report doc"</div>
 
                     <p style="margin-top: 15px;"><strong>📊 Google Sheets Powerhouse:</strong></p>
-                    <div class="example-prompt">"Create a spreadsheet called 'Q1 Sales Tracker' with sheets for Jan, Feb, Mar"</div>
-                    <div class="example-prompt">"Format the header row A1:E1 as bold, centered, with a light blue background"</div>
-                    <div class="example-prompt">"Sort the data by column C descending and freeze the top row"</div>
-                    <div class="example-prompt">"Insert 5 rows at row 10 to make space for new data"</div>
+                    <div class="example-prompt">"Create a Q1 Sales Tracker with sheets for Jan, Feb, Mar"</div>
+                    <div class="example-prompt">"Format the header row A1:E1 as bold, centered, light blue background"</div>
+                    <div class="example-prompt">"Read the data from Sheet1 range A1:E10 and analyze trends"</div>
+                    <div class="example-prompt">"Sort by column C descending and freeze the top row"</div>
+                    <div class="example-prompt">"Insert 5 rows at row 10 to make space for new entries"</div>
                     <div class="example-prompt">"Auto-resize columns A through Z so everything is readable"</div>
-                    <div class="example-prompt">"List all sheets in this workbook and show me their names"</div>
+                    <div class="example-prompt">"Find and replace 'Q3' with 'Q4' across all sheets"</div>
 
                     <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence (Fathom):</strong></p>
                     <div class="example-prompt">"What were the action items from yesterday's client call?"</div>
@@ -553,17 +554,17 @@ SETUP_LANDING_HTML = """
                     <h3>🎯 Why This Is Game-Changing</h3>
                     <ul>
                         <li><strong>Natural language everything</strong> - No more clicking through interfaces, menus, or forms</li>
-                        <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across all platforms</li>
-                        <li><strong>Google Docs automation</strong> - Create, edit, and format documents without leaving Claude</li>
+                        <li><strong>Complete Google Workspace</strong> - Gmail, Calendar, Docs, AND Sheets in one place</li>
+                        <li><strong>Spreadsheet powerhouse</strong> - 18 tools for formatting, organizing, and automating Sheets</li>
+                        <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across 8 platforms</li>
                         <li><strong>Hidden gems discovery</strong> - AI finds interested leads that other AIs missed (unique feature!)</li>
-                        <li><strong>Fixed pagination</strong> - Fetches all 50-80+ sender emails per client to eliminate false positives</li>
-                        <li><strong>Fuzzy matching</strong> - Handles typos in names ("brian blis" → "Brian Bliss")</li>
+                        <li><strong>Dual-marking</strong> - Automatically marks responder AND original lead for forwarded replies</li>
+                        <li><strong>Fixed pagination</strong> - Fetches all 50-80+ sender emails per client (eliminates false positives)</li>
                         <li><strong>Thread-aware replies</strong> - Never creates duplicate email threads (smart detection)</li>
-                        <li><strong>Auto Google Meet</strong> - Every meeting gets a Meet link automatically</li>
+                        <li><strong>Auto Google Meet</strong> - Every meeting with attendees gets a Meet link automatically</li>
                         <li><strong>Smart filtering</strong> - Automatically filters newsletters, automated emails, auto-replies</li>
-                        <li><strong>Multi-platform queries</strong> - Ask about emails, calendar, docs, meetings, campaigns in one go</li>
-                        <li><strong>Real-time analytics</strong> - Track campaign performance, reply rates, interested leads</li>
-                        <li><strong>One-command marking</strong> - Mark leads as interested without switching tools</li>
+                        <li><strong>Multi-platform queries</strong> - Ask about emails, calendar, docs, sheets, meetings, campaigns in one go</li>
+                        <li><strong>Professional formatting</strong> - Bold, colors, alignment, frozen headers at your command</li>
                     </ul>
                 </div>
 
@@ -588,10 +589,10 @@ SETUP_LANDING_HTML = """
                 <div class="section">
                     <h3>💡 Unique Features You Won't Find Elsewhere</h3>
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring with confidence levels. Fixed pagination now fetches all 50-80+ sender emails per client to eliminate false positives where client's own emails appeared as leads. This alone can recover 10-20% more leads.</p>
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Google Docs Integration:</strong> Create, read, and edit Google Docs directly from Claude. Template population with find/replace, progressive documentation with append, formatted headings. Multi-tenant safe with per-user OAuth isolation.</p>
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Use fuzzy matching to find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully.</p>
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📧 Thread Detection:</strong> Never creates duplicate email threads. System auto-detects existing conversations and suggests the correct reply tool.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. 69 tools across all 4 platforms. Create spreadsheets, format cells, organize data - all from Claude.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring. Fixed pagination fetches all 50-80+ sender emails per client. Dual-marking automatically marks both responder AND original lead. This alone can recover 10-20% more leads.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Document & Spreadsheet Automation:</strong> Create, edit, format Google Docs AND Sheets. Template population with find/replace, professional formatting with colors and alignment. Multi-tenant safe with per-user OAuth isolation.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully across 88+ clients.</p>
                         <p style="margin: 0; font-size: 16px; line-height: 1.6;"><strong>🎥 Auto Google Meet:</strong> Every calendar event with attendees automatically gets a Google Meet link. No more "forgot to add the link".</p>
                     </div>
                 </div>

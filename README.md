@@ -1,10 +1,10 @@
 <div align="center">
 
-# 📬 Gmail + Calendar + Fathom + Leads MCP Server
+# 📬 Gmail + Calendar + Docs + Sheets + Fathom + Leads MCP Server
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 45 tools across Gmail, Calendar, Fathom AI, campaign management, lead intelligence, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 69 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -82,7 +82,7 @@ Ask Claude things like:
 
 ## 🎯 Key Features
 
-### 45 Production Tools Across 6 Categories
+### 69 Production Tools Across 8 Categories
 
 <table>
 <tr>
@@ -112,6 +112,22 @@ Ask Claude things like:
 - Search by title or attendee
 - Calendar event cross-reference
 - Meeting analytics
+
+**📝 Google Docs (6 tools)**
+- Create, read, and edit documents
+- Append and insert content
+- Find and replace text
+- Add formatted headings (H1-H6)
+- Template population
+- Multi-tenant safe with per-user OAuth
+
+**📊 Google Sheets (18 tools)**
+- Full CRUD operations on spreadsheets
+- Professional cell formatting
+- Insert/delete rows & columns
+- Sort, filter, and organize data
+- Freeze headers and auto-resize columns
+- A1 notation support with RGB colors
 
 </td>
 <td width="50%" valign="top">
@@ -143,27 +159,27 @@ Ask Claude things like:
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.5.0 - December 19, 2024)
+### 🆕 Latest Features (v2.6.0 - December 20, 2025)
 
-- 💎 **Hidden Gems Deduplication** - Smart grouping by email to show 1 person = 1 hidden gem (not multiple replies)
-- 🏷️ **Green Tag Support** - Marks only the first reply per person to trigger Bison's green "Interested" status
-- ⚡ **More Efficient** - Reduces API calls and shows cleaner results for missed opportunities
-- 🎯 **Better UX** - Hidden gems now show unique people instead of duplicate entries
+- 📊 **Google Sheets Integration** - 18 comprehensive tools for complete spreadsheet control
+- 🎨 **Professional Formatting** - Bold, colors, alignment, frozen headers, auto-resize
+- 🔄 **Advanced Organization** - Sort, insert, delete, find/replace across workbooks
+- 🔐 **Multi-Tenant Safe** - Per-user OAuth isolation with thread-safe rate limiting (300 req/min)
+- 📝 **Total Tools Now: 69** - Up from 51 with new Sheets category joining Docs, Gmail, Calendar, and more
 
-### Recent Features (v2.4.0)
+### Recent Features (v2.5.0 - December 19, 2025)
 
-- 🛡️ **Spam Checking** - Integrated EmailGuard API for campaign spam detection with 13 comprehensive tests
-- 📊 **100 Unit Tests** - Complete test coverage across all features (27 email analysis, 14 campaign management, 14 lead fetching, 13 spam checking, 18 workspace management, 14 Gmail integration)
-- 💬 **User-Friendly Error Messages** - Clear explanations for API quota limits, rate limiting, and authentication errors
-- 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words in subjects and bodies
-- 🎯 **Bison A/B Testing Fix** - Corrected documentation to properly support A/B test variants using `variant_from_step` parameter
-- ⏰ **Smart Delay Defaults** - Intelligent wait times based on email position (step 1→3→5→7 days) for optimal follow-up cadence
+- 📝 **Google Docs Integration** - 6 new tools for document creation, editing, and formatting (51 total tools)
+- 🔐 **Per-User OAuth** - Each user's Google Docs access fully isolated with encrypted credential storage
+- 📋 **Real-Time Document Management** - Create, read, edit, append, insert, replace text, add headings
+- 🎯 **Template Population** - Find and replace for populating document templates
+- ⚡ **Production-Ready** - Thread-safe rate limiting (60 req/min), automatic retries, 100+ unit tests
 
-### Recent Features (v2.3.1)
+### Recent Features (v2.5.1 - December 20, 2025)
 
-- 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
-- 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link with one-click join
-- ⚙️ **Smart Auto-Detection** - Intelligently adds Meet links only when needed (events with attendees)
+- 🔧 **Fixed Bison Pagination** - Now fetches all 50-80+ sender emails per client (was only 15)
+- 🎯 **Already-Interested Detection** - Fixed detection of leads marked via client replies
+- ✅ **Eliminated False Positives** - Client emails no longer appear as interested leads
 
 ### Features (v2.3.0)
 
@@ -185,7 +201,7 @@ Ask Claude things like:
 │   Railway   │  ← Deploy once, serve everyone
 │   Server    │
 │             │  • Web OAuth flow
-│  34 Tools  │  • Session management
+│  69 Tools  │  • Session management
 │             │  • Multi-user support
 └──────┬──────┘
        │
@@ -282,7 +298,7 @@ Users just need to:
 
 ---
 
-## 🛠️ Complete Tool List
+## 🛠️ Complete Tool List (69 Tools)
 
 ### 📧 Gmail Tools (13)
 
@@ -325,42 +341,88 @@ Users just need to:
 | `search_fathom_meetings_by_title` | Search by title |
 | `search_fathom_meetings_by_attendee` | Search by attendee |
 
-### 🎯 Campaign Management Tools (8)
+### 📝 Google Docs Tools (6)
 
 | Tool | Description |
 |------|-------------|
-| `get_all_clients` | All 88+ clients (Instantly + Bison) with fuzzy name matching |
-| `get_instantly_clients` | 64 Instantly.ai clients with workspace IDs and API keys |
-| `get_bison_clients` | 24 Bison clients with API credentials |
-| `create_bison_campaign` | Create email sequence with automatic placeholder conversion |
-| `create_instantly_campaign` | Create campaign with HTML formatting and sequences |
-| `get_client_campaigns` | Fetch campaign analytics and performance metrics |
-| `get_interested_leads` | Identify and track positive lead responses |
-| `get_campaign_statistics` | Weekly/monthly analytics dashboard |
+| `create_google_doc` | Create new documents |
+| `read_google_doc` | Read document content |
+| `append_to_google_doc` | Add content to end |
+| `insert_into_google_doc` | Insert at specific position |
+| `replace_text_in_google_doc` | Find and replace |
+| `add_heading_to_google_doc` | Add formatted headings (H1-H6) |
 
-**Campaign Creation Features:**
-- 🔄 **Auto Placeholder Conversion**: `{{firstname}}`, `{{company}}` → `{FIRST_NAME}`, `{COMPANY_NAME}`
-- 🎨 **HTML Email Formatting**: Converts plain text to proper `<div>` structure for Instantly
-- 🔍 **Fuzzy Client Matching**: Find clients with typos ("michael hernandex" → "Michael Hernandez")
-- 📧 **Multi-Step Sequences**: Create follow-up sequences with custom wait times
-- 📊 **Performance Tracking**: Monitor reply rates, interested leads, and campaign success
-
-### 🛡️ Spam Detection Tools (3)
+### 📊 Google Sheets Tools (18)
 
 | Tool | Description |
 |------|-------------|
-| `check_text_spam` | Check any subject and body text for spam words with EmailGuard API |
-| `check_bison_campaign_spam` | Scan entire Bison campaign sequences for spam content |
-| `check_instantly_campaign_spam` | Scan Instantly campaigns including all variants for spam detection |
+| `create_spreadsheet` | Create new spreadsheets |
+| `read_spreadsheet` | Read data from ranges |
+| `append_to_spreadsheet` | Append rows to end |
+| `update_spreadsheet` | Update specific cells |
+| `clear_spreadsheet_range` | Clear values |
+| `find_replace_in_spreadsheet` | Find and replace text |
+| `delete_spreadsheet_rows` | Delete specific rows |
+| `delete_spreadsheet_columns` | Delete specific columns |
+| `add_sheet_to_spreadsheet` | Create new tabs |
+| `delete_sheet_from_spreadsheet` | Delete tabs |
+| `list_sheets_in_spreadsheet` | List all tabs |
+| `rename_spreadsheet_sheet` | Rename tabs |
+| `insert_spreadsheet_rows` | Insert blank rows |
+| `insert_spreadsheet_columns` | Insert blank columns |
+| `format_spreadsheet_cells` | Apply styling |
+| `sort_spreadsheet_range` | Sort by column |
+| `freeze_spreadsheet_rows_columns` | Freeze headers |
+| `auto_resize_spreadsheet_columns` | Auto-fit widths |
+
+### 🎯 Campaign Management Tools (4)
+
+| Tool | Description |
+|------|-------------|
+| `create_bison_sequence` | Create Bison email sequence |
+| `create_instantly_campaign` | Create Instantly campaign |
+| `check_campaign_spam` | Check campaign for spam |
+| `check_text_spam` | Check text for spam |
+
+### 💎 Lead Intelligence Tools (14)
+
+| Tool | Description |
+|------|-------------|
+| `get_all_clients_with_positive_replies` | Fast parallel search across all clients |
+| `get_all_active_clients` | Find clients with recent campaign activity |
+| `get_active_instantly_clients` | Instantly clients with sent emails |
+| `get_active_bison_clients` | Bison clients with sent emails |
+| `get_client_lead_details` | Detailed lead responses for specific client |
+| `find_missed_opportunities` | Find hidden gems - interested leads AI missed |
+| `mark_lead_as_interested` | Mark leads across Instantly & Bison |
+| `get_all_lead_clients` | All clients from both platforms |
+| `get_lead_platform_stats` | Aggregated stats across platforms |
+| `get_top_clients` | Top performing clients by metric |
+| `get_underperforming_clients_list` | Clients below threshold |
+| `get_lead_weekly_summary` | Comprehensive weekly report |
+| `get_instantly_clients` | All Instantly workspaces |
+| `get_bison_clients` | All Bison clients |
+
+**Lead Intelligence Features:**
+- 💎 **Hidden Gems**: AI finds interested leads that other AIs missed with HOT/WARM/COLD scoring
+- 🔧 **Fixed Pagination**: Fetches all 50-80+ sender emails per client (eliminates false positives)
+- 🎯 **Dual-Marking**: Automatically marks both responder AND original lead for forwarded replies
+- ⚡ **Parallel Processing**: Fast search across 88+ clients in seconds
+- 🔍 **Multi-Layer Detection**: API → Keywords → Claude → Timing validation
+
+### 🛡️ Spam Detection Tools (1)
+
+| Tool | Description |
+|------|-------------|
+| `check_text_spam` | Check any email text for spam words with EmailGuard API |
 
 **Spam Detection Features:**
 - 🛡️ **EmailGuard API Integration**: Industry-standard spam detection with scoring
 - 💬 **User-Friendly Error Messages**: Clear explanations for quota limits and rate limiting
 - 📊 **Detailed Reports**: Spam scores, word counts, and specific spam words identified
-- 🔍 **Multi-Variant Support**: Scans all A/B test variants in Instantly campaigns
 - ⚠️ **Smart Error Handling**: Graceful handling of API quota exhaustion
 
-**Total: 45 tools** 🎉
+**Total: 69 tools across 8 platforms** 🎉
 
 ---
 
@@ -471,11 +533,11 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ### 4. Comprehensive Integration
 
-- 37 tools across 5 platforms
-- Lead management with 88 clients
-- Google Sheets as database
-- Campaign analytics with spam detection
-- Interested lead tracking
+- 69 tools across 8 platforms
+- Complete Google Workspace integration (Gmail, Calendar, Docs, Sheets)
+- Lead management with 88+ clients
+- Campaign automation and analytics
+- Hidden gems discovery with AI
 - EmailGuard API for spam checking
 
 ---
@@ -638,7 +700,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 45 tools**
+**Production-ready multi-tenant MCP server with 69 tools across 8 platforms**
 
 ⭐ Star this repo if you found it helpful!
 
