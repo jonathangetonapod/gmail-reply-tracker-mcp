@@ -4,6 +4,7 @@ These will be the tools exposed to Claude via MCP.
 """
 
 import logging
+import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any, List
@@ -1614,14 +1615,14 @@ def get_instantly_mailboxes(
     """
     try:
         # Load clients
-        df = _fetch_sheet_data(sheet_url, instantly_gid)
+        workspaces = load_workspaces_from_sheet(sheet_url, gid=instantly_gid)
 
         # Find the workspace
-        workspace_row = df[df['workspace_id'] == workspace_id]
-        if workspace_row.empty:
+        workspace = next((ws for ws in workspaces if ws['workspace_id'] == workspace_id), None)
+        if not workspace:
             raise ValueError(f"Workspace {workspace_id} not found")
 
-        api_key = workspace_row.iloc[0]['api_key']
+        api_key = workspace['api_key']
 
         # Get workspace info
         workspace_info = _fetch_workspace_info(api_key)
@@ -1716,14 +1717,14 @@ def get_bison_mailboxes(
     """
     try:
         # Load clients
-        df = _fetch_sheet_data(sheet_url, bison_gid)
+        workspaces = load_bison_workspaces_from_sheet(sheet_url, gid=bison_gid)
 
         # Find the client
-        client_row = df[df['client_name'].str.lower() == client_name.lower()]
-        if client_row.empty:
+        workspace = next((ws for ws in workspaces if ws['client_name'].lower() == client_name.lower()), None)
+        if not workspace:
             raise ValueError(f"Client {client_name} not found")
 
-        api_key = client_row.iloc[0]['api_key']
+        api_key = workspace['api_key']
 
         # Fetch accounts
         accounts = _fetch_emailbison_accounts(api_key)
@@ -1803,7 +1804,7 @@ def get_all_mailbox_health(
     """
     try:
         # Get all clients
-        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+        all_clients = get_all_clients(sheet_url)
 
         total_accounts = 0
         total_healthy = 0
@@ -1899,7 +1900,7 @@ def get_unhealthy_mailboxes(
     """
     try:
         # Get all clients
-        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+        all_clients = get_all_clients(sheet_url)
 
         unhealthy_mailboxes = []
 
