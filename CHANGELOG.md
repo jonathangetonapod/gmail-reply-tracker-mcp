@@ -7,6 +7,261 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.3] - December 21, 2025
+
+### 🔧 Instantly API v2 Migration - Fixed Workspace Info (78 Total Tools)
+
+### Fixed
+- **Updated Workspace Info to API v2**: Fixed 404 error spam by migrating from deprecated v1 to v2 workspace endpoint
+  - **Problem**: System was calling `/api/v1/workspaces/current` to fetch workspace names, generating hundreds of 404 errors in logs (v1 endpoint deprecated)
+  - **Solution**: Updated `INSTANTLY_WORKSPACE_URL` from `/api/v1/workspaces/current` to `/api/v2/workspaces/current`. Now successfully fetches workspace names from Instantly API v2
+  - **Impact**:
+    - ✅ Clean logs with no 404 errors
+    - 📝 Proper workspace names displayed instead of IDs (e.g., "My Workspace" instead of "019b3dad-ecfc-78e2-83c9-ec422d634a78")
+    - 🎯 Better user experience with human-readable names
+    - 🔄 Triple fallback: API v2 name → Google Sheets name → workspace_id
+
+### Technical Details
+- Updated `INSTANTLY_WORKSPACE_URL` from `/api/v1/workspaces/current` to `/api/v2/workspaces/current`
+- Updated `_fetch_workspace_info()` docstring to reference API v2
+- Triple fallback logic: `workspace_info.get('workspace_name')` or `workspace.get('workspace_name')` or `workspace_id`
+- API v2 endpoint returns: id, timestamp_created, timestamp_updated, owner, name, plan_id, and more
+- Primary benefit: Human-readable workspace names in logs and output
+- No functional changes to mailbox health logic
+- Total tool count remains 78 (no new tools, bug fix only)
+
+---
+
+## [2.7.2] - December 21, 2025
+
+### ⚡ Parallel Processing for Mailbox Health - 16x Faster! (78 Total Tools)
+
+### Performance
+- **Parallel Processing for All Mailbox Health Functions**: Checking 80+ clients now takes 10 seconds instead of 160 seconds (16x faster!)
+  - **Before**: Sequential checking = 80 clients × 2 seconds = 160 seconds (2-3 minutes)
+  - **After**: Parallel with 20 workers = 80 clients ÷ 20 workers × 2 seconds = ~10 seconds
+  - **Result**: 16x performance improvement!
+
+### Affected Functions
+1. **get_all_mailbox_health()** - Aggregates health across all clients with parallel fetching
+2. **get_unhealthy_mailboxes()** - Finds at_risk mailboxes across all platforms in parallel
+3. **get_bison_sender_replies()** - Fetches replies from multiple senders simultaneously (from v2.7.1)
+
+### Features
+- **ThreadPoolExecutor Integration**:
+  - Up to 20 parallel workers for mailbox health checks
+  - Up to 15 parallel workers for sender reply fetching
+  - Smart worker allocation: `min(20, client_count)` prevents over-threading with fewer clients
+
+- **Graceful Error Handling**: Per-client failures don't block other clients from being processed
+
+- **Use Cases**:
+  - "Show me mailbox health for all clients" → 80+ clients in 10 seconds
+  - "Find unhealthy mailboxes across all platforms" → Instant results
+  - "Get all replies for Jeff Mikolai from 15 senders" → 15x faster
+
+### Technical Details
+- Updated `get_all_mailbox_health()` with parallel processing (lines 2039-2142 in lead_functions.py)
+- Added `process_client_mailboxes()` helper function for parallel execution
+- ThreadPoolExecutor with `max_workers=min(20, client_count)` for optimal performance
+- Updated `get_unhealthy_mailboxes()` with parallel processing (lines 2169-2234)
+- Added `process_client_unhealthy()` helper function for parallel unhealthy detection
+- All mailbox health functions now use `concurrent.futures.ThreadPoolExecutor`
+- Error handling: Per-client failures logged but don't block other clients
+- Performance calculation: 80 clients × 2 seconds = 160s sequential → 80 clients ÷ 20 workers × 2s = 10s parallel
+- Parallel processing already added to `get_bison_sender_replies()` in v2.7.1 (up to 15 workers)
+- Total tool count remains 78 (no new tools, performance optimization only)
+- All functions maintain backward compatibility with identical return structures
+
+---
+
+## [2.7.1] - December 21, 2025
+
+### 📧 Bison Sender Email Replies - Full Reply-Level Analytics (78 Total Tools)
+
+### Added
+- **Reply-Level Analytics for Bison Sender Emails**: Get detailed reply data from all sender emails with automatic pagination handling
+  - **NEW TOOL ADDED**: `get_bison_sender_email_replies` with full pagination support
+  - **TOTAL TOOLS**: 78 (up from 77)
+  - **Mailbox Health Monitoring**: Now 6 tools (was 5)
+
+### Features
+
+#### Smart Pagination with Bison's 15-Item Limit
+- **Handles Pagination**: Bison API returns max 15 replies per page - tool automatically fetches ALL pages
+- **Pagination Logic**:
+  - Fetches page 1 (up to 15 items)
+  - Checks pagination metadata (`current_page`, `last_page`)
+  - Continues fetching until `current_page >= last_page`
+- **Safety Features**:
+  - Breaks early if page returns empty results
+  - Respects `max_results` limit to prevent excessive API calls
+  - Tracks total replies fetched across all pages
+- **Performance**:
+  - Efficient multi-page fetching with proper error handling
+  - Comprehensive logging for debugging ("Fetched page 2 with 15 replies")
+  - Minimal API overhead with smart break conditions
+
+#### Flexible Filtering
+- Get all replies for a client (all senders)
+- Filter by specific sender email
+- Show only interested leads (`interested_only=True`)
+- Limit result count (`limit=100`, set to 0 for unlimited)
+
+#### Comprehensive Reply Data
+Each reply includes:
+- **id** - Unique reply identifier
+- **lead_email** - Who replied
+- **lead_name** - Lead's full name
+- **company** - Lead's company
+- **reply_text** - Full reply message
+- **interested** - Boolean flag (marked by user or AI)
+- **status** - Reply status
+- **replied_at** - ISO timestamp
+- **campaign_name** - Which campaign generated this reply
+- **sequence_step** - Which step in sequence triggered reply
+
+#### Summary Data
+- Per-sender summaries showing:
+  - Total replies
+  - Number shown (respecting limit)
+  - Interested lead count
+- Aggregated totals across all senders queried
+
+#### Parallel Processing
+- **ThreadPoolExecutor**: Uses up to 15 parallel workers
+- **Performance**:
+  - Before: 50 senders × 2 seconds = 100 seconds (sequential)
+  - After: 50 senders ÷ 15 workers × 2 seconds = ~7 seconds (parallel)
+  - **Result**: 14x faster!
+- **Graceful Error Handling**: Failures on individual senders don't block others
+
+### Use Cases
+- "Get all replies for Jeff Mikolai" (fetches from all 15 senders)
+- "Get interested replies for Rich Cave"
+- "Get 50 replies from jeff@sugarpixels.com"
+- "Get unlimited replies from sender rich@mycave.com"
+
+### Technical Details
+- Added `EMAIL_BISON_REPLIES_URL` constant for sender replies endpoint
+- Added `_fetch_emailbison_sender_replies()` helper function with full pagination
+- Pagination uses page numbers (1, 2, 3...) with `per_page=15` (Bison max)
+- Checks `meta.current_page` and `meta.last_page` to determine when to stop
+- Added `get_bison_sender_replies()` main function in lead_functions.py (+108 lines)
+- Exported `get_bison_sender_replies` in leads/__init__.py (+2 lines)
+- Added MCP tool `get_bison_sender_email_replies` in server.py (+74 lines)
+- Tool signature: `client_name` (required), `sender_email` (optional), `interested_only` (bool), `limit` (int)
+- Default `limit=100`, set to 0 for unlimited results
+- Returns JSON with: `total_senders`, `total_replies`, `interested_count`, `sender_summaries`, `replies`
+- All 3 files modified: lead_functions.py (+108 lines), __init__.py (+2 lines), server.py (+74 lines)
+- Total implementation: ~184 lines of new code
+
+---
+
+## [2.7.0] - December 21, 2025
+
+### 🔌 MAILBOX HEALTH MONITORING - 5 New Tools! (77 Total Tools)
+
+### Added
+- **Mailbox Health Monitoring**: Complete email account oversight across Instantly & Bison platforms
+  - **NEW CATEGORY ADDED**: Mailbox Health Monitoring (5 tools)
+  - **TOTAL TOOLS**: 77 (up from 72)
+  - **MONITORS 88+ CLIENTS**: Track email account health across both platforms in real-time
+
+### Features
+
+#### Health Classification System
+- **3-tier system**: healthy/early/at_risk with automatic problem detection
+- **Warmup Tracking**: Instantly accounts show warmup scores (0-100) and warmup status
+- **Capacity Planning**: Calculate total daily sending capacity across all accounts
+- **Instant Alerts**: Identify unhealthy mailboxes needing immediate attention
+
+#### 5 Powerful Mailbox Monitoring Tools
+
+1. **get_instantly_mailbox_health(workspace_id)**: View all Instantly email accounts for a workspace
+   - Status codes (1=Active, 2=Paused, -1/-2/-3=Errors)
+   - Warmup scores, daily limits, last used timestamps
+   - Provider info (Gmail/Outlook)
+
+2. **get_bison_mailbox_health(client_name)**: View all Bison email accounts for a client
+   - Connection status
+   - All-time metrics (emails sent, replies, opens, bounces)
+   - Interested leads count, tags, and account types
+
+3. **get_all_mailbox_health_summary()**: Aggregated health across ALL 88+ clients
+   - Total accounts, healthy/at_risk/early counts
+   - Health percentage and platform-specific totals
+   - Per-client summaries
+
+4. **get_unhealthy_mailboxes_alert()**: Filter for only at_risk mailboxes needing attention
+   - Client name, platform, email, status/issue
+   - Daily limit information
+
+5. **get_mailbox_capacity_report()**: Calculate total daily sending capacity
+   - Aggregate limits from all accounts
+   - Platform breakdown, average per account
+   - Health-adjusted capacity
+
+#### Real-Time Account Health & Status Monitoring
+
+**Instantly Status Mapping**:
+- **(1) Active** = Healthy, sending normally
+- **(2) Paused** = Early, temporarily disabled
+- **(-1) Connection Error** = At Risk, can't connect to provider
+- **(-2) Soft Bounce Error** = At Risk, deliverability issues
+- **(-3) Sending Error** = At Risk, failed to send
+
+**Bison Status Mapping**:
+- **Connected** = Healthy, working normally
+- **Disconnected/Unknown** = At Risk, needs attention
+
+**Warmup Intelligence**:
+- Track email reputation building with warmup scores (0-100 scale)
+- Warmup status (Active/Inactive)
+- Provider-specific warmup strategies
+
+**Metrics Tracking**:
+- **Instantly**: last_used timestamps and provider codes
+- **Bison**: all-time emails_sent, total_replied, unique_replied, total_opened, bounced, interested_leads_count
+
+**Capacity Planning**:
+- Calculate total daily capacity for campaign volume planning (sum of all daily_limit fields)
+- Platform-specific capacity breakdown (Instantly vs Bison)
+- Healthy-only capacity (excludes at_risk accounts)
+- Average capacity per account
+
+### API Integrations
+- **Instantly API**: Direct integration with `https://api.instantly.ai/api/v1/account/list`
+- **Email Bison API**: Direct integration with `https://app.emailbison.com/api/sender-email-accounts`
+- **Pagination Support**: Handles cursor-based (Instantly) and offset-based (Email Bison) pagination automatically
+- **545 Lines of Code**: Complete mailbox monitoring implementation in leads.py with helper functions
+
+### Technical Details
+- Added 545 lines to leads.py for mailbox monitoring functionality
+- Implemented `_fetch_workspace_info()` helper for Instantly workspace metadata
+- Implemented `_fetch_instantly_accounts()` with cursor-based pagination (next_starting_after)
+- Implemented `_fetch_emailbison_accounts()` with offset-based pagination (page numbers + Laravel meta)
+- Added `get_instantly_mailboxes()` - fetches and processes Instantly email accounts with health classification
+- Added `get_bison_mailboxes()` - fetches and processes Bison email accounts with metrics
+- Added `get_all_mailbox_health()` - aggregates health across all 88+ clients and both platforms
+- Added `get_unhealthy_mailboxes()` - filters for at_risk accounts needing attention
+- Added 354 lines to server.py for 5 new MCP tools
+- Tool 1: `get_instantly_mailbox_health` - Returns workspace accounts with warmup scores and status codes
+- Tool 2: `get_bison_mailbox_health` - Returns client accounts with all-time metrics and tags
+- Tool 3: `get_all_mailbox_health_summary` - Returns aggregated health across all platforms with percentages
+- Tool 4: `get_unhealthy_mailboxes_alert` - Returns filtered list of at_risk accounts for quick fixes
+- Tool 5: `get_mailbox_capacity_report` - Returns total daily capacity calculation with platform breakdown
+- Updated imports in server.py to include 4 new mailbox functions from leads module
+- Integrated with existing Google Sheets infrastructure for API key management
+- Supports both Instantly (cursor pagination) and Email Bison (offset pagination) APIs
+- Health classification logic: Instantly uses numeric status codes, Bison uses string statuses
+- Status breakdown tracking for debugging and analytics in both platforms
+- Total tool count increased from 72 to 77 (5 new mailbox tools)
+- New category: Mailbox Health Monitoring joins existing 8 categories
+- Code integrated from leadgenjay_client_health_tracker repository
+
+---
+
 ## [2.6.0] - December 20, 2025
 
 ### Added

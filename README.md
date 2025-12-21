@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 77 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 78 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -82,7 +82,7 @@ Ask Claude things like:
 
 ## 🎯 Key Features
 
-### 77 Production Tools Across 9 Categories
+### 78 Production Tools Across 9 Categories
 
 <table>
 <tr>
@@ -156,20 +156,30 @@ Ask Claude things like:
 - Instantly campaign variant scanning
 - EmailGuard API integration
 
-**📮 Mailbox Health Monitoring (5 tools)**
+**📮 Mailbox Health Monitoring (6 tools)**
 - **Instantly & Bison** email account monitoring
 - Real-time warmup scores (0-100 scale)
 - Health classification (healthy/early/at_risk)
 - Daily sending capacity tracking
 - Multi-platform aggregated dashboard
+- Bison sender email reply-level analytics
 
 </td>
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.7.0 - December 21, 2025)
+### 🆕 Latest Features (v2.7.3 - December 21, 2025)
 
-- 📮 **Mailbox Health Monitoring** - Added 5 new tools for email account monitoring (77 total)
+- ⚡ **Parallel Processing** - 16x faster mailbox health checks! 80+ clients in 10 seconds (was 160 seconds)
+- 📧 **Bison Sender Replies** - NEW TOOL: Get detailed reply data from all sender emails with pagination
+- 🔧 **Instantly API v2 Migration** - Fixed 404 errors by updating workspace endpoint to v2
+- 🚀 **Performance Optimization** - ThreadPoolExecutor with 20 workers for concurrent client processing
+- 🎯 **Reply Analytics** - Fetch ALL replies from specific sender emails with filtering & limits
+- 📊 **Smart Pagination** - Handles Bison's 15-item-per-page limit automatically
+
+### Latest Features (v2.7.0-v2.7.2 - December 21, 2025)
+
+- 📮 **Mailbox Health Monitoring** - Added 6 tools for email account monitoring (78 total)
 - 🔍 **Instantly Account Health** - Track warmup scores, daily limits, and account status across all workspaces
 - 📊 **Bison Sender Email Monitoring** - Monitor all sender email accounts with real-time connection status
 - 🚨 **Unhealthy Mailbox Alerts** - Automatically identify at-risk accounts requiring attention
@@ -218,7 +228,7 @@ Ask Claude things like:
 │   Railway   │  ← Deploy once, serve everyone
 │   Server    │
 │             │  • Web OAuth flow
-│  72 Tools  │  • Session management
+│  78 Tools  │  • Session management
 │             │  • Multi-user support
 └──────┬──────┘
        │
