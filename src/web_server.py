@@ -335,7 +335,7 @@ SETUP_LANDING_HTML = """
                 🔧 Troubleshooting Guide
             </button>
             <a href="/changelog" class="info-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none;">
-                ✨ What's New (v2.6.0)
+                ✨ What's New (v2.6.1)
             </a>
         </div>
 
@@ -378,12 +378,12 @@ SETUP_LANDING_HTML = """
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>🚀 Your AI Productivity Command Center</h2>
-                <p>69 powerful tools that transform Claude into your personal productivity assistant</p>
+                <p>72 powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>💫 The Complete Toolkit - 69 Tools Across 8 Platforms</h3>
+                    <h3>💫 The Complete Toolkit - 72 Tools Across 8 Platforms</h3>
                     <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
                         <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
@@ -400,11 +400,14 @@ SETUP_LANDING_HTML = """
                         • Email invitations sent to all attendees<br>
                         • Recurring events, multi-calendar support</p>
 
-                        <strong>📝 Google Docs</strong><span class="tool-count">6 tools</span>
+                        <strong>📝 Google Docs</strong><span class="tool-count">9 tools</span>
                         <p style="margin-top: 8px; font-size: 14px;">• Create, read, and edit Google Docs directly from Claude<br>
                         • Append content, insert at specific positions<br>
                         • Find and replace text (template population)<br>
                         • Add formatted headings (H1-H6)<br>
+                        • <strong>NEW:</strong> Create tables with data and header formatting<br>
+                        • <strong>NEW:</strong> Find and format text with RGB colors<br>
+                        • <strong>NEW:</strong> Apply professional styling with one command<br>
                         • Multi-tenant safe with per-user OAuth</p>
 
                         <strong>📊 Google Sheets</strong><span class="tool-count">18 tools</span>
@@ -497,8 +500,9 @@ SETUP_LANDING_HTML = """
 
                     <p style="margin-top: 15px;"><strong>📝 Google Docs Automation:</strong></p>
                     <div class="example-prompt">"Create a meeting notes doc called 'Q4 Planning - Dec 20'"</div>
-                    <div class="example-prompt">"Read the proposal doc and summarize the key points"</div>
-                    <div class="example-prompt">"Append these action items to the meeting notes doc"</div>
+                    <div class="example-prompt">"Insert a 3x4 table in the doc with headers: Name, Role, Action"</div>
+                    <div class="example-prompt">"Find all text 'IMPORTANT' and make it bold and red"</div>
+                    <div class="example-prompt">"Apply professional formatting to this document"</div>
                     <div class="example-prompt">"Replace all {{client_name}} with 'Acme Corp' in the template"</div>
                     <div class="example-prompt">"Add an H2 heading 'Budget Analysis' to the report doc"</div>
 
@@ -589,9 +593,9 @@ SETUP_LANDING_HTML = """
                 <div class="section">
                     <h3>💡 Unique Features You Won't Find Elsewhere</h3>
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. 69 tools across all 4 platforms. Create spreadsheets, format cells, organize data - all from Claude.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. 72 tools across all 4 platforms. Create spreadsheets with tables, format cells with colors, apply professional document styling - all from Claude.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring. Fixed pagination fetches all 50-80+ sender emails per client. Dual-marking automatically marks both responder AND original lead. This alone can recover 10-20% more leads.</p>
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Document & Spreadsheet Automation:</strong> Create, edit, format Google Docs AND Sheets. Template population with find/replace, professional formatting with colors and alignment. Multi-tenant safe with per-user OAuth isolation.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Document & Spreadsheet Automation:</strong> Create, edit, format Google Docs AND Sheets. Insert tables with data, apply professional styling, find/replace with RGB colors. Template population, bold/italic formatting, alignment. Multi-tenant safe with per-user OAuth isolation.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully across 88+ clients.</p>
                         <p style="margin: 0; font-size: 16px; line-height: 1.6;"><strong>🎥 Auto Google Meet:</strong> Every calendar event with attendees automatically gets a Google Meet link. No more "forgot to add the link".</p>
                     </div>

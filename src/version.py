@@ -2,11 +2,59 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.6.0"
-RELEASE_DATE = "2025-12-20"
+VERSION = "2.6.1"
+RELEASE_DATE = "2025-12-21"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.6.1": {
+        "date": "December 21, 2025",
+        "title": "📝 Enhanced Google Docs + Complete Documentation Update (72 Total Tools)",
+        "highlights": [
+            {
+                "icon": "📊",
+                "category": "Major Feature",
+                "title": "Advanced Google Docs Features - Tables, Formatting, & Professional Styling",
+                "description": "Create tables, apply professional formatting, and style documents with one command",
+                "details": "NEW TOOLS ADDED: (1) create_table_in_google_doc - Insert structured tables with header row support and custom formatting. (2) format_google_doc_section - Find and format specific text with RGB colors, bold, italic, font sizes. (3) format_google_doc_professional - Apply professional styling to entire documents with one command (titles, headings, spacing). TOTAL TOOLS: 72 (up from 69). Google Docs now has 9 tools total (was 6). TABLE CREATION: Insert tables at any position with custom rows/columns. Header row auto-formatting with bold and gray background. Populate table cells with structured data. RGB COLOR SUPPORT: Use precise colors like {'red': 1.0, 'green': 0.0, 'blue': 0.0} for text and highlighting. PROFESSIONAL FORMATTING: One-command styling applies consistent formatting across entire documents. Format titles as 24pt bold, headings as 16pt bold, proper spacing throughout. FIND AND FORMAT: Search for specific text and apply formatting (make all 'IMPORTANT' text bold and red). Use cases: Meeting notes, reports, proposals, templates.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📚",
+                "category": "Documentation",
+                "title": "Complete Documentation Overhaul - 69→72 Tools Across 8 Platforms",
+                "description": "Updated README, examples modal, and all documentation to reflect complete Google Workspace integration",
+                "details": "COMPREHENSIVE UPDATES: README.md completely rewritten with detailed tool breakdown. Examples modal updated with Google Sheets automation examples. All tool counts and platform numbers updated throughout. TOOL BREAKDOWN: 📧 Gmail (13 tools), 📅 Calendar (7 tools), 📝 Docs (9 tools - up from 6), 📊 Sheets (18 tools), 🎙️ Fathom (6 tools), 🎯 Campaign Management (4 tools), 💎 Lead Intelligence (14 tools), 🛡️ Spam Detection (1 tool). ENHANCED EXAMPLES: Added 7 new Google Sheets examples (create tracker, format headers, sort data, insert rows, auto-resize, find/replace). Updated 'Why This Is Game-Changing' section emphasizing complete Google Workspace. Highlighted unique features: dual-marking, fixed pagination, spreadsheet powerhouse. MESSAGING: Positioned as 'The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration'. Clear value proposition: 72 tools across 8 platforms for complete productivity automation.",
+                "screenshot": None,
+            },
+            {
+                "icon": "✨",
+                "category": "Feature Highlights",
+                "title": "Complete Google Workspace Integration",
+                "description": "Gmail + Calendar + Docs + Sheets = Most comprehensive MCP productivity server available",
+                "details": "UNIQUE POSITIONING: Only MCP server with complete Google Workspace integration across all 4 platforms. 72 production-ready tools spanning email, calendar, documents, and spreadsheets. Natural language control over your entire productivity stack. DOCUMENT AUTOMATION: Create meeting notes → Append action items → Add formatted headings → Apply professional styling. Template population → Find/replace placeholders → Insert tables → Format sections. SPREADSHEET AUTOMATION: Create Q1 tracker → Format headers (bold, centered, blue) → Freeze top row → Auto-resize columns. Read data → Analyze trends → Sort by column → Generate insights. CROSS-PLATFORM WORKFLOWS: 'Create meeting notes doc, add attendees, schedule follow-up for next week' (3 platforms). 'Summarize client call and create a Google Doc with notes and action items' (Fathom + Docs). 'Create Q1 sales tracker, populate from campaign data, format professionally' (Sheets + Leads + Docs).",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added insert_table() method to DocsClient for table creation (290 lines)",
+            "Added format_google_doc_section() method for find-and-format operations",
+            "Added format_google_doc_professional() method for one-command professional styling",
+            "Added create_table_in_google_doc MCP tool with header_row parameter",
+            "Added format_google_doc_section MCP tool with RGB color support",
+            "Added format_google_doc_professional MCP tool for quick document styling",
+            "Updated README.md: Complete rewrite with 72-tool breakdown and 8-platform emphasis",
+            "Updated web_server.py: Examples modal enhanced with Sheets automation examples",
+            "Updated tool counts: Gmail 13, Calendar 7, Docs 9 (was 6), Sheets 18, Fathom 6, Campaigns 4, Leads 14, Spam 1",
+            "Enhanced 'Why This Is Game-Changing' section with Google Workspace emphasis",
+            "Updated 'Unique Features' section leading with Complete Google Workspace positioning",
+            "Added 7 new Google Sheets examples: create tracker, format headers, read data, sort, insert rows, auto-resize, find/replace",
+            "Highlighted dual-marking feature in Lead Intelligence description (responder AND original lead)",
+            "Updated all platform counts from 45→69→72 tools consistently across documentation",
+            "Commits: bde6538 (Google Docs enhancements), 414719c (documentation update)",
+        ],
+    },
     "2.6.0": {
         "date": "December 20, 2025",
         "title": "📊 GOOGLE SHEETS INTEGRATION - 18 Comprehensive Tools! (69 Total Tools)",

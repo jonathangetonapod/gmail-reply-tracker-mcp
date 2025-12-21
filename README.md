@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 69 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 72 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -82,7 +82,7 @@ Ask Claude things like:
 
 ## 🎯 Key Features
 
-### 69 Production Tools Across 8 Categories
+### 72 Production Tools Across 8 Categories
 
 <table>
 <tr>
@@ -113,12 +113,13 @@ Ask Claude things like:
 - Calendar event cross-reference
 - Meeting analytics
 
-**📝 Google Docs (6 tools)**
+**📝 Google Docs (9 tools)**
 - Create, read, and edit documents
 - Append and insert content
 - Find and replace text
 - Add formatted headings (H1-H6)
-- Template population
+- Create tables with data
+- Professional formatting & styling
 - Multi-tenant safe with per-user OAuth
 
 **📊 Google Sheets (18 tools)**
@@ -159,13 +160,13 @@ Ask Claude things like:
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.6.0 - December 20, 2025)
+### 🆕 Latest Features (v2.6.1 - December 21, 2025)
 
-- 📊 **Google Sheets Integration** - 18 comprehensive tools for complete spreadsheet control
-- 🎨 **Professional Formatting** - Bold, colors, alignment, frozen headers, auto-resize
-- 🔄 **Advanced Organization** - Sort, insert, delete, find/replace across workbooks
-- 🔐 **Multi-Tenant Safe** - Per-user OAuth isolation with thread-safe rate limiting (300 req/min)
-- 📝 **Total Tools Now: 69** - Up from 51 with new Sheets category joining Docs, Gmail, Calendar, and more
+- 📝 **Enhanced Google Docs** - Added 3 new tools: tables, formatting, professional styling (9 total)
+- 📊 **Table Creation** - Insert structured tables with header row support and custom formatting
+- 🎨 **Professional Formatting** - One-command styling for titles, headings, and consistent spacing
+- ✨ **Find & Format** - Search for specific text and apply RGB colors, bold, italic, font sizes
+- 📚 **Complete Documentation** - Updated README and examples with all 72 tools across 8 platforms
 
 ### Recent Features (v2.5.0 - December 19, 2025)
 
@@ -201,7 +202,7 @@ Ask Claude things like:
 │   Railway   │  ← Deploy once, serve everyone
 │   Server    │
 │             │  • Web OAuth flow
-│  69 Tools  │  • Session management
+│  72 Tools  │  • Session management
 │             │  • Multi-user support
 └──────┬──────┘
        │
@@ -298,7 +299,7 @@ Users just need to:
 
 ---
 
-## 🛠️ Complete Tool List (69 Tools)
+## 🛠️ Complete Tool List (72 Tools)
 
 ### 📧 Gmail Tools (13)
 
@@ -341,7 +342,7 @@ Users just need to:
 | `search_fathom_meetings_by_title` | Search by title |
 | `search_fathom_meetings_by_attendee` | Search by attendee |
 
-### 📝 Google Docs Tools (6)
+### 📝 Google Docs Tools (9)
 
 | Tool | Description |
 |------|-------------|
@@ -351,6 +352,9 @@ Users just need to:
 | `insert_into_google_doc` | Insert at specific position |
 | `replace_text_in_google_doc` | Find and replace |
 | `add_heading_to_google_doc` | Add formatted headings (H1-H6) |
+| `create_table_in_google_doc` | Insert tables with data |
+| `format_google_doc_section` | Find and format text |
+| `format_google_doc_professional` | Apply professional styling |
 
 ### 📊 Google Sheets Tools (18)
 
@@ -422,7 +426,7 @@ Users just need to:
 - 📊 **Detailed Reports**: Spam scores, word counts, and specific spam words identified
 - ⚠️ **Smart Error Handling**: Graceful handling of API quota exhaustion
 
-**Total: 69 tools across 8 platforms** 🎉
+**Total: 72 tools across 8 platforms** 🎉
 
 ---
 
@@ -533,12 +537,12 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ### 4. Comprehensive Integration
 
-- 69 tools across 8 platforms
+- 72 tools across 8 platforms
 - Complete Google Workspace integration (Gmail, Calendar, Docs, Sheets)
+- Advanced document automation (tables, formatting, professional styling)
 - Lead management with 88+ clients
 - Campaign automation and analytics
 - Hidden gems discovery with AI
-- EmailGuard API for spam checking
 
 ---
 
@@ -700,7 +704,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 69 tools across 8 platforms**
+**Production-ready multi-tenant MCP server with 72 tools across 8 platforms**
 
 ⭐ Star this repo if you found it helpful!
 
