@@ -169,7 +169,16 @@ Ask Claude things like:
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.7.3 - December 21, 2025)
+### 🆕 Latest Features (v2.7.4 - December 22, 2024)
+
+- 📊 **NEW TOOL: Move/Copy Spreadsheet Rows** - Efficiently move or copy thousands of rows between tabs
+- ⚡ **Batch Processing** - Handles large datasets (15k+ rows) with automatic 1000-row batching
+- 🔄 **Smart Data Migration** - Auto-copies headers, optional source deletion for true "move" operations
+- 🎯 **No More Manual Work** - Split datasets, reorganize data, archive records automatically
+- 🛠️ **Technical**: Added `move_spreadsheet_rows` tool with rate limiting and error handling
+- 🔧 **OAuth Scope Fix** - Added missing `spreadsheets` scope to fix 403 authentication errors
+
+### Latest Features (v2.7.3 - December 21, 2025)
 
 - ⚡ **Parallel Processing** - 16x faster mailbox health checks! 80+ clients in 10 seconds (was 160 seconds)
 - 📧 **Bison Sender Replies** - NEW TOOL: Get detailed reply data from all sender emails with pagination
@@ -180,7 +189,7 @@ Ask Claude things like:
 
 ### Latest Features (v2.7.0-v2.7.2 - December 21, 2025)
 
-- 📮 **Mailbox Health Monitoring** - Added 6 tools for email account monitoring (78 total)
+- 📮 **Mailbox Health Monitoring** - Added 6 tools for email account monitoring (77 total at that time)
 - 🔍 **Instantly Account Health** - Track warmup scores, daily limits, and account status across all workspaces
 - 📊 **Bison Sender Email Monitoring** - Monitor all sender email accounts with real-time connection status
 - 🚨 **Unhealthy Mailbox Alerts** - Automatically identify at-risk accounts requiring attention
@@ -651,6 +660,15 @@ This helps your team stay informed about new features and decide when to update!
 ## 📝 Changelog
 
 > 💡 **See full visual timeline**: Visit `/changelog` on your Railway deployment for a beautiful timeline view!
+
+**v2.7.4** (December 22, 2024) - **Bulk Data Operations & OAuth Fixes**
+- 📊 **NEW TOOL: move_spreadsheet_rows** - Move or copy thousands of rows between sheets efficiently
+- ⚡ **Batch Processing** - Automatic 1000-row batching prevents timeouts on large datasets (15k+ rows)
+- 🔄 **Smart Data Migration** - Auto-copies headers to destination, optional source deletion for true "move"
+- 🎯 **Use Cases** - Split large datasets, reorganize data across tabs, archive completed records
+- 🛠️ **Technical**: Thread-safe implementation with rate limiting and comprehensive error handling
+- 🔧 **OAuth Scope Fix** - Added missing `spreadsheets` scope to GOOGLE_OAUTH_SCOPES in .env.example
+- 📚 **Documentation** - Updated tool count to 78 tools (was 77), added comprehensive examples
 
 **v2.5.0** (December 19, 2024) - **Hidden Gems Intelligence & Deduplication**
 - 💎 **Hidden Gems Deduplication** - Groups replies by email address and keeps only the earliest reply per person
