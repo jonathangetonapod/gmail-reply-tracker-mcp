@@ -2382,6 +2382,163 @@ async def delete_spreadsheet_columns(
 
 
 @mcp.tool()
+async def move_spreadsheet_rows(
+    spreadsheet_id: str,
+    source_sheet: str,
+    dest_sheet: str,
+    start_row: int = 2,
+    end_row: Optional[int] = None,
+    delete_from_source: bool = True,
+    batch_size: int = 1000
+) -> str:
+    """
+    Move/copy rows from one sheet to another (handles large datasets efficiently).
+
+    Perfect for splitting data between tabs or reorganizing large sheets.
+    Works in batches to handle thousands of rows without timeouts.
+
+    Args:
+        spreadsheet_id: The ID of the spreadsheet (from the URL)
+        source_sheet: Name of the source sheet (e.g., "Added to RI")
+        dest_sheet: Name of the destination sheet (e.g., "Clients")
+        start_row: Starting row number (1-indexed, default: 2 to skip header)
+        end_row: Ending row number (1-indexed, inclusive). If None, moves all rows from start_row to end.
+        delete_from_source: If True, deletes rows from source after copying (true "move")
+        batch_size: Number of rows to process per batch (default: 1000)
+
+    Returns:
+        JSON string with operation details
+
+    Examples:
+        # Move first half of data (rows 2-7942 if total is 15883)
+        move_spreadsheet_rows("1abc...", "Added to RI", "Clients", start_row=2, end_row=7942)
+
+        # Move rows 2-5000
+        move_spreadsheet_rows("1abc...", "Added to RI", "Clients", start_row=2, end_row=5000)
+
+        # Copy (not move) rows 2-1000
+        move_spreadsheet_rows("1abc...", "Added to RI", "Clients", start_row=2, end_row=1000, delete_from_source=False)
+
+        # Move all rows except header
+        move_spreadsheet_rows("1abc...", "Added to RI", "Clients", start_row=2)
+    """
+    try:
+        initialize_clients()
+
+        logger.info(f"Moving rows from '{source_sheet}' to '{dest_sheet}' in spreadsheet: {spreadsheet_id}")
+
+        # Get sheet metadata to determine total rows
+        spreadsheet = sheets_client.get_spreadsheet(spreadsheet_id)
+        source_sheet_obj = None
+        for sheet in spreadsheet.get('sheets', []):
+            if sheet['properties']['title'] == source_sheet:
+                source_sheet_obj = sheet
+                break
+
+        if not source_sheet_obj:
+            raise ValueError(f"Source sheet '{source_sheet}' not found")
+
+        total_rows = source_sheet_obj['properties']['gridProperties']['rowCount']
+
+        # If end_row not specified, use all rows
+        if end_row is None:
+            end_row = total_rows
+
+        # Validate parameters
+        if start_row < 1:
+            raise ValueError("start_row must be >= 1")
+        if end_row < start_row:
+            raise ValueError("end_row must be >= start_row")
+
+        # Calculate rows to move
+        rows_to_move = end_row - start_row + 1
+
+        logger.info(f"Will move {rows_to_move} rows (from row {start_row} to {end_row})")
+
+        # First, copy the header row if destination is empty
+        try:
+            dest_data = sheets_client.read_range(spreadsheet_id, f"{dest_sheet}!A1:1")
+            if not dest_data:
+                # Copy header from source
+                header = sheets_client.read_range(spreadsheet_id, f"{source_sheet}!A1:1")
+                if header:
+                    sheets_client.update_range(spreadsheet_id, f"{dest_sheet}!A1", header)
+                    logger.info("Copied header row to destination")
+        except Exception as e:
+            logger.warning(f"Could not check/copy header: {e}")
+
+        # Process in batches
+        total_copied = 0
+        batches_processed = 0
+
+        current_row = start_row
+        while current_row <= end_row:
+            # Calculate batch end
+            batch_end = min(current_row + batch_size - 1, end_row)
+            batch_rows = batch_end - current_row + 1
+
+            logger.info(f"Processing batch {batches_processed + 1}: rows {current_row}-{batch_end} ({batch_rows} rows)")
+
+            # Read batch
+            range_to_read = f"{source_sheet}!A{current_row}:{batch_end}"
+            batch_data = sheets_client.read_range(spreadsheet_id, range_to_read)
+
+            if batch_data:
+                # Append to destination
+                sheets_client.append_rows(spreadsheet_id, dest_sheet, batch_data)
+                total_copied += len(batch_data)
+                logger.info(f"Copied {len(batch_data)} rows to destination")
+
+            current_row = batch_end + 1
+            batches_processed += 1
+
+        # Delete from source if requested
+        if delete_from_source and total_copied > 0:
+            logger.info(f"Deleting {rows_to_move} rows from source sheet")
+            sheet_id = sheets_client.get_sheet_id(spreadsheet_id, source_sheet)
+            if sheet_id is not None:
+                # Delete rows (API uses 0-based indexing)
+                sheets_client.delete_rows(
+                    spreadsheet_id,
+                    sheet_id,
+                    start_index=start_row - 1,  # Convert to 0-based
+                    end_index=end_row  # Exclusive in API
+                )
+                logger.info("Successfully deleted rows from source")
+
+        spreadsheet_url = sheets_client.get_spreadsheet_url(spreadsheet_id)
+        operation_type = "Moved" if delete_from_source else "Copied"
+
+        return json.dumps({
+            "success": True,
+            "spreadsheet_id": spreadsheet_id,
+            "url": spreadsheet_url,
+            "source_sheet": source_sheet,
+            "dest_sheet": dest_sheet,
+            "rows_processed": total_copied,
+            "batches_processed": batches_processed,
+            "deleted_from_source": delete_from_source,
+            "message": f"{operation_type} {total_copied} row(s) from '{source_sheet}' to '{dest_sheet}' in {batches_processed} batch(es)"
+        }, indent=2)
+
+    except HttpError as e:
+        error_msg = f"Google Sheets API error: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Error in move_spreadsheet_rows: {error_msg}")
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def add_sheet_to_spreadsheet(
     spreadsheet_id: str,
     sheet_name: str

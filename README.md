@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 78 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 79 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -122,8 +122,9 @@ Ask Claude things like:
 - Professional formatting & styling
 - Multi-tenant safe with per-user OAuth
 
-**📊 Google Sheets (18 tools)**
+**📊 Google Sheets (19 tools)**
 - Full CRUD operations on spreadsheets
+- Move/copy rows between tabs (handles large datasets)
 - Professional cell formatting
 - Insert/delete rows & columns
 - Sort, filter, and organize data
@@ -325,7 +326,7 @@ Users just need to:
 
 ---
 
-## 🛠️ Complete Tool List (77 Tools)
+## 🛠️ Complete Tool List (78 Tools)
 
 ### 📧 Gmail Tools (13)
 
@@ -382,7 +383,7 @@ Users just need to:
 | `format_google_doc_section` | Find and format text |
 | `format_google_doc_professional` | Apply professional styling |
 
-### 📊 Google Sheets Tools (18)
+### 📊 Google Sheets Tools (19)
 
 | Tool | Description |
 |------|-------------|
@@ -394,6 +395,7 @@ Users just need to:
 | `find_replace_in_spreadsheet` | Find and replace text |
 | `delete_spreadsheet_rows` | Delete specific rows |
 | `delete_spreadsheet_columns` | Delete specific columns |
+| `move_spreadsheet_rows` | Move/copy rows between tabs (handles large datasets) |
 | `add_sheet_to_spreadsheet` | Create new tabs |
 | `delete_sheet_from_spreadsheet` | Delete tabs |
 | `list_sheets_in_spreadsheet` | List all tabs |
@@ -470,7 +472,7 @@ Users just need to:
 - 📈 **Capacity Planning**: Aggregate daily sending limits across all healthy accounts
 - ⚡ **Parallel Processing**: Fast health checks across 88+ clients simultaneously
 
-**Total: 77 tools across 9 platforms** 🎉
+**Total: 78 tools across 9 platforms** 🎉
 
 ---
 
@@ -581,7 +583,7 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ### 4. Comprehensive Integration
 
-- 77 tools across 9 platforms
+- 78 tools across 9 platforms
 - Complete Google Workspace integration (Gmail, Calendar, Docs, Sheets)
 - Advanced document automation (tables, formatting, professional styling)
 - Lead management with 88+ clients
@@ -749,7 +751,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 77 tools across 9 platforms**
+**Production-ready multi-tenant MCP server with 78 tools across 9 platforms**
 
 ⭐ Star this repo if you found it helpful!
 
