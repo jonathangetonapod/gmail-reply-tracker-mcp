@@ -420,6 +420,7 @@ def list_bison_campaigns(
         "Content-Type": "application/json"
     }
 
+    # Build query parameters for GET request
     params = {}
     if search is not None:
         params["search"] = search
@@ -428,7 +429,7 @@ def list_bison_campaigns(
     if tag_ids is not None:
         params["tag_ids"] = tag_ids
 
-    # Use GET to list campaigns (POST is for creating campaigns)
+    # Use GET to list campaigns
     response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
 

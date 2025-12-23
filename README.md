@@ -4,7 +4,7 @@
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 79 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
+*Transform Claude into your AI productivity command center with 82 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -82,7 +82,7 @@ Ask Claude things like:
 
 ## 🎯 Key Features
 
-### 78 Production Tools Across 9 Categories
+### 82 Production Tools Across 9 Categories
 
 <table>
 <tr>
@@ -134,8 +134,9 @@ Ask Claude things like:
 </td>
 <td width="50%" valign="top">
 
-**🎯 Campaign Management (10 tools)**
+**🎯 Campaign Management (8 tools)**
 - **Bison** & **Instantly** integrations
+- List and inspect campaigns with full sequence details
 - Create email campaigns with sequences
 - Auto-convert placeholders ({{firstname}} → {FIRST_NAME})
 - HTML email formatting for Instantly
@@ -169,7 +170,16 @@ Ask Claude things like:
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.7.4 - December 22, 2024)
+### 🆕 Latest Features (v2.7.5 - December 23, 2025)
+
+- 🔍 **NEW: Campaign Analysis Tools** - List and inspect campaigns with full sequence details (4 new tools, 82 total)
+- 📊 **Instantly Campaign Inspection** - `list_instantly_campaigns` and `get_instantly_campaign_details` for complete campaign analysis
+- 🦬 **Bison Campaign Inspection** - `list_bison_campaigns` and `get_bison_campaign_details` with sequence/step/variant details
+- 📧 **Full Email Sequence Access** - View subjects, bodies, wait times, A/B test variants, and settings for all campaign steps
+- 🎯 **Status Filtering** - Filter campaigns by status (active, draft, launching, paused) for focused analysis
+- 🔧 **Smart Integration** - Uses existing fuzzy matching and Google Sheets infrastructure for seamless client lookup
+
+### Latest Features (v2.7.4 - December 22, 2024)
 
 - 📊 **NEW TOOL: Move/Copy Spreadsheet Rows** - Efficiently move or copy thousands of rows between tabs
 - ⚡ **Batch Processing** - Handles large datasets (15k+ rows) with automatic 1000-row batching
@@ -335,7 +345,7 @@ Users just need to:
 
 ---
 
-## 🛠️ Complete Tool List (78 Tools)
+## 🛠️ Complete Tool List (82 Tools)
 
 ### 📧 Gmail Tools (13)
 
@@ -416,12 +426,16 @@ Users just need to:
 | `freeze_spreadsheet_rows_columns` | Freeze headers |
 | `auto_resize_spreadsheet_columns` | Auto-fit widths |
 
-### 🎯 Campaign Management Tools (4)
+### 🎯 Campaign Management Tools (8)
 
 | Tool | Description |
 |------|-------------|
 | `create_bison_sequence` | Create Bison email sequence |
 | `create_instantly_campaign` | Create Instantly campaign |
+| `list_bison_campaigns` | List all campaigns for a Bison client |
+| `get_bison_campaign_details` | Get detailed campaign info with sequences/steps |
+| `list_instantly_campaigns` | List all campaigns for an Instantly client |
+| `get_instantly_campaign_details` | Get detailed campaign info with sequences/variants |
 | `check_campaign_spam` | Check campaign for spam |
 | `check_text_spam` | Check text for spam |
 
@@ -481,7 +495,7 @@ Users just need to:
 - 📈 **Capacity Planning**: Aggregate daily sending limits across all healthy accounts
 - ⚡ **Parallel Processing**: Fast health checks across 88+ clients simultaneously
 
-**Total: 78 tools across 9 platforms** 🎉
+**Total: 82 tools across 9 platforms** 🎉
 
 ---
 
@@ -769,7 +783,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 78 tools across 9 platforms**
+**Production-ready multi-tenant MCP server with 82 tools across 9 platforms**
 
 ⭐ Star this repo if you found it helpful!
 

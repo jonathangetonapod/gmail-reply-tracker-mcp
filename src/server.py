@@ -6775,6 +6775,239 @@ async def create_bison_sequence(
 
 
 @mcp.tool()
+async def list_bison_campaigns(
+    client_name: str,
+    status: str = "active"
+) -> str:
+    """
+    List all campaigns for a specific Bison client with performance metrics.
+
+    Shows campaign details including performance stats (emails sent, opens, replies,
+    interested leads), settings (daily limits, tracking), and tags.
+
+    Args:
+        client_name: Name of the Bison client (e.g., 'Jeff Mikolai')
+        status: Campaign status to filter (default: "active")
+            Options: "active", "launching", "draft", "paused", "completed",
+            "stopped", "failed", "queued", "archived", "all"
+
+    Returns:
+        JSON string with campaign list including:
+        - client_name: Matched client name
+        - total_campaigns: Number of campaigns found
+        - campaigns: Array of campaign objects with:
+            * id, uuid, name, type, status
+            * Performance: emails_sent, opened, unique_opens, replied, unique_replies,
+              bounced, unsubscribed, interested
+            * Leads: total_leads_contacted, total_leads
+            * Settings: max_emails_per_day, max_new_leads_per_day, plain_text,
+              open_tracking
+            * Timestamps: created_at, updated_at
+            * tags: Array of tag objects
+
+    Example Usage:
+        - "List all active campaigns for Jeff Mikolai"
+        - "Show me Rich Cave's draft campaigns with performance stats"
+        - "What campaigns does Lena Kadriu have?"
+    """
+    try:
+        initialize_clients()
+        config = Config.from_env()
+        from leads import sheets_client, bison_client
+
+        # Find the client using fuzzy matching
+        from rapidfuzz import process, fuzz
+        clients = await asyncio.to_thread(
+            sheets_client.load_bison_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_bison
+        )
+        client_names = [c["client_name"] for c in clients]
+
+        result = process.extractOne(
+            client_name,
+            client_names,
+            scorer=fuzz.WRatio,
+            score_cutoff=60
+        )
+
+        if not result:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Bison clients"
+            }, indent=2)
+
+        matched_name, score, index = result
+        client = clients[index]
+
+        logger.info(f"Listing Bison campaigns for {matched_name} (match score: {score})")
+
+        # Get campaigns
+        campaigns_response = await asyncio.to_thread(
+            bison_client.list_bison_campaigns,
+            client["api_key"],
+            status=status if status.lower() != "all" else None
+        )
+
+        campaigns = campaigns_response.get("data", [])
+
+        response = {
+            "success": True,
+            "client_name": matched_name,
+            "total_campaigns": len(campaigns),
+            "campaigns": []
+        }
+
+        # Format campaigns for output with performance metrics
+        for campaign in campaigns:
+            response["campaigns"].append({
+                "id": campaign.get("id"),
+                "uuid": campaign.get("uuid"),
+                "name": campaign.get("name"),
+                "type": campaign.get("type"),
+                "status": campaign.get("status"),
+                "emails_sent": campaign.get("emails_sent", 0),
+                "opened": campaign.get("opened", 0),
+                "unique_opens": campaign.get("unique_opens", 0),
+                "replied": campaign.get("replied", 0),
+                "unique_replies": campaign.get("unique_replies", 0),
+                "bounced": campaign.get("bounced", 0),
+                "unsubscribed": campaign.get("unsubscribed", 0),
+                "interested": campaign.get("interested", 0),
+                "total_leads_contacted": campaign.get("total_leads_contacted", 0),
+                "total_leads": campaign.get("total_leads", 0),
+                "max_emails_per_day": campaign.get("max_emails_per_day"),
+                "max_new_leads_per_day": campaign.get("max_new_leads_per_day"),
+                "plain_text": campaign.get("plain_text"),
+                "open_tracking": campaign.get("open_tracking"),
+                "created_at": campaign.get("created_at"),
+                "updated_at": campaign.get("updated_at"),
+                "tags": campaign.get("tags", [])
+            })
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in list_bison_campaigns: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_bison_campaign_details(
+    client_name: str,
+    campaign_id: int
+) -> str:
+    """
+    Get detailed information about a specific Bison campaign.
+
+    Returns complete campaign details including all email sequences, steps, subjects,
+    bodies, wait times, and settings. Perfect for analyzing campaign content and structure.
+
+    Args:
+        client_name: Name of the Bison client (e.g., 'Jeff Mikolai')
+        campaign_id: Campaign ID (integer from list_bison_campaigns)
+
+    Returns:
+        JSON string with campaign details:
+        - client_name: Client name
+        - campaign_id: Campaign ID
+        - campaign_name: Campaign name
+        - status: Campaign status
+        - sequences: Array of sequence steps
+        - Each step includes: subject, body, wait_days, order, thread_reply
+
+    Example Usage:
+        - "Get details for campaign 12345 for Jeff Mikolai"
+        - "Show me the email sequences in Rich Cave's campaign"
+        - "What are the subject lines in this Bison campaign?"
+    """
+    try:
+        initialize_clients()
+        config = Config.from_env()
+        from leads import sheets_client, bison_client
+
+        # Find the client using fuzzy matching
+        from rapidfuzz import process, fuzz
+        clients = await asyncio.to_thread(
+            sheets_client.load_bison_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_bison
+        )
+        client_names = [c["client_name"] for c in clients]
+
+        result = process.extractOne(
+            client_name,
+            client_names,
+            scorer=fuzz.WRatio,
+            score_cutoff=60
+        )
+
+        if not result:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Bison clients"
+            }, indent=2)
+
+        matched_name, score, index = result
+        client = clients[index]
+
+        logger.info(f"Getting Bison campaign details for {matched_name}, campaign {campaign_id}")
+
+        # Get campaign sequences
+        sequences_response = await asyncio.to_thread(
+            bison_client.get_bison_campaign_sequences,
+            client["api_key"],
+            campaign_id
+        )
+
+        sequence_data = sequences_response.get("data", {})
+        steps = sequence_data.get("sequence_steps", [])
+
+        response = {
+            "success": True,
+            "client_name": matched_name,
+            "campaign_id": campaign_id,
+            "sequence_id": sequence_data.get("sequence_id"),
+            "total_steps": len(steps),
+            "steps": []
+        }
+
+        # Format steps for output
+        for step in steps:
+            step_data = {
+                "id": step.get("id"),
+                "order": step.get("order"),
+                "email_subject": step.get("email_subject", ""),
+                "email_body": step.get("email_body", ""),
+                "body_preview": step.get("email_body", "")[:200] + "..." if len(step.get("email_body", "")) > 200 else step.get("email_body", ""),
+                "wait_in_days": step.get("wait_in_days", 0),
+                "thread_reply": step.get("thread_reply", False),
+                "is_variant": step.get("variant", False),
+                "variant_from_step_id": step.get("variant_from_step_id"),
+                "attachments": step.get("attachments", [])
+            }
+
+            response["steps"].append(step_data)
+
+        # Sort by order
+        response["steps"].sort(key=lambda x: x.get("order", 0))
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_bison_campaign_details: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def create_instantly_campaign(
     client_name: str,
     campaign_name: str,
@@ -6974,6 +7207,247 @@ async def create_instantly_campaign(
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in create_instantly_campaign: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def list_instantly_campaigns(
+    client_name: str,
+    status: str = "active"
+) -> str:
+    """
+    List all campaigns for a specific Instantly client.
+
+    Shows campaign names, IDs, status, and creation timestamps.
+    Useful for getting an overview of all campaigns before analyzing specific ones.
+
+    Args:
+        client_name: Name of the Instantly client (e.g., 'Brian Bliss')
+        status: Campaign status to filter (default: "active")
+            Options: "active", "draft", "paused", "completed", "all"
+
+    Returns:
+        JSON string with campaign list:
+        - client_name: Matched client name
+        - total_campaigns: Number of campaigns found
+        - campaigns: Array of campaign objects with id, name, status, created_at
+
+    Example Usage:
+        - "List all active campaigns for Brian Bliss"
+        - "Show me Jeff Mikolai's draft campaigns"
+        - "What campaigns does Michael Hernandez have?"
+    """
+    try:
+        initialize_clients()
+        config = Config.from_env()
+        from leads import sheets_client, instantly_client
+
+        # Find the client using fuzzy matching
+        from rapidfuzz import process, fuzz
+        workspaces = await asyncio.to_thread(
+            sheets_client.load_instantly_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_instantly
+        )
+        workspace_names = [w["client_name"] for w in workspaces]
+
+        result = process.extractOne(
+            client_name,
+            workspace_names,
+            scorer=fuzz.WRatio,
+            score_cutoff=60
+        )
+
+        if not result:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Instantly workspaces"
+            }, indent=2)
+
+        matched_name, score, index = result
+        workspace = workspaces[index]
+
+        logger.info(f"Listing campaigns for {matched_name} (match score: {score})")
+
+        # Convert status string to number for Instantly API
+        status_map = {
+            "draft": 0,
+            "active": 1,
+            "paused": 2,
+            "completed": 3,
+            "running_subsequences": 4,
+            "all": None  # None means don't filter by status
+        }
+
+        status_number = status_map.get(status.lower(), 1)  # Default to active
+
+        # Get campaigns
+        campaigns = await asyncio.to_thread(
+            instantly_client.list_instantly_campaigns,
+            workspace["api_key"],
+            status=status_number
+        )
+
+        response = {
+            "success": True,
+            "client_name": matched_name,
+            "workspace_id": workspace["workspace_id"],
+            "total_campaigns": len(campaigns),
+            "campaigns": []
+        }
+
+        # Format campaigns for output
+        for campaign in campaigns:
+            response["campaigns"].append({
+                "id": campaign.get("id"),
+                "name": campaign.get("name"),
+                "status": campaign.get("status"),
+                "status_name": {
+                    0: "Draft",
+                    1: "Active",
+                    2: "Paused",
+                    3: "Completed",
+                    4: "Running Subsequences"
+                }.get(campaign.get("status"), "Unknown"),
+                "created_at": campaign.get("timestamp_created")
+            })
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in list_instantly_campaigns: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def get_instantly_campaign_details(
+    client_name: str,
+    campaign_id: str
+) -> str:
+    """
+    Get detailed information about a specific Instantly campaign.
+
+    Returns complete campaign details including all email sequences, steps, subjects,
+    bodies, variants, and settings. Perfect for analyzing campaign content and structure.
+
+    Args:
+        client_name: Name of the Instantly client (e.g., 'Brian Bliss')
+        campaign_id: Campaign ID (UUID from list_instantly_campaigns)
+
+    Returns:
+        JSON string with campaign details:
+        - client_name: Client name
+        - campaign_id: Campaign ID
+        - campaign_name: Campaign name
+        - status: Campaign status
+        - sequences: Array of sequences with steps
+        - Each step includes: subject, body, delay, variants
+
+    Example Usage:
+        - "Get details for campaign abc-123-def for Brian Bliss"
+        - "Show me the email sequences in Jeff's campaign xyz-789"
+        - "What are the subject lines in this campaign?"
+    """
+    try:
+        initialize_clients()
+        config = Config.from_env()
+        from leads import sheets_client, instantly_client
+
+        # Find the client using fuzzy matching
+        from rapidfuzz import process, fuzz
+        workspaces = await asyncio.to_thread(
+            sheets_client.load_instantly_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_instantly
+        )
+        workspace_names = [w["client_name"] for w in workspaces]
+
+        result = process.extractOne(
+            client_name,
+            workspace_names,
+            scorer=fuzz.WRatio,
+            score_cutoff=60
+        )
+
+        if not result:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Instantly workspaces"
+            }, indent=2)
+
+        matched_name, score, index = result
+        workspace = workspaces[index]
+
+        logger.info(f"Getting campaign details for {matched_name}, campaign {campaign_id}")
+
+        # Get campaign details
+        campaign = await asyncio.to_thread(
+            instantly_client.get_instantly_campaign_details,
+            workspace["api_key"],
+            campaign_id
+        )
+
+        response = {
+            "success": True,
+            "client_name": matched_name,
+            "campaign_id": campaign.get("id"),
+            "campaign_name": campaign.get("name"),
+            "status": campaign.get("status"),
+            "status_name": {
+                0: "Draft",
+                1: "Active",
+                2: "Paused",
+                3: "Completed",
+                4: "Running Subsequences"
+            }.get(campaign.get("status"), "Unknown"),
+            "created_at": campaign.get("timestamp_created"),
+            "sequences": []
+        }
+
+        # Format sequences for output
+        sequences = campaign.get("sequences", [])
+        for seq_idx, sequence in enumerate(sequences):
+            seq_data = {
+                "sequence_number": seq_idx + 1,
+                "steps": []
+            }
+
+            steps = sequence.get("steps", [])
+            for step_idx, step in enumerate(steps):
+                step_data = {
+                    "step_number": step_idx + 1,
+                    "type": step.get("type", "email"),
+                    "delay": step.get("delay", 0),
+                    "delay_description": f"{step.get('delay', 0)} hours",
+                    "variants": []
+                }
+
+                # Get all variants (A/B test versions)
+                variants = step.get("variants", [])
+                for var_idx, variant in enumerate(variants):
+                    step_data["variants"].append({
+                        "variant_number": var_idx + 1,
+                        "subject": variant.get("subject", ""),
+                        "body": variant.get("body", ""),
+                        "body_preview": variant.get("body", "")[:200] + "..." if len(variant.get("body", "")) > 200 else variant.get("body", "")
+                    })
+
+                seq_data["steps"].append(step_data)
+
+            response["sequences"].append(seq_data)
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_instantly_campaign_details: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg

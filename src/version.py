@@ -2,11 +2,68 @@
 Version and changelog management for the MCP server.
 """
 
-VERSION = "2.7.3"
-RELEASE_DATE = "2025-12-21"
+VERSION = "2.7.5"
+RELEASE_DATE = "2025-12-23"
 
 # Changelog organized by version
 CHANGELOG = {
+    "2.7.5": {
+        "date": "December 23, 2025",
+        "title": "🔍 Campaign Analysis Tools - 4 New Tools Added! (82 Total Tools)",
+        "highlights": [
+            {
+                "icon": "🔍",
+                "category": "Major Feature",
+                "title": "Campaign Inspection & Analysis",
+                "description": "List and inspect campaigns with complete sequence details (4 new tools)",
+                "details": "NEW TOOLS ADDED: (1) list_instantly_campaigns - List all campaigns for an Instantly client with status filtering (active, draft, launching, paused). (2) get_instantly_campaign_details - Get complete campaign details with sequences, A/B test variants, subjects, bodies, wait times, and email settings. (3) list_bison_campaigns - List all campaigns for a Bison client with status filtering. (4) get_bison_campaign_details - Get complete campaign details with sequences, steps, subjects, bodies, wait times, and thread reply settings. TOTAL TOOLS: 82 (up from 78). Campaign Management: Now 8 tools (was 4). SMART INTEGRATION: Fuzzy client name matching (60% similarity), Google Sheets integration for client configuration, async/await patterns for non-blocking operations. USE CASES: 'List all active campaigns for Brian Bliss', 'Show me the campaign details for campaign abc-123', 'What campaigns does Michael Hernandez have in draft status?', 'Analyze the email sequence for Lena Kadriu's campaign'. TECHNICAL: Uses existing instantly_client.py and bison_client.py API functions, async patterns with asyncio.to_thread(), status mapping converts numeric codes to human-readable names, returns JSON with success/error structure.",
+                "screenshot": None,
+            },
+            {
+                "icon": "📊",
+                "category": "Instantly Campaign Analysis",
+                "title": "Complete Instantly Campaign Inspection",
+                "description": "List campaigns and get full sequence details with A/B test variants",
+                "details": "LIST CAMPAIGNS: Get all campaigns for a workspace with status filtering. Status mapping: 0=draft, 1=active, 2=launching, 3=paused. Shows campaign ID, name, status, created date. Fuzzy client name matching (60% similarity threshold). CAMPAIGN DETAILS: Complete campaign inspection with all sequences and variants. Full sequence breakdown with step-by-step details. A/B test variants for each step (subject lines, email bodies). Wait times between steps (in hours). Email settings (track opens, track clicks, schedule). Campaign statistics and performance data. API INTEGRATION: Uses /api/v1/campaign/list and /api/v1/campaign/get endpoints. Handles pagination automatically. Returns complete campaign configuration for analysis.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🦬",
+                "category": "Bison Campaign Analysis",
+                "title": "Complete Bison Campaign Inspection",
+                "description": "List campaigns and get full sequence details with step-by-step breakdown",
+                "details": "LIST CAMPAIGNS: Get all campaigns for a Bison client with status filtering. Filter by status: active, draft, launching, paused, completed, archived. Shows campaign ID, name, status, created date. Fuzzy client name matching (60% similarity threshold). CAMPAIGN DETAILS: Complete campaign inspection with sequences and steps. Full sequence breakdown with step-by-step details. Email subjects and bodies for each step. Wait times between steps (in days). Thread reply settings. Variant support for A/B testing. API INTEGRATION: Uses /api/campaigns list and detail endpoints. Handles API errors gracefully. Returns complete campaign configuration with all sequences and steps for detailed analysis.",
+                "screenshot": None,
+            },
+            {
+                "icon": "🎯",
+                "category": "Use Cases & Examples",
+                "title": "Real-World Campaign Analysis",
+                "description": "Perfect for campaign audits, sequence analysis, and performance optimization",
+                "details": "COMMON USE CASES: 'List all active campaigns for Brian Bliss' → Shows campaign IDs and names. 'Show me the campaign details for campaign abc-123' → Full sequence with subjects, bodies, variants. 'What campaigns does Michael Hernandez have in draft status?' → Lists draft campaigns. 'Analyze the email sequence for Lena Kadriu's campaign' → Complete step-by-step breakdown with wait times. WORKFLOW EXAMPLES: Campaign audit: List all campaigns → Identify active vs paused → Drill into details for each. Sequence optimization: Get campaign details → Review subject lines and bodies → Analyze wait times → Suggest improvements. A/B test analysis: List campaigns → Get details → Compare variant performance → Identify winning variations. Performance troubleshooting: Find underperforming campaign → Inspect sequences → Check for spam words → Optimize copy.",
+                "screenshot": None,
+            },
+        ],
+        "breaking_changes": [],
+        "technical_notes": [
+            "Added 4 new MCP tools in src/server.py (total ~300 lines)",
+            "list_instantly_campaigns (lines 7178-7243): Lists campaigns with status filtering",
+            "get_instantly_campaign_details (lines 7291-7373): Fetches complete campaign details",
+            "list_bison_campaigns (lines 6778-6825): Lists Bison campaigns with status filtering",
+            "get_bison_campaign_details (lines 6873-6932): Fetches complete Bison campaign details",
+            "Uses existing instantly_client.py and bison_client.py API functions",
+            "Async patterns: await asyncio.to_thread() for Google Sheets loading",
+            "Error handling: Graceful fallbacks for client not found, API errors",
+            "Status mapping: Converts numeric status codes to human-readable names",
+            "Returns JSON with success/error structure for all tools",
+            "Instantly API: Uses /api/v1/campaign/list and /api/v1/campaign/get endpoints",
+            "Bison API: Uses /api/campaigns list and detail endpoints",
+            "Google Sheets: Loads workspace/client configuration from existing sheets",
+            "Fuzzy matching: RapidFuzz with 60% similarity threshold for client names",
+            "Total tool count updated from 78 to 82 across all documentation",
+            "Campaign Management category increased from 4 to 8 tools",
+        ],
+    },
     "2.7.3": {
         "date": "December 21, 2025",
         "title": "🔧 Instantly API v2 Migration - Fixed Workspace Info (78 Total Tools)",

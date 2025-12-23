@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.5] - December 23, 2025
+
+### 🔍 Campaign Analysis Tools - 4 New Tools Added! (82 Total Tools)
+
+### Added
+- **Campaign Inspection & Analysis**: List and inspect campaigns with complete sequence details (4 new tools)
+  - **NEW TOOL ADDED**: `list_instantly_campaigns` - List all campaigns for an Instantly client
+  - **NEW TOOL ADDED**: `get_instantly_campaign_details` - Get complete campaign details with sequences and variants
+  - **NEW TOOL ADDED**: `list_bison_campaigns` - List all campaigns for a Bison client
+  - **NEW TOOL ADDED**: `get_bison_campaign_details` - Get complete campaign details with sequences and steps
+  - **TOTAL TOOLS**: 82 (up from 78)
+  - **Campaign Management**: Now 8 tools (was 4)
+
+### Features
+
+#### Instantly Campaign Analysis
+- **List Campaigns**: Get all campaigns for a workspace with status filtering
+  - Filter by status: active, draft, launching, paused
+  - Status mapping: 0=draft, 1=active, 2=launching, 3=paused
+  - Shows campaign ID, name, status, created date
+  - Fuzzy client name matching (60% similarity threshold)
+
+- **Campaign Details**: Complete campaign inspection with all sequences and variants
+  - Full sequence breakdown with step-by-step details
+  - A/B test variants for each step (subject lines, email bodies)
+  - Wait times between steps (in hours)
+  - Email settings (track opens, track clicks, schedule)
+  - Campaign statistics and performance data
+
+#### Bison Campaign Analysis
+- **List Campaigns**: Get all campaigns for a Bison client with status filtering
+  - Filter by status: active, draft, launching, paused, completed, archived
+  - Shows campaign ID, name, status, created date
+  - Fuzzy client name matching (60% similarity threshold)
+
+- **Campaign Details**: Complete campaign inspection with sequences and steps
+  - Full sequence breakdown with step-by-step details
+  - Email subjects and bodies for each step
+  - Wait times between steps (in days)
+  - Thread reply settings
+  - Variant support for A/B testing
+
+#### Smart Integration
+- **Fuzzy Matching**: Uses RapidFuzz with 60% similarity for client name matching
+  - Example: "brian blis" finds "Brian Bliss"
+  - Handles typos and partial names
+- **Google Sheets Integration**: Loads client configuration from existing Google Sheets
+  - Instantly: workspace_id mapping from sheets
+  - Bison: client_name mapping from sheets
+- **Async/Await Patterns**: All functions use `asyncio.to_thread()` for non-blocking Google Sheets operations
+
+### Use Cases
+- "List all active campaigns for Brian Bliss" → Shows campaign IDs and names
+- "Show me the campaign details for campaign abc-123" → Full sequence with subjects, bodies, variants
+- "What campaigns does Michael Hernandez have in draft status?" → Lists draft campaigns
+- "Analyze the email sequence for Lena Kadriu's campaign" → Complete step-by-step breakdown with wait times
+
+### Technical Details
+- Added 4 new MCP tools in `src/server.py`:
+  - `list_instantly_campaigns` (lines 7178-7243): Lists campaigns with status filtering
+  - `get_instantly_campaign_details` (lines 7291-7373): Fetches complete campaign details
+  - `list_bison_campaigns` (lines 6778-6825): Lists Bison campaigns with status filtering
+  - `get_bison_campaign_details` (lines 6873-6932): Fetches complete Bison campaign details
+- Uses existing `instantly_client.py` and `bison_client.py` API functions
+- Async patterns: `await asyncio.to_thread()` for Google Sheets loading
+- Error handling: Graceful fallbacks for client not found, API errors
+- Status mapping: Converts numeric status codes to human-readable names
+- Returns JSON with success/error structure for all tools
+- Total implementation: ~300 lines of new MCP tool code
+
+### API Integrations
+- **Instantly API**: Uses `/api/v1/campaign/list` and `/api/v1/campaign/get` endpoints
+- **Bison API**: Uses `/api/campaigns` list and detail endpoints
+- **Google Sheets**: Loads workspace/client configuration from existing sheets
+
+---
+
 ## [2.7.3] - December 21, 2025
 
 ### 🔧 Instantly API v2 Migration - Fixed Workspace Info (78 Total Tools)
