@@ -13,6 +13,7 @@ from google.oauth2.credentials import Credentials
 import secrets
 
 from database import Database
+from version import VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +336,7 @@ SETUP_LANDING_HTML = """
                 🔧 Troubleshooting Guide
             </button>
             <a href="/changelog" class="info-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none;">
-                ✨ What's New (v2.7.0)
+                ✨ What's New (v{{ version }})
             </a>
         </div>
 
@@ -378,12 +379,12 @@ SETUP_LANDING_HTML = """
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
                 <h2>🚀 Your AI Productivity Command Center</h2>
-                <p>77 powerful tools that transform Claude into your personal productivity assistant</p>
+                <p>{{ tool_count }} powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>💫 The Complete Toolkit - 77 Tools Across 9 Platforms</h3>
+                    <h3>💫 The Complete Toolkit - {{ tool_count }} Tools Across 9 Platforms</h3>
                     <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
                         <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
@@ -601,7 +602,7 @@ SETUP_LANDING_HTML = """
                 <div class="section">
                     <h3>💡 Unique Features You Won't Find Elsewhere</h3>
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
-                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. 77 tools across all 4 platforms plus mailbox health monitoring. Create spreadsheets with tables, format cells with colors, apply professional document styling - all from Claude.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. {{ tool_count }} tools across all 4 platforms plus mailbox health monitoring. Create spreadsheets with tables, format cells with colors, apply professional document styling - all from Claude.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring. Fixed pagination fetches all 50-80+ sender emails per client. Dual-marking automatically marks both responder AND original lead. This alone can recover 10-20% more leads.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Document & Spreadsheet Automation:</strong> Create, edit, format Google Docs AND Sheets. Insert tables with data, apply professional styling, find/replace with RGB colors. Template population, bold/italic formatting, alignment. Multi-tenant safe with per-user OAuth isolation.</p>
                         <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully across 88+ clients.</p>
@@ -2477,7 +2478,7 @@ class WebServer:
         def setup_landing():
             """Show setup landing page with explanation."""
             server_url = os.environ.get('SERVER_URL', request.host_url.rstrip('/'))
-            return render_template_string(SETUP_LANDING_HTML, server_url=server_url)
+            return render_template_string(SETUP_LANDING_HTML, server_url=server_url, version=VERSION, tool_count=82)
 
         @self.app.route('/setup/start')
         def setup_start():
