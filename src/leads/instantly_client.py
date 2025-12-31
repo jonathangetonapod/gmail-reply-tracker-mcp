@@ -478,3 +478,79 @@ def get_lead_emails(lead_email: str, api_key: str, campaign_id: str = None, sort
 
     data = response.json()
     return data.get("items", [])
+
+
+def add_leads_to_campaign(api_key: str, campaign_id: str, leads: list, skip_if_in_workspace: bool = False):
+    """
+    Add leads to an Instantly campaign.
+
+    Args:
+        api_key: Instantly API key
+        campaign_id: Campaign ID (UUID) to add leads to
+        leads: List of lead dictionaries, each containing at minimum:
+            - email (str, required): Lead's email address
+            - first_name (str, optional): Lead's first name
+            - last_name (str, optional): Lead's last name
+            - company_name (str, optional): Company name
+            - personalization (str, optional): Personalization text
+            - phone (str, optional): Phone number
+            - website (str, optional): Website URL
+            - custom_variables (dict, optional): Additional custom variables
+        skip_if_in_workspace: If True, skip leads that already exist in workspace (default: False)
+
+    Returns:
+        {
+            "status": "success",
+            "added": int,  # Number of leads successfully added
+            "skipped": int,  # Number of leads skipped (duplicates)
+            "leads": [...]  # Details of added leads
+        }
+
+    Example:
+        leads = [
+            {"email": "john@example.com", "first_name": "John", "last_name": "Doe"},
+            {"email": "jane@example.com", "first_name": "Jane"}
+        ]
+        result = add_leads_to_campaign(api_key, campaign_id, leads)
+    """
+    url = "https://api.instantly.ai/api/v2/leads"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    # Build payload - each lead needs email + campaign_id
+    payload_leads = []
+    for lead in leads:
+        lead_data = {
+            "email": lead["email"],
+            "campaign_id": campaign_id
+        }
+
+        # Add optional fields if provided
+        if "first_name" in lead:
+            lead_data["first_name"] = lead["first_name"]
+        if "last_name" in lead:
+            lead_data["last_name"] = lead["last_name"]
+        if "company_name" in lead:
+            lead_data["company_name"] = lead["company_name"]
+        if "personalization" in lead:
+            lead_data["personalization"] = lead["personalization"]
+        if "phone" in lead:
+            lead_data["phone"] = lead["phone"]
+        if "website" in lead:
+            lead_data["website"] = lead["website"]
+        if "custom_variables" in lead:
+            lead_data["variables"] = lead["custom_variables"]
+
+        payload_leads.append(lead_data)
+
+    payload = {
+        "leads": payload_leads,
+        "skip_if_in_workspace": skip_if_in_workspace
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
+    response.raise_for_status()
+
+    return response.json()

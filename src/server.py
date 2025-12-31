@@ -134,6 +134,62 @@ def initialize_clients():
     logger.info("Clients initialized successfully")
 
 
+def handle_google_api_error(error: HttpError, operation: str = "operation") -> dict:
+    """
+    Handle Google API errors with helpful messages, especially for auth scope issues.
+
+    Args:
+        error: The HttpError from Google API
+        operation: Description of what operation failed (e.g., "read spreadsheet")
+
+    Returns:
+        Dictionary with success=False and helpful error message
+    """
+    error_details = str(error)
+
+    # Check for insufficient authentication scopes error (403)
+    if error.resp.status == 403 and "insufficient authentication scopes" in error_details.lower():
+        # Detect which scope is missing based on the API endpoint
+        if "sheets" in error_details.lower() or "/spreadsheets/" in error_details.lower():
+            missing_service = "Google Sheets"
+            missing_scope = "https://www.googleapis.com/auth/spreadsheets"
+        elif "docs" in error_details.lower() or "/documents/" in error_details.lower():
+            missing_service = "Google Docs"
+            missing_scope = "https://www.googleapis.com/auth/documents"
+        elif "calendar" in error_details.lower():
+            missing_service = "Google Calendar"
+            missing_scope = "https://www.googleapis.com/auth/calendar"
+        else:
+            missing_service = "this Google service"
+            missing_scope = "required scope"
+
+        return {
+            "success": False,
+            "error": "AUTHENTICATION_SCOPE_MISSING",
+            "message": (
+                f"Your OAuth token doesn't have permission to access {missing_service}.\n\n"
+                f"This usually happens after upgrading to a new version that added {missing_service} support.\n\n"
+                f"To fix this, you need to re-authenticate:\n\n"
+                f"1. Delete your old token file:\n"
+                f"   rm {config.token_path}\n\n"
+                f"2. Re-run OAuth setup to get a new token with all scopes:\n"
+                f"   python setup_oauth.py\n\n"
+                f"   OR if using auto_oauth:\n"
+                f"   python auto_oauth.py\n\n"
+                f"This will open a browser for re-authorization. Your new token will include:\n"
+                f"   - {missing_scope}\n"
+                f"   - All other required scopes\n\n"
+                f"Technical details: {error_details}"
+            )
+        }
+
+    # For other errors, return generic error message
+    return {
+        "success": False,
+        "error": f"Google API error during {operation}: {error_details}"
+    }
+
+
 @mcp.tool()
 async def get_unreplied_emails(
     days_back: int = 7,
@@ -686,12 +742,9 @@ async def list_calendar_events(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Calendar API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Calendar API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Calendar operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -847,12 +900,9 @@ async def create_calendar_event(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Calendar API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Calendar API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Calendar operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -952,12 +1002,9 @@ async def update_calendar_event(
                 "error": error_msg
             }, indent=2)
 
-        error_msg = f"Calendar API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Calendar API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Calendar operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1007,12 +1054,9 @@ async def delete_calendar_event(
                 "error": error_msg
             }, indent=2)
 
-        error_msg = f"Calendar API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Calendar API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Calendar operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1119,12 +1163,9 @@ async def list_past_calendar_events(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Calendar API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Calendar API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Calendar operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1177,12 +1218,9 @@ async def quick_add_calendar_event(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Calendar API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Calendar API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Calendar operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1242,12 +1280,9 @@ async def create_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1295,12 +1330,9 @@ async def append_to_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1350,12 +1382,9 @@ async def insert_into_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1403,12 +1432,9 @@ async def read_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1458,12 +1484,9 @@ async def replace_text_in_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1533,12 +1556,9 @@ async def add_heading_to_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1642,12 +1662,9 @@ async def create_table_in_google_doc(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1727,12 +1744,9 @@ async def format_google_doc_section(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1818,12 +1832,9 @@ async def format_google_doc_professional(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Docs API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Docs API error: {str(e)}")
+        error_response = handle_google_api_error(e, "Google Docs operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1889,12 +1900,9 @@ async def create_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -1947,12 +1955,9 @@ async def read_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2010,12 +2015,9 @@ async def append_to_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2073,12 +2075,9 @@ async def update_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2130,12 +2129,9 @@ async def clear_spreadsheet_range(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2209,12 +2205,9 @@ async def find_replace_in_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2284,12 +2277,9 @@ async def delete_spreadsheet_rows(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2365,12 +2355,9 @@ async def delete_spreadsheet_columns(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2522,12 +2509,9 @@ async def move_spreadsheet_rows(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2583,12 +2567,9 @@ async def add_sheet_to_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2645,12 +2626,9 @@ async def delete_sheet_from_spreadsheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2696,12 +2674,9 @@ async def list_sheets_in_spreadsheet(spreadsheet_id: str) -> str:
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2759,12 +2734,9 @@ async def rename_spreadsheet_sheet(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2828,12 +2800,9 @@ async def insert_spreadsheet_rows(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -2903,12 +2872,9 @@ async def insert_spreadsheet_columns(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -3024,12 +2990,9 @@ async def format_spreadsheet_cells(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -3122,12 +3085,9 @@ async def sort_spreadsheet_range(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -3188,12 +3148,9 @@ async def freeze_spreadsheet_rows_columns(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -3267,12 +3224,9 @@ async def auto_resize_spreadsheet_columns(
         }, indent=2)
 
     except HttpError as e:
-        error_msg = f"Google Sheets API error: {str(e)}"
-        logger.error(error_msg)
-        return json.dumps({
-            "success": False,
-            "error": error_msg
-        }, indent=2)
+        logger.error(f"Google Sheets API error: {str(e)}")
+        error_response = handle_google_api_error(e, "spreadsheet operation")
+        return json.dumps(error_response, indent=2)
 
     except Exception as e:
         error_msg = str(e)
@@ -7448,6 +7402,110 @@ async def get_instantly_campaign_details(
     except Exception as e:
         error_msg = str(e)
         logger.error("Error in get_instantly_campaign_details: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
+async def add_leads_to_instantly_campaign(
+    client_name: str,
+    campaign_id: str,
+    leads: list,
+    skip_if_in_workspace: bool = False
+) -> str:
+    """
+    Add leads to an existing Instantly campaign.
+
+    Use this to import leads into a campaign for outreach. Leads can include
+    email, name, company, and custom variables for personalization.
+
+    Args:
+        client_name: Name of the Instantly client (e.g., 'Daniel Drynan')
+        campaign_id: Campaign ID (UUID from list_instantly_campaigns)
+        leads: List of lead dictionaries, each containing:
+            - email (str, required): Lead's email address
+            - first_name (str, optional): Lead's first name
+            - last_name (str, optional): Lead's last name
+            - company_name (str, optional): Company name
+            - personalization (str, optional): Personalization text
+            - phone (str, optional): Phone number
+            - website (str, optional): Website URL
+            - custom_variables (dict, optional): Additional custom variables
+        skip_if_in_workspace: If True, skip leads that already exist in workspace (default: False)
+
+    Returns:
+        JSON string with result:
+        - success: Whether operation succeeded
+        - added: Number of leads added
+        - skipped: Number of leads skipped (duplicates)
+        - leads: Details of added leads
+
+    Example Usage:
+        - "Add john@example.com to campaign abc-123 for Daniel Drynan"
+        - "Import these 50 hidden gem leads to the follow-up campaign"
+    """
+    try:
+        initialize_clients()
+        config = Config.from_env()
+        from leads import sheets_client, instantly_client
+
+        logger.info("Adding %d leads to campaign %s for client %s", len(leads), campaign_id, client_name)
+
+        # Find the client using fuzzy matching
+        from rapidfuzz import process, fuzz
+        workspaces = await asyncio.to_thread(
+            sheets_client.load_instantly_workspaces_from_sheet,
+            config.lead_sheets_url,
+            config.lead_sheets_gid_instantly
+        )
+        workspace_names = [w["client_name"] for w in workspaces]
+
+        result = process.extractOne(
+            client_name,
+            workspace_names,
+            scorer=fuzz.WRatio,
+            score_cutoff=60
+        )
+
+        if not result:
+            return json.dumps({
+                "success": False,
+                "error": f"Client '{client_name}' not found in Instantly workspaces"
+            }, indent=2)
+
+        matched_name, score, index = result
+        workspace = workspaces[index]
+
+        logger.info(f"Matched '{client_name}' to '{matched_name}' (score: {score}%%)")
+
+        # Add leads to campaign
+        result = await asyncio.to_thread(
+            instantly_client.add_leads_to_campaign,
+            workspace["api_key"],
+            campaign_id,
+            leads,
+            skip_if_in_workspace
+        )
+
+        response = {
+            "success": True,
+            "client_name": matched_name,
+            "campaign_id": campaign_id,
+            "added": len(result.get("leads", [])),
+            "skipped": result.get("skipped", 0),
+            "total_attempted": len(leads),
+            "leads": result.get("leads", [])
+        }
+
+        logger.info("Successfully added %d leads to campaign", response["added"])
+
+        return json.dumps(response, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in add_leads_to_instantly_campaign: %s", error_msg)
         return json.dumps({
             "success": False,
             "error": error_msg
