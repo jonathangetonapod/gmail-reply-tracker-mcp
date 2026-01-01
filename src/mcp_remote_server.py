@@ -610,10 +610,20 @@ async def lifespan(app: FastAPI):
     # Initialize database for multi-tenant support
     try:
         encryption_key = os.getenv("TOKEN_ENCRYPTION_KEY")
-        if encryption_key:
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        if encryption_key and supabase_url and supabase_key:
+            # Use Supabase PostgreSQL
+            server.database = Database(supabase_url, supabase_key, encryption_key)
+            logger.info(f"✓ Connected to Supabase database at {supabase_url}")
+        elif encryption_key:
+            # Fallback to SQLite if Supabase not configured
             database_path = os.getenv("DATABASE_PATH", "./mcp_users.db")
-            server.database = Database(database_path, encryption_key)
-            logger.info(f"✓ Database initialized at {database_path}")
+            from database_sqlite import DatabaseSQLite  # Old SQLite implementation
+            server.database = DatabaseSQLite(database_path, encryption_key)
+            logger.info(f"✓ Database initialized at {database_path} (SQLite fallback)")
+            logger.warning("⚠ Consider migrating to Supabase for persistent storage")
         else:
             logger.warning("⚠ TOKEN_ENCRYPTION_KEY not set - multi-tenant features disabled")
             logger.warning("⚠ Server will only work with legacy single-user mode")
@@ -1330,6 +1340,12 @@ async def setup_callback(
             <button class="copy-button" id="copy-button" onclick="copyToken()">📋 Copy Token</button>
         </div>
 
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 6px;">
+            <h3 style="color: #856404; margin-bottom: 10px;">⚙️ Manage Your API Keys</h3>
+            <p style="color: #856404; margin-bottom: 15px;">Add Fathom, Instantly, and other API keys to unlock additional tools:</p>
+            <a href="/dashboard?session_token={session_token}" style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: 600;">Go to Dashboard →</a>
+        </div>
+
         <div class="instructions">
             <h2>🔧 Add to Claude Desktop (via GUI)</h2>
             <ol>
@@ -1432,6 +1448,294 @@ async def setup_callback(
 </html>
         """
         return HTMLResponse(content=error_html, status_code=500)
+
+
+# ===========================================================================
+# DASHBOARD ENDPOINTS
+# ===========================================================================
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(session_token: Optional[str] = Query(None)):
+    """Admin dashboard for managing API keys."""
+    if not session_token:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MCP Dashboard - Login Required</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔒 Login Required</h1>
+        <p>Please provide your session token as a query parameter:</p>
+        <code>/dashboard?session_token=sess_your_token_here</code>
+        <p style="margin-top: 20px;">Get your session token from the <a href="/setup/start">OAuth success page</a>.</p>
+    </div>
+</body>
+</html>
+        """, status_code=401)
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invalid Session</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #e53935; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>❌ Invalid or Expired Session Token</h1>
+        <p>Please complete the OAuth flow again at <a href="/setup/start">/setup/start</a></p>
+    </div>
+</body>
+</html>
+        """, status_code=401)
+
+    # Get current API keys
+    user = server.database.get_user_by_session(session_token)
+    api_keys = user.get('api_keys', {})
+
+    # Render dashboard HTML
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MCP Dashboard - {ctx.email}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }}
+        .container {{
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        h1 {{ color: #333; }}
+        .user-info {{
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border-left: 4px solid #2196f3;
+        }}
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+        label {{
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }}
+        input {{
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }}
+        button {{
+            background: #2196f3;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }}
+        button:hover {{
+            background: #1976d2;
+        }}
+        .success {{
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }}
+        .error {{
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }}
+        .token-section {{
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+        }}
+        code {{
+            background: #263238;
+            color: #aed581;
+            padding: 10px;
+            display: block;
+            border-radius: 5px;
+            word-break: break-all;
+            font-size: 13px;
+            margin-top: 10px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ MCP Dashboard</h1>
+
+        <div class="user-info">
+            <strong>Logged in as:</strong> {ctx.email}<br>
+            <strong>User ID:</strong> {ctx.user_id}
+        </div>
+
+        <div id="success-message" class="success"></div>
+        <div id="error-message" class="error"></div>
+
+        <h2>API Keys</h2>
+        <p>Add or update your API keys for third-party services:</p>
+
+        <form id="api-keys-form">
+            <div class="form-group">
+                <label for="fathom_key">Fathom API Key</label>
+                <input type="text" id="fathom_key" name="fathom_key"
+                       value="{api_keys.get('fathom', '')}"
+                       placeholder="Your Fathom API key">
+            </div>
+
+            <div class="form-group">
+                <label for="instantly_key">Instantly API Key</label>
+                <input type="text" id="instantly_key" name="instantly_key"
+                       value="{api_keys.get('instantly', '')}"
+                       placeholder="Your Instantly API key">
+            </div>
+
+            <button type="submit">💾 Save API Keys</button>
+        </form>
+
+        <div class="token-section">
+            <h2>Session Token</h2>
+            <p>Use this token in Claude Desktop to connect to your MCP server:</p>
+            <code>{session_token}</code>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('api-keys-form').addEventListener('submit', async (e) => {{
+            e.preventDefault();
+
+            const fathomKey = document.getElementById('fathom_key').value;
+            const instantlyKey = document.getElementById('instantly_key').value;
+
+            const response = await fetch('/dashboard/update-api-keys?session_token={session_token}', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{
+                    fathom: fathomKey,
+                    instantly: instantlyKey
+                }})
+            }});
+
+            const successDiv = document.getElementById('success-message');
+            const errorDiv = document.getElementById('error-message');
+
+            if (response.ok) {{
+                successDiv.textContent = '✅ API keys updated successfully!';
+                successDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 3000);
+            }} else {{
+                const error = await response.json();
+                errorDiv.textContent = '❌ Error: ' + error.detail;
+                errorDiv.style.display = 'block';
+                successDiv.style.display = 'none';
+            }}
+        }});
+    </script>
+</body>
+</html>
+    """)
+
+
+@app.post("/dashboard/update-api-keys")
+async def update_api_keys_endpoint(
+    request: Request,
+    session_token: Optional[str] = Query(None)
+):
+    """Update user's API keys."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Parse request body
+    body = await request.json()
+    api_keys = {
+        key: value.strip()
+        for key, value in body.items()
+        if value and value.strip()  # Only store non-empty keys
+    }
+
+    # Update in database
+    server.database.update_api_keys(ctx.user_id, api_keys)
+
+    return {"success": True, "message": "API keys updated"}
 
 
 # ===========================================================================

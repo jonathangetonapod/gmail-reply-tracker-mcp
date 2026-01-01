@@ -1,108 +1,31 @@
 """Database models and management for multi-tenant MCP server."""
 
-import sqlite3
+from supabase import create_client, Client
+from cryptography.fernet import Fernet
 import json
+import secrets
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional, Dict, Any
-from cryptography.fernet import Fernet
-import secrets
 
 logger = logging.getLogger(__name__)
 
 
 class Database:
-    """Manages SQLite database for user sessions and credentials."""
+    """Manages Supabase PostgreSQL database for user sessions and credentials."""
 
-    def __init__(self, db_path: str, encryption_key: str):
+    def __init__(self, supabase_url: str, supabase_key: str, encryption_key: str):
         """
-        Initialize database connection.
+        Initialize Supabase connection.
 
         Args:
-            db_path: Path to SQLite database file
-            encryption_key: Base64-encoded Fernet encryption key
+            supabase_url: Supabase project URL
+            supabase_key: Supabase service role key (not anon key!)
+            encryption_key: Base64-encoded Fernet key for encrypting tokens
         """
-        self.db_path = db_path
+        self.supabase: Client = create_client(supabase_url, supabase_key)
         self.cipher = Fernet(encryption_key.encode())
-        self._ensure_database()
-
-    def _ensure_database(self):
-        """Create database tables if they don't exist."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        # Create users table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id TEXT PRIMARY KEY,
-                email TEXT UNIQUE NOT NULL,
-
-                -- Google OAuth tokens (encrypted)
-                encrypted_google_token TEXT NOT NULL,
-                google_token_expiry TIMESTAMP,
-
-                -- Fathom API key (encrypted, optional)
-                encrypted_fathom_key TEXT,
-
-                -- Session management
-                session_token TEXT UNIQUE NOT NULL,
-                session_expiry TIMESTAMP NOT NULL,
-
-                -- Metadata
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Create index on session_token for fast lookups
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_session_token
-            ON users(session_token)
-        """)
-
-        # Create index on email for fast lookups
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_email
-            ON users(email)
-        """)
-
-        # Create usage_logs table for analytics
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usage_logs (
-                log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                tool_name TEXT NOT NULL,
-                method TEXT NOT NULL,
-                success BOOLEAN NOT NULL,
-                error_message TEXT,
-                response_time_ms INTEGER,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
-            )
-        """)
-
-        # Create indexes for analytics queries
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_usage_user_id
-            ON usage_logs(user_id)
-        """)
-
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_usage_timestamp
-            ON usage_logs(timestamp)
-        """)
-
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_usage_tool
-            ON usage_logs(tool_name)
-        """)
-
-        conn.commit()
-        conn.close()
-
-        logger.info("Database initialized at %s", self.db_path)
+        logger.info(f"Connected to Supabase at {supabase_url}")
 
     def _encrypt(self, data: str) -> str:
         """Encrypt sensitive data."""
@@ -116,7 +39,7 @@ class Database:
         self,
         email: str,
         google_token: Dict[str, Any],
-        fathom_key: Optional[str] = None
+        api_keys: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Create a new user or update existing user.
@@ -124,82 +47,59 @@ class Database:
         Args:
             email: User's email address
             google_token: Google OAuth token dictionary
-            fathom_key: Optional Fathom API key
+            api_keys: Optional dict of API keys (e.g., {"fathom": "abc", "instantly": "xyz"})
 
         Returns:
-            Dict with user_id and session_token
+            Dict with user_id, session_token, and email
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
         # Generate IDs
         user_id = secrets.token_urlsafe(16)
         session_token = f"sess_{secrets.token_urlsafe(32)}"
 
         # Encrypt tokens
         encrypted_google_token = self._encrypt(json.dumps(google_token))
-        encrypted_fathom_key = self._encrypt(fathom_key) if fathom_key else None
-
-        # Calculate token expiry (from Google token)
-        token_expiry = None
-        if 'expires_in' in google_token:
-            token_expiry = datetime.now() + timedelta(seconds=google_token['expires_in'])
+        encrypted_api_keys = self._encrypt(json.dumps(api_keys or {}))
 
         # Session expiry (90 days)
-        session_expiry = datetime.now() + timedelta(days=90)
+        session_expiry = (datetime.now() + timedelta(days=90)).isoformat()
 
-        try:
-            # Check if user already exists
-            cursor.execute("SELECT user_id FROM users WHERE email = ?", (email,))
-            existing = cursor.fetchone()
+        # Check if user exists
+        result = self.supabase.table('users').select('user_id').eq('email', email).execute()
 
-            if existing:
-                # Update existing user
-                cursor.execute("""
-                    UPDATE users
-                    SET encrypted_google_token = ?,
-                        google_token_expiry = ?,
-                        encrypted_fathom_key = ?,
-                        session_token = ?,
-                        session_expiry = ?,
-                        last_login = CURRENT_TIMESTAMP
-                    WHERE email = ?
-                """, (
-                    encrypted_google_token,
-                    token_expiry,
-                    encrypted_fathom_key,
-                    session_token,
-                    session_expiry,
-                    email
-                ))
-                user_id = existing[0]
-                logger.info("Updated existing user: %s", email)
-            else:
-                # Create new user
-                cursor.execute("""
-                    INSERT INTO users (
-                        user_id, email, encrypted_google_token, google_token_expiry,
-                        encrypted_fathom_key, session_token, session_expiry
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    user_id, email, encrypted_google_token, token_expiry,
-                    encrypted_fathom_key, session_token, session_expiry
-                ))
-                logger.info("Created new user: %s", email)
+        if result.data:
+            # Update existing user
+            existing_user_id = result.data[0]['user_id']
+            self.supabase.table('users').update({
+                'encrypted_google_token': encrypted_google_token,
+                'encrypted_api_keys': encrypted_api_keys,
+                'session_token': session_token,
+                'session_expiry': session_expiry,
+                'last_login': datetime.now().isoformat()
+            }).eq('email', email).execute()
 
-            conn.commit()
+            logger.info(f"Updated existing user: {email}")
+            return {
+                "user_id": existing_user_id,
+                "session_token": session_token,
+                "email": email
+            }
+        else:
+            # Create new user
+            self.supabase.table('users').insert({
+                'user_id': user_id,
+                'email': email,
+                'encrypted_google_token': encrypted_google_token,
+                'encrypted_api_keys': encrypted_api_keys,
+                'session_token': session_token,
+                'session_expiry': session_expiry
+            }).execute()
 
+            logger.info(f"Created new user: {email}")
             return {
                 "user_id": user_id,
                 "session_token": session_token,
                 "email": email
             }
-
-        except sqlite3.IntegrityError as e:
-            logger.error("Database integrity error: %s", str(e))
-            raise Exception(f"Failed to create user: {str(e)}")
-        finally:
-            conn.close()
 
     def get_user_by_session(self, session_token: str) -> Optional[Dict[str, Any]]:
         """
@@ -211,42 +111,47 @@ class Database:
         Returns:
             User dict with decrypted credentials, or None if not found/expired
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        result = self.supabase.table('users').select('*').eq('session_token', session_token).execute()
 
-        cursor.execute("""
-            SELECT * FROM users WHERE session_token = ?
-        """, (session_token,))
-
-        row = cursor.fetchone()
-        conn.close()
-
-        if not row:
+        if not result.data:
             return None
 
+        user = result.data[0]
+
         # Check if session expired
-        session_expiry = datetime.fromisoformat(row['session_expiry'])
+        session_expiry_str = user['session_expiry']
+        # Handle both datetime objects and strings
+        if isinstance(session_expiry_str, str):
+            # Remove timezone info if present for comparison
+            if '+' in session_expiry_str:
+                session_expiry_str = session_expiry_str.split('+')[0]
+            session_expiry = datetime.fromisoformat(session_expiry_str)
+        else:
+            session_expiry = session_expiry_str
+
         if datetime.now() > session_expiry:
-            logger.warning("Session expired for user: %s", row['email'])
+            logger.warning(f"Session expired for user: {user['email']}")
             return None
 
         # Decrypt tokens
-        google_token = json.loads(self._decrypt(row['encrypted_google_token']))
-        fathom_key = self._decrypt(row['encrypted_fathom_key']) if row['encrypted_fathom_key'] else None
+        google_token = json.loads(self._decrypt(user['encrypted_google_token']))
+        api_keys = json.loads(self._decrypt(user['encrypted_api_keys'])) if user.get('encrypted_api_keys') else {}
 
         # Update last_active
-        self._update_last_active(row['user_id'])
+        self.supabase.table('users').update({
+            'last_active': datetime.now().isoformat()
+        }).eq('user_id', user['user_id']).execute()
 
         return {
-            "user_id": row['user_id'],
-            "email": row['email'],
+            "user_id": user['user_id'],
+            "email": user['email'],
             "google_token": google_token,
-            "fathom_key": fathom_key,
-            "session_token": row['session_token'],
-            "session_expiry": row['session_expiry'],
-            "created_at": row['created_at'],
-            "last_login": row['last_login']
+            "api_keys": api_keys,  # Dict with all API keys
+            "fathom_key": api_keys.get('fathom'),  # Backwards compatibility
+            "session_token": user['session_token'],
+            "session_expiry": user['session_expiry'],
+            "created_at": user['created_at'],
+            "last_login": user['last_login']
         }
 
     def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
@@ -259,58 +164,76 @@ class Database:
         Returns:
             User dict with decrypted credentials, or None if not found
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        result = self.supabase.table('users').select('*').eq('email', email).execute()
 
-        cursor.execute("""
-            SELECT * FROM users WHERE email = ?
-        """, (email,))
-
-        row = cursor.fetchone()
-        conn.close()
-
-        if not row:
+        if not result.data:
             return None
 
+        user = result.data[0]
+
         # Decrypt tokens
-        google_token = json.loads(self._decrypt(row['encrypted_google_token']))
-        fathom_key = self._decrypt(row['encrypted_fathom_key']) if row['encrypted_fathom_key'] else None
+        google_token = json.loads(self._decrypt(user['encrypted_google_token']))
+        api_keys = json.loads(self._decrypt(user['encrypted_api_keys'])) if user.get('encrypted_api_keys') else {}
 
         return {
-            "user_id": row['user_id'],
-            "email": row['email'],
+            "user_id": user['user_id'],
+            "email": user['email'],
             "google_token": google_token,
-            "fathom_key": fathom_key,
-            "session_token": row['session_token'],
-            "session_expiry": row['session_expiry'],
-            "created_at": row['created_at'],
-            "last_login": row['last_login']
+            "api_keys": api_keys,
+            "fathom_key": api_keys.get('fathom'),  # Backwards compatibility
+            "session_token": user['session_token'],
+            "session_expiry": user['session_expiry'],
+            "created_at": user['created_at'],
+            "last_login": user['last_login']
         }
+
+    def update_api_keys(self, user_id: str, api_keys: Dict[str, str]) -> bool:
+        """
+        Update API keys for a user.
+
+        Args:
+            user_id: User ID
+            api_keys: Dict of API keys (e.g., {"fathom": "abc", "instantly": "xyz"})
+
+        Returns:
+            True if successful
+        """
+        encrypted_api_keys = self._encrypt(json.dumps(api_keys))
+
+        self.supabase.table('users').update({
+            'encrypted_api_keys': encrypted_api_keys
+        }).eq('user_id', user_id).execute()
+
+        logger.info(f"Updated API keys for user: {user_id}")
+        return True
 
     def update_fathom_key(self, user_id: str, fathom_key: Optional[str]):
         """
-        Update user's Fathom API key.
+        Update user's Fathom API key (backwards compatibility).
 
         Args:
             user_id: User ID
             fathom_key: New Fathom API key (or None to remove)
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        # Get current API keys
+        result = self.supabase.table('users').select('encrypted_api_keys').eq('user_id', user_id).execute()
 
-        encrypted_fathom_key = self._encrypt(fathom_key) if fathom_key else None
+        if not result.data:
+            logger.warning(f"User not found: {user_id}")
+            return
 
-        cursor.execute("""
-            UPDATE users
-            SET encrypted_fathom_key = ?
-            WHERE user_id = ?
-        """, (encrypted_fathom_key, user_id))
+        current_api_keys = {}
+        if result.data[0].get('encrypted_api_keys'):
+            current_api_keys = json.loads(self._decrypt(result.data[0]['encrypted_api_keys']))
 
-        conn.commit()
-        conn.close()
+        # Update fathom key
+        if fathom_key:
+            current_api_keys['fathom'] = fathom_key
+        else:
+            current_api_keys.pop('fathom', None)
 
-        logger.info("Updated Fathom key for user: %s", user_id)
+        # Save back
+        self.update_api_keys(user_id, current_api_keys)
 
     def update_google_token(self, user_id: str, google_token: Dict[str, Any]):
         """
@@ -320,41 +243,13 @@ class Database:
             user_id: User ID
             google_token: New Google OAuth token dictionary
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
         encrypted_google_token = self._encrypt(json.dumps(google_token))
 
-        # Calculate token expiry
-        token_expiry = None
-        if 'expires_in' in google_token:
-            token_expiry = datetime.now() + timedelta(seconds=google_token['expires_in'])
+        self.supabase.table('users').update({
+            'encrypted_google_token': encrypted_google_token
+        }).eq('user_id', user_id).execute()
 
-        cursor.execute("""
-            UPDATE users
-            SET encrypted_google_token = ?,
-                google_token_expiry = ?
-            WHERE user_id = ?
-        """, (encrypted_google_token, token_expiry, user_id))
-
-        conn.commit()
-        conn.close()
-
-        logger.info("Updated Google token for user: %s", user_id)
-
-    def _update_last_active(self, user_id: str):
-        """Update user's last_active timestamp."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE users
-            SET last_active = CURRENT_TIMESTAMP
-            WHERE user_id = ?
-        """, (user_id,))
-
-        conn.commit()
-        conn.close()
+        logger.info(f"Updated Google token for user: {user_id}")
 
     def delete_user(self, user_id: str):
         """
@@ -363,15 +258,8 @@ class Database:
         Args:
             user_id: User ID to delete
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
-
-        conn.commit()
-        conn.close()
-
-        logger.info("Deleted user: %s", user_id)
+        self.supabase.table('users').delete().eq('user_id', user_id).execute()
+        logger.info(f"Deleted user: {user_id}")
 
     def list_users(self) -> list[Dict[str, Any]]:
         """
@@ -380,50 +268,44 @@ class Database:
         Returns:
             List of user dicts (without decrypted credentials)
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT user_id, email, created_at, last_login, last_active,
-                   session_expiry, encrypted_fathom_key
-            FROM users
-            ORDER BY last_active DESC
-        """)
-
-        rows = cursor.fetchall()
-        conn.close()
+        result = self.supabase.table('users').select(
+            'user_id, email, created_at, last_login, last_active, session_expiry, encrypted_api_keys'
+        ).order('last_active', desc=True).execute()
 
         users = []
-        for row in rows:
+        for user in result.data:
+            # Check if user has any API keys
+            has_api_keys = False
+            if user.get('encrypted_api_keys'):
+                try:
+                    api_keys = json.loads(self._decrypt(user['encrypted_api_keys']))
+                    has_api_keys = len(api_keys) > 0
+                except:
+                    pass
+
             users.append({
-                "user_id": row['user_id'],
-                "email": row['email'],
-                "has_fathom": row['encrypted_fathom_key'] is not None,
-                "created_at": row['created_at'],
-                "last_login": row['last_login'],
-                "last_active": row['last_active'],
-                "session_expiry": row['session_expiry']
+                "user_id": user['user_id'],
+                "email": user['email'],
+                "has_api_keys": has_api_keys,
+                "created_at": user['created_at'],
+                "last_login": user['last_login'],
+                "last_active": user['last_active'],
+                "session_expiry": user['session_expiry']
             })
 
         return users
 
     def cleanup_expired_sessions(self):
         """Delete users with expired sessions (maintenance task)."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        # Get current timestamp in ISO format
+        now = datetime.now().isoformat()
 
-        cursor.execute("""
-            DELETE FROM users
-            WHERE session_expiry < CURRENT_TIMESTAMP
-        """)
+        result = self.supabase.table('users').delete().lt('session_expiry', now).execute()
 
-        deleted_count = cursor.rowcount
-        conn.commit()
-        conn.close()
+        deleted_count = len(result.data) if result.data else 0
 
         if deleted_count > 0:
-            logger.info("Cleaned up %d expired sessions", deleted_count)
+            logger.info(f"Cleaned up {deleted_count} expired sessions")
 
         return deleted_count
 
@@ -447,19 +329,14 @@ class Database:
             error_message: Error message if failed
             response_time_ms: Response time in milliseconds
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO usage_logs (
-                user_id, tool_name, method, success,
-                error_message, response_time_ms
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (user_id, tool_name, method, success, error_message, response_time_ms))
-
-        conn.commit()
-        conn.close()
+        self.supabase.table('usage_logs').insert({
+            'user_id': user_id,
+            'tool_name': tool_name,
+            'method': method,
+            'success': success,
+            'error_message': error_message,
+            'response_time_ms': response_time_ms
+        }).execute()
 
     def get_user_usage_stats(
         self,
@@ -476,72 +353,48 @@ class Database:
         Returns:
             Dict with usage statistics
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-
         # Get cutoff date
-        cutoff_date = datetime.now() - timedelta(days=days)
+        cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
 
-        # Total requests
-        cursor.execute("""
-            SELECT COUNT(*) FROM usage_logs
-            WHERE user_id = ? AND timestamp >= ?
-        """, (user_id, cutoff_date))
-        total_requests = cursor.fetchone()[0]
+        # Get all logs for user in time period
+        result = self.supabase.table('usage_logs').select('*').eq('user_id', user_id).gte('timestamp', cutoff_date).execute()
 
-        # Success rate
-        cursor.execute("""
-            SELECT
-                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successes,
-                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failures
-            FROM usage_logs
-            WHERE user_id = ? AND timestamp >= ?
-        """, (user_id, cutoff_date))
-        successes, failures = cursor.fetchone()
+        logs = result.data
+
+        # Calculate statistics
+        total_requests = len(logs)
+        successes = sum(1 for log in logs if log['success'])
+        failures = total_requests - successes
         success_rate = (successes / total_requests * 100) if total_requests > 0 else 0
 
-        # Tool usage breakdown
-        cursor.execute("""
-            SELECT tool_name, COUNT(*) as count
-            FROM usage_logs
-            WHERE user_id = ? AND timestamp >= ?
-            GROUP BY tool_name
-            ORDER BY count DESC
-        """, (user_id, cutoff_date))
-        tool_breakdown = {row[0]: row[1] for row in cursor.fetchall()}
+        # Tool breakdown
+        tool_breakdown = {}
+        for log in logs:
+            tool_name = log['tool_name']
+            tool_breakdown[tool_name] = tool_breakdown.get(tool_name, 0) + 1
 
         # Average response time
-        cursor.execute("""
-            SELECT AVG(response_time_ms) FROM usage_logs
-            WHERE user_id = ? AND timestamp >= ? AND response_time_ms IS NOT NULL
-        """, (user_id, cutoff_date))
-        avg_response_time = cursor.fetchone()[0] or 0
+        response_times = [log['response_time_ms'] for log in logs if log.get('response_time_ms') is not None]
+        avg_response_time = sum(response_times) / len(response_times) if response_times else 0
 
         # Recent errors
-        cursor.execute("""
-            SELECT tool_name, error_message, timestamp
-            FROM usage_logs
-            WHERE user_id = ? AND success = 0 AND timestamp >= ?
-            ORDER BY timestamp DESC
-            LIMIT 10
-        """, (user_id, cutoff_date))
+        error_logs = [log for log in logs if not log['success']]
+        error_logs.sort(key=lambda x: x['timestamp'], reverse=True)
         recent_errors = [
             {
-                "tool": row[0],
-                "error": row[1],
-                "timestamp": row[2]
+                "tool": log['tool_name'],
+                "error": log['error_message'],
+                "timestamp": log['timestamp']
             }
-            for row in cursor.fetchall()
+            for log in error_logs[:10]
         ]
-
-        conn.close()
 
         return {
             "user_id": user_id,
             "period_days": days,
             "total_requests": total_requests,
-            "successes": successes or 0,
-            "failures": failures or 0,
+            "successes": successes,
+            "failures": failures,
             "success_rate": round(success_rate, 2),
             "tool_breakdown": tool_breakdown,
             "avg_response_time_ms": round(avg_response_time, 2),
@@ -558,54 +411,43 @@ class Database:
         Returns:
             Dict with aggregated statistics
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
 
-        cutoff_date = datetime.now() - timedelta(days=days)
+        # Get all logs in time period
+        result = self.supabase.table('usage_logs').select('*').gte('timestamp', cutoff_date).execute()
+        logs = result.data
 
-        # Total requests across all users
-        cursor.execute("""
-            SELECT COUNT(*) FROM usage_logs
-            WHERE timestamp >= ?
-        """, (cutoff_date,))
-        total_requests = cursor.fetchone()[0]
+        total_requests = len(logs)
 
         # Requests per user
-        cursor.execute("""
-            SELECT u.email, COUNT(l.log_id) as request_count
-            FROM users u
-            LEFT JOIN usage_logs l ON u.user_id = l.user_id
-                AND l.timestamp >= ?
-            GROUP BY u.email
-            ORDER BY request_count DESC
-        """, (cutoff_date,))
+        user_requests = {}
+        for log in logs:
+            user_id = log['user_id']
+            user_requests[user_id] = user_requests.get(user_id, 0) + 1
+
+        # Get user emails
+        users_result = self.supabase.table('users').select('user_id, email').execute()
+        user_emails = {u['user_id']: u['email'] for u in users_result.data}
+
         user_stats = [
-            {"email": row[0], "requests": row[1]}
-            for row in cursor.fetchall()
+            {"email": user_emails.get(user_id, "unknown"), "requests": count}
+            for user_id, count in user_requests.items()
         ]
+        user_stats.sort(key=lambda x: x['requests'], reverse=True)
 
         # Most used tools
-        cursor.execute("""
-            SELECT tool_name, COUNT(*) as count
-            FROM usage_logs
-            WHERE timestamp >= ?
-            GROUP BY tool_name
-            ORDER BY count DESC
-            LIMIT 10
-        """, (cutoff_date,))
-        top_tools = {row[0]: row[1] for row in cursor.fetchall()}
+        tool_counts = {}
+        for log in logs:
+            tool_name = log['tool_name']
+            tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
+
+        top_tools = dict(sorted(tool_counts.items(), key=lambda x: x[1], reverse=True)[:10])
 
         # Daily usage
-        cursor.execute("""
-            SELECT DATE(timestamp) as date, COUNT(*) as count
-            FROM usage_logs
-            WHERE timestamp >= ?
-            GROUP BY DATE(timestamp)
-            ORDER BY date DESC
-        """, (cutoff_date,))
-        daily_usage = {row[0]: row[1] for row in cursor.fetchall()}
-
-        conn.close()
+        daily_usage = {}
+        for log in logs:
+            date = log['timestamp'].split('T')[0]  # Extract date part
+            daily_usage[date] = daily_usage.get(date, 0) + 1
 
         return {
             "period_days": days,
@@ -625,37 +467,24 @@ class Database:
         Returns:
             List of recent activity dicts
         """
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        # Get recent logs
+        result = self.supabase.table('usage_logs').select('*').order('timestamp', desc=True).limit(limit).execute()
 
-        cursor.execute("""
-            SELECT
-                u.email,
-                l.tool_name,
-                l.method,
-                l.success,
-                l.error_message,
-                l.response_time_ms,
-                l.timestamp
-            FROM usage_logs l
-            JOIN users u ON l.user_id = u.user_id
-            ORDER BY l.timestamp DESC
-            LIMIT ?
-        """, (limit,))
+        # Get user emails
+        users_result = self.supabase.table('users').select('user_id, email').execute()
+        user_emails = {u['user_id']: u['email'] for u in users_result.data}
 
         activities = [
             {
-                "email": row[0],
-                "tool": row[1],
-                "method": row[2],
-                "success": bool(row[3]),
-                "error": row[4],
-                "response_time_ms": row[5],
-                "timestamp": row[6]
+                "email": user_emails.get(log['user_id'], "unknown"),
+                "tool": log['tool_name'],
+                "method": log['method'],
+                "success": log['success'],
+                "error": log.get('error_message'),
+                "response_time_ms": log.get('response_time_ms'),
+                "timestamp": log['timestamp']
             }
-            for row in cursor.fetchall()
+            for log in result.data
         ]
-
-        conn.close()
 
         return activities

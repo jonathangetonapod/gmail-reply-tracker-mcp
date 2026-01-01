@@ -37,6 +37,7 @@ class RequestContext:
     docs_client: DocsClient
     sheets_client: SheetsClient
     fathom_client: Optional[FathomClient]
+    api_keys: dict  # Store all API keys for tools that need them
 
 
 async def create_request_context(
@@ -164,11 +165,13 @@ async def create_request_context(
             detail="Failed to initialize API clients"
         )
 
-    # Create Fathom client if user has API key
+    # Create optional API clients from user's API keys
+    api_keys = user.get('api_keys', {})
+
     fathom_client = None
-    if user.get('fathom_key'):
+    if api_keys.get('fathom'):
         try:
-            fathom_client = FathomClient(user['fathom_key'])
+            fathom_client = FathomClient(api_keys['fathom'])
             logger.info(f"Created Fathom client for user {user['email']}")
         except Exception as e:
             logger.warning(f"Failed to create Fathom client for user {user['email']}: {e}")
@@ -181,5 +184,6 @@ async def create_request_context(
         calendar_client=calendar_client,
         docs_client=docs_client,
         sheets_client=sheets_client,
-        fathom_client=fathom_client
+        fathom_client=fathom_client,
+        api_keys=api_keys  # Store all API keys for tools that need them
     )
