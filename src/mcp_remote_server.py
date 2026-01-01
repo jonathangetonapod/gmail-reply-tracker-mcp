@@ -1746,6 +1746,388 @@ async def update_api_keys_endpoint(
 
 
 # ===========================================================================
+# ADMIN DASHBOARD
+# ===========================================================================
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(admin_password: Optional[str] = Query(None)):
+    """Admin dashboard for managing users and viewing analytics."""
+    # Check admin password
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    if not correct_password:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - Not Configured</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚠️ Admin Dashboard Not Configured</h1>
+        <p>Please set <code>ADMIN_PASSWORD</code> environment variable in Railway.</p>
+    </div>
+</body>
+</html>
+        """, status_code=500)
+
+    if not admin_password or admin_password != correct_password:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 500px;
+            margin: 100px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>🔐 Admin Login</h1>
+        <p class="subtitle">Gmail Reply Tracker MCP - Admin Dashboard</p>
+        <form method="get">
+            <input type="password" name="admin_password" placeholder="Enter admin password" required autofocus>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+</body>
+</html>
+        """, status_code=401)
+
+    # Admin authenticated - show dashboard
+    try:
+        # Get all data
+        users = server.database.list_users()
+        stats = server.database.get_all_usage_stats(days=7)
+        recent_activity = server.database.get_recent_activity(limit=20)
+
+        # Calculate additional metrics
+        total_users = len(users)
+        active_users = len([u for u in users if u.get('last_active')])
+        users_with_api_keys = len([u for u in users if u.get('has_api_keys')])
+
+        # Format users table
+        users_html = ""
+        for user in users:
+            last_active = user.get('last_active', 'Never')
+            if last_active and last_active != 'Never':
+                from dateutil import parser
+                try:
+                    dt = parser.parse(last_active)
+                    last_active = dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    pass
+
+            api_keys_badge = "✅" if user.get('has_api_keys') else "❌"
+
+            users_html += f"""
+            <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">{user['email']}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: center;">{api_keys_badge}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666;">{last_active}</td>
+            </tr>
+            """
+
+        # Format recent activity
+        activity_html = ""
+        for activity in recent_activity[:20]:
+            status_icon = "✅" if activity['success'] else "❌"
+            timestamp = activity['timestamp']
+            if isinstance(timestamp, str):
+                from dateutil import parser
+                try:
+                    dt = parser.parse(timestamp)
+                    timestamp = dt.strftime('%H:%M:%S')
+                except:
+                    pass
+
+            activity_html += f"""
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 13px;">{timestamp}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 13px;">{activity['email']}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 13px;"><code>{activity['tool']}</code></td>
+                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">{status_icon}</td>
+            </tr>
+            """
+
+        # Format top tools
+        top_tools_html = ""
+        for tool, count in list(stats.get('top_tools', {}).items())[:10]:
+            top_tools_html += f"""
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><code>{tool}</code></td>
+                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right; font-weight: 600;">{count}</td>
+            </tr>
+            """
+
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - Gmail Reply Tracker MCP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }}
+        .header h1 {{
+            font-size: 32px;
+            margin-bottom: 8px;
+        }}
+        .header p {{
+            opacity: 0.9;
+            font-size: 16px;
+        }}
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }}
+        .stat-card {{
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .stat-value {{
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }}
+        .stat-label {{
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .section {{
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .section h2 {{
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        th {{
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        code {{
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }}
+        .refresh-btn {{
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }}
+        .refresh-btn:hover {{
+            background: #5568d3;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛠️ Admin Dashboard</h1>
+        <p>Gmail Reply Tracker MCP - System Overview</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{total_users}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{active_users}</div>
+            <div class="stat-label">Active Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{users_with_api_keys}</div>
+            <div class="stat-label">Users with API Keys</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{stats.get('total_requests', 0)}</div>
+            <div class="stat-label">Total Requests (7d)</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>👥 All Users</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th style="text-align: center;">API Keys</th>
+                    <th>Last Active</th>
+                </tr>
+            </thead>
+            <tbody>
+                {users_html if users_html else '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">No users yet</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>📊 Top Tools (Last 7 Days)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tool Name</th>
+                    <th style="text-align: right;">Calls</th>
+                </tr>
+            </thead>
+            <tbody>
+                {top_tools_html if top_tools_html else '<tr><td colspan="2" style="padding: 20px; text-align: center; color: #999;">No usage yet</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🔄 Recent Activity</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Tool</th>
+                    <th style="text-align: center;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {activity_html if activity_html else '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">No activity yet</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Data</button>
+    </div>
+</body>
+</html>
+        """)
+
+    except Exception as e:
+        logger.error(f"Error in admin dashboard: {e}")
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - Error</title>
+</head>
+<body>
+    <h1>Error loading admin dashboard</h1>
+    <p>{str(e)}</p>
+</body>
+</html>
+        """, status_code=500)
+
+
+# ===========================================================================
 # SESSION MANAGEMENT ENDPOINTS
 # ===========================================================================
 
