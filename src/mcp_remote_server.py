@@ -617,19 +617,23 @@ async def lifespan(app: FastAPI):
             # Use Supabase PostgreSQL
             server.database = Database(supabase_url, supabase_key, encryption_key)
             logger.info(f"✓ Connected to Supabase database at {supabase_url}")
-        elif encryption_key:
-            # Fallback to SQLite if Supabase not configured
-            database_path = os.getenv("DATABASE_PATH", "./mcp_users.db")
-            from database_sqlite import DatabaseSQLite  # Old SQLite implementation
-            server.database = DatabaseSQLite(database_path, encryption_key)
-            logger.info(f"✓ Database initialized at {database_path} (SQLite fallback)")
-            logger.warning("⚠ Consider migrating to Supabase for persistent storage")
         else:
-            logger.warning("⚠ TOKEN_ENCRYPTION_KEY not set - multi-tenant features disabled")
-            logger.warning("⚠ Server will only work with legacy single-user mode")
+            # Log which variables are missing
+            missing = []
+            if not encryption_key:
+                missing.append("TOKEN_ENCRYPTION_KEY")
+            if not supabase_url:
+                missing.append("SUPABASE_URL")
+            if not supabase_key:
+                missing.append("SUPABASE_SERVICE_ROLE_KEY")
+
+            logger.error(f"✗ Missing required environment variables: {', '.join(missing)}")
+            logger.warning("⚠ Multi-tenant features disabled - server will not work")
             server.database = None
     except Exception as e:
         logger.error(f"✗ Failed to initialize database: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         logger.warning("Server will start in single-user mode only")
         server.database = None
 
