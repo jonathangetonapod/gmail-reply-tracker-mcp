@@ -718,7 +718,8 @@ async def root():
 async def mcp_streamable_http(
     request: Request,
     mcp_session_id: Optional[str] = Header(None, alias="Mcp-Session-Id"),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    session_token: Optional[str] = Query(None)
 ):
     """
     Modern Streamable HTTP transport (2025-03-26) with multi-tenant support.
@@ -727,7 +728,7 @@ async def mcp_streamable_http(
     Simpler than HTTP+SSE but same functionality.
 
     Multi-tenant mode:
-    - Include Authorization: Bearer <session_token> header
+    - Include Authorization: Bearer <session_token> header OR ?session_token= query param
     - Each user gets isolated API clients with their own credentials
 
     Legacy single-user mode:
@@ -748,11 +749,11 @@ async def mcp_streamable_http(
 
     method = body.get("method", "")
 
-    # Try to get user context if Authorization header present
+    # Try to get user context if Authorization header or session_token query param present
     ctx = None
-    if authorization:
+    if authorization or session_token:
         try:
-            ctx = await get_request_context(authorization)
+            ctx = await get_request_context(authorization, session_token)
         except HTTPException as e:
             # Auth failed - return error
             return JSONResponse({
