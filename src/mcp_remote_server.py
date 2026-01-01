@@ -1270,14 +1270,14 @@ async def setup_callback(
             }});
         }}
 
-        function copyConfig() {{
-            const configText = document.getElementById('config-content').textContent;
-            navigator.clipboard.writeText(configText).then(() => {{
-                const button = document.getElementById('copy-config-button');
+        function copyURL() {{
+            const urlText = document.getElementById('mcp-url').textContent;
+            navigator.clipboard.writeText(urlText).then(() => {{
+                const button = event.target;
                 button.textContent = '✓ Copied!';
                 button.style.background = '#4caf50';
                 setTimeout(() => {{
-                    button.textContent = '📋 Copy Config';
+                    button.textContent = '📋 Copy URL';
                     button.style.background = '#2196f3';
                 }}, 2000);
             }});
@@ -1297,28 +1297,33 @@ async def setup_callback(
         </div>
 
         <div class="instructions">
-            <h2>🔧 Add to Claude Desktop</h2>
+            <h2>🔧 Add to Claude Desktop (via GUI)</h2>
             <ol>
                 <li>Open <strong>Claude Desktop</strong></li>
-                <li>Go to <strong>Settings</strong> → <strong>Developer</strong> → <strong>Edit Config</strong></li>
-                <li>Add this configuration to your <code>claude_desktop_config.json</code>:</li>
+                <li>Go to <strong>Settings</strong> ⚙️ → <strong>Developer</strong> tab</li>
+                <li>Under "Custom Connectors", click <strong>Add Connector</strong> or <strong>+</strong></li>
+                <li>Fill in the form:</li>
             </ol>
 
-            <div class="config-box" id="config-content">{{
-  "mcpServers": {{
-    "gmail-mcp": {{
-      "url": "{server_url}/mcp",
-      "headers": {{
-        "Authorization": "Bearer {session_token}"
-      }}
-    }}
-  }}
-}}</div>
-            <button class="copy-button" id="copy-config-button" onclick="copyConfig()">📋 Copy Config</button>
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #ddd;">
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #333; display: block; margin-bottom: 5px;">Name:</strong>
+                    <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">gmail-mcp</div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: #333; display: block; margin-bottom: 5px;">Remote MCP Server URL:</strong>
+                    <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; word-break: break-all;" id="mcp-url">{server_url}/mcp?session_token={session_token}</div>
+                    <button class="copy-button" onclick="copyURL()" style="margin-top: 8px;">📋 Copy URL</button>
+                </div>
+                <div style="color: #666; font-size: 14px; margin-top: 10px;">
+                    ℹ️ Leave OAuth Client ID and OAuth Client Secret fields <strong>empty</strong>
+                </div>
+            </div>
 
-            <ol start="4">
+            <ol start="5">
+                <li>Click <strong>Save</strong> or <strong>Add</strong></li>
                 <li><strong>Restart Claude Desktop</strong></li>
-                <li>Start using your 82 Gmail & Calendar tools!</li>
+                <li>Start using your 84 Gmail & Calendar tools!</li>
             </ol>
         </div>
 
