@@ -1664,20 +1664,76 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             background: #1976d2;
         }}
         .success {{
-            background: #d4edda;
-            color: #155724;
-            padding: 12px;
-            border-radius: 5px;
+            background: #4caf50;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
             margin-bottom: 20px;
             display: none;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+            animation: slideIn 0.3s ease-out;
+            font-size: 15px;
         }}
         .error {{
-            background: #f8d7da;
-            color: #721c24;
-            padding: 12px;
-            border-radius: 5px;
+            background: #f44336;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
             margin-bottom: 20px;
             display: none;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+            animation: slideIn 0.3s ease-out;
+            font-size: 15px;
+        }}
+        @keyframes slideIn {{
+            from {{
+                transform: translateY(-20px);
+                opacity: 0;
+            }}
+            to {{
+                transform: translateY(0);
+                opacity: 1;
+            }}
+        }}
+        .toast {{
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+            font-size: 16px;
+            z-index: 10000;
+            animation: toastSlideIn 0.4s ease-out;
+            max-width: 400px;
+        }}
+        .toast.error {{
+            background: #f44336;
+        }}
+        @keyframes toastSlideIn {{
+            from {{
+                transform: translateX(400px);
+                opacity: 0;
+            }}
+            to {{
+                transform: translateX(0);
+                opacity: 1;
+            }}
+        }}
+        @keyframes toastSlideOut {{
+            from {{
+                transform: translateX(0);
+                opacity: 1;
+            }}
+            to {{
+                transform: translateX(400px);
+                opacity: 0;
+            }}
         }}
         .category-checkbox {{
             display: flex;
@@ -1811,6 +1867,25 @@ async def dashboard(session_token: Optional[str] = Query(None)):
     </div>
 
     <script>
+        // Toast notification function
+        function showToast(message, type = 'success') {{
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'toast' + (type === 'error' ? ' error' : '');
+            toast.textContent = message;
+
+            // Add to document
+            document.body.appendChild(toast);
+
+            // Auto-remove after animation
+            setTimeout(() => {{
+                toast.style.animation = 'toastSlideOut 0.4s ease-out';
+                setTimeout(() => {{
+                    document.body.removeChild(toast);
+                }}, 400);
+            }}, 4000);
+        }}
+
         document.getElementById('api-keys-form').addEventListener('submit', async (e) => {{
             e.preventDefault();
 
@@ -1830,13 +1905,23 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             const errorDiv = document.getElementById('error-message');
 
             if (response.ok) {{
+                // Show toast notification
+                showToast('✅ API keys updated successfully!');
+
+                // Also show inline message
                 successDiv.textContent = '✅ API keys updated successfully!';
                 successDiv.style.display = 'block';
                 errorDiv.style.display = 'none';
                 setTimeout(() => {{ successDiv.style.display = 'none'; }}, 3000);
             }} else {{
                 const error = await response.json();
-                errorDiv.textContent = '❌ Error: ' + error.detail;
+                const errorMsg = '❌ Error: ' + error.detail;
+
+                // Show toast notification
+                showToast(errorMsg, 'error');
+
+                // Also show inline message
+                errorDiv.textContent = errorMsg;
                 errorDiv.style.display = 'block';
                 successDiv.style.display = 'none';
             }}
@@ -1870,7 +1955,14 @@ async def dashboard(session_token: Optional[str] = Query(None)):
 
             if (response.ok) {{
                 const data = await response.json();
-                successDiv.textContent = `✅ Tool preferences updated! Now showing ${{data.tool_count}} tools. Restart Claude Desktop to apply changes.`;
+                const successMsg = `✅ Tool preferences saved! Now showing ${{data.tool_count}} tools.`;
+                const reminderMsg = '🔄 Restart Claude Desktop to see changes.';
+
+                // Show prominent toast notification
+                showToast(successMsg + ' ' + reminderMsg);
+
+                // Also show inline message
+                successDiv.innerHTML = `<strong>${{successMsg}}</strong><br>${{reminderMsg}}`;
                 successDiv.style.display = 'block';
                 errorDiv.style.display = 'none';
 
@@ -1880,7 +1972,13 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                 setTimeout(() => {{ successDiv.style.display = 'none'; }}, 5000);
             }} else {{
                 const error = await response.json();
-                errorDiv.textContent = '❌ Error: ' + error.detail;
+                const errorMsg = '❌ Error: ' + error.detail;
+
+                // Show toast notification
+                showToast(errorMsg, 'error');
+
+                // Also show inline message
+                errorDiv.textContent = errorMsg;
                 errorDiv.style.display = 'block';
                 successDiv.style.display = 'none';
             }}
