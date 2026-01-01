@@ -2086,18 +2086,34 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
 <head>
     <title>Admin Dashboard - Not Configured</title>
     <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --primary: 222.2 47.4% 11.2%;
+            --primary-foreground: 210 40% 98%;
+            --muted: 210 40% 96.1%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96.1%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --radius: 0.5rem;
+        }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             max-width: 600px;
             margin: 50px auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: hsl(var(--muted));
         }
         .card {
-            background: white;
+            background: hsl(var(--card));
             padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
         }
     </style>
 </head>
@@ -2118,53 +2134,62 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
     <title>Admin Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --primary: 221.2 83.2% 53.3%;
+            --primary-foreground: 210 40% 98%;
+            --radius: 0.5rem;
+        }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             max-width: 500px;
             margin: 100px auto;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
             min-height: 100vh;
         }
         .login-card {
-            background: white;
+            background: hsl(var(--card));
             padding: 40px;
-            border-radius: 12px;
+            border-radius: calc(var(--radius) * 2);
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         h1 {
-            color: #333;
+            color: hsl(var(--foreground));
             margin-bottom: 10px;
             font-size: 28px;
         }
         .subtitle {
-            color: #666;
+            color: hsl(215.4 16.3% 46.9%);
             margin-bottom: 30px;
             font-size: 14px;
         }
         input {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
+            border: 2px solid hsl(214.3 31.8% 91.4%);
+            border-radius: var(--radius);
             font-size: 16px;
             box-sizing: border-box;
             margin-bottom: 20px;
         }
         input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: hsl(var(--primary));
         }
         button {
             width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
+            color: hsl(var(--primary-foreground));
             padding: 14px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius);
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
+            transition: opacity 0.2s;
         }
         button:hover {
             opacity: 0.9;
@@ -2196,7 +2221,7 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
         active_users = len([u for u in users if u.get('last_active')])
         users_with_api_keys = len([u for u in users if u.get('has_api_keys')])
 
-        # Format users table
+        # Format users table with action buttons
         users_html = ""
         for user in users:
             last_active = user.get('last_active', 'Never')
@@ -2208,20 +2233,29 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
                 except:
                     pass
 
-            api_keys_badge = "✅" if user.get('has_api_keys') else "❌"
+            api_keys_status = "has-keys" if user.get('has_api_keys') else "no-keys"
+            api_keys_badge = '<span class="badge badge-success">✓ API Keys</span>' if user.get('has_api_keys') else '<span class="badge badge-muted">No Keys</span>'
 
             users_html += f"""
-            <tr>
-                <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">{user['email']}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: center;">{api_keys_badge}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 13px; color: #666;">{last_active}</td>
+            <tr class="user-row" onclick="window.location.href='/admin/user/{user['user_id']}?admin_password={admin_password}'">
+                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-weight: 500;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="user-avatar">{user['email'][0].upper()}</div>
+                        <div>{user['email']}</div>
+                    </div>
+                </td>
+                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{api_keys_badge}</td>
+                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px; color: hsl(var(--muted-foreground));">{last_active}</td>
+                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: right;">
+                    <button class="action-btn" onclick="event.stopPropagation(); window.location.href='/admin/user/{user['user_id']}?admin_password={admin_password}'">View</button>
+                </td>
             </tr>
             """
 
         # Format recent activity
         activity_html = ""
         for activity in recent_activity[:20]:
-            status_icon = "✅" if activity['success'] else "❌"
+            status_badge = '<span class="badge badge-success">✓</span>' if activity['success'] else '<span class="badge badge-destructive">✗</span>'
             timestamp = activity['timestamp']
             if isinstance(timestamp, str):
                 from dateutil import parser
@@ -2233,10 +2267,10 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
 
             activity_html += f"""
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 13px;">{timestamp}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 13px;">{activity['email']}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 13px;"><code>{activity['tool']}</code></td>
-                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: center;">{status_icon}</td>
+                <td style="padding: 12px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px; color: hsl(var(--muted-foreground));">{timestamp}</td>
+                <td style="padding: 12px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px;">{activity['email']}</td>
+                <td style="padding: 12px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px;"><code style="background: hsl(var(--muted)); padding: 2px 8px; border-radius: 4px; font-size: 12px;">{activity['tool']}</code></td>
+                <td style="padding: 12px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{status_badge}</td>
             </tr>
             """
 
@@ -2245,8 +2279,8 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
         for tool, count in list(stats.get('top_tools', {}).items())[:10]:
             top_tools_html += f"""
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;"><code>{tool}</code></td>
-                <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; text-align: right; font-weight: 600;">{count}</td>
+                <td style="padding: 12px; border-bottom: 1px solid hsl(var(--border));"><code style="background: hsl(var(--muted)); padding: 2px 8px; border-radius: 4px; font-size: 12px;">{tool}</code></td>
+                <td style="padding: 12px; border-bottom: 1px solid hsl(var(--border)); text-align: right; font-weight: 600; color: hsl(var(--primary));">{count}</td>
             </tr>
             """
 
@@ -2257,180 +2291,338 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
     <title>Admin Dashboard - Gmail Reply Tracker MCP</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        :root {{
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 221.2 83.2% 53.3%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96.1%;
+            --secondary-foreground: 222.2 47.4% 11.2%;
+            --muted: 210 40% 96.1%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96.1%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 221.2 83.2% 53.3%;
+            --radius: 0.5rem;
+            --success: 142.1 76.2% 36.3%;
+            --success-foreground: 355.7 100% 97.3%;
+        }}
+
         * {{
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }}
+
         body {{
-            font-family: system-ui, -apple-system, sans-serif;
-            background: #f5f7fa;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: hsl(var(--muted));
+            padding: 24px;
+            color: hsl(var(--foreground));
         }}
+
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+
         .header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
+            color: hsl(var(--primary-foreground));
+            padding: 32px;
+            border-radius: calc(var(--radius) * 2);
+            margin-bottom: 32px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }}
+
         .header h1 {{
             font-size: 32px;
+            font-weight: 700;
             margin-bottom: 8px;
         }}
+
         .header p {{
             opacity: 0.9;
             font-size: 16px;
         }}
+
         .stats-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
         }}
+
         .stat-card {{
-            background: white;
+            background: hsl(var(--card));
             padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            border: 1px solid hsl(var(--border));
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
         }}
+
+        .stat-card:hover {{
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transform: translateY(-2px);
+        }}
+
+        .stat-card::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
+        }}
+
+        .stat-icon {{
+            font-size: 24px;
+            margin-bottom: 12px;
+        }}
+
         .stat-value {{
             font-size: 36px;
-            font-weight: bold;
-            color: #667eea;
+            font-weight: 700;
+            color: hsl(var(--primary));
             margin-bottom: 8px;
+            line-height: 1;
         }}
+
         .stat-label {{
-            color: #666;
+            color: hsl(var(--muted-foreground));
             font-size: 14px;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }}
+
         .section {{
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: hsl(var(--card));
+            padding: 24px;
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            border: 1px solid hsl(var(--border));
         }}
+
         .section h2 {{
-            font-size: 20px;
+            font-size: 18px;
+            font-weight: 600;
             margin-bottom: 20px;
-            color: #333;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
+            color: hsl(var(--foreground));
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid hsl(var(--border));
         }}
+
         table {{
             width: 100%;
             border-collapse: collapse;
         }}
+
         th {{
-            background: #f8f9fa;
-            padding: 12px;
+            background: hsl(var(--muted));
+            padding: 12px 16px;
             text-align: left;
             font-weight: 600;
-            font-size: 13px;
-            color: #666;
+            font-size: 12px;
+            color: hsl(var(--muted-foreground));
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-bottom: 1px solid hsl(var(--border));
         }}
-        code {{
-            background: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 12px;
+
+        .user-row {{
+            cursor: pointer;
+            transition: background-color 0.15s;
         }}
-        .refresh-btn {{
-            background: #667eea;
+
+        .user-row:hover {{
+            background-color: hsl(var(--muted));
+        }}
+
+        .user-avatar {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
             color: white;
-            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }}
+
+        .badge {{
+            display: inline-flex;
+            align-items: center;
+            border-radius: calc(var(--radius) * 0.5);
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+        }}
+
+        .badge-success {{
+            background: hsl(var(--success) / 0.1);
+            color: hsl(var(--success));
+        }}
+
+        .badge-muted {{
+            background: hsl(var(--muted));
+            color: hsl(var(--muted-foreground));
+        }}
+
+        .badge-destructive {{
+            background: hsl(var(--destructive) / 0.1);
+            color: hsl(var(--destructive));
+        }}
+
+        .action-btn {{
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            padding: 8px 16px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius);
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
+            transition: all 0.2s;
         }}
+
+        .action-btn:hover {{
+            background: hsl(var(--primary) / 0.9);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+
+        .refresh-btn {{
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }}
+
         .refresh-btn:hover {{
-            background: #5568d3;
+            background: hsl(var(--primary) / 0.9);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }}
+
+        @media (max-width: 768px) {{
+            .stats-grid {{
+                grid-template-columns: 1fr;
+            }}
+
+            body {{
+                padding: 16px;
+            }}
         }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🛠️ Admin Dashboard</h1>
-        <p>Gmail Reply Tracker MCP - System Overview</p>
-    </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-value">{total_users}</div>
-            <div class="stat-label">Total Users</div>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ Admin Dashboard</h1>
+            <p>Gmail Reply Tracker MCP - System Overview</p>
         </div>
-        <div class="stat-card">
-            <div class="stat-value">{active_users}</div>
-            <div class="stat-label">Active Users</div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value">{total_users}</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✨</div>
+                <div class="stat-value">{active_users}</div>
+                <div class="stat-label">Active Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔑</div>
+                <div class="stat-value">{users_with_api_keys}</div>
+                <div class="stat-label">Users with API Keys</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">{stats.get('total_requests', 0)}</div>
+                <div class="stat-label">Total Requests (7d)</div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value">{users_with_api_keys}</div>
-            <div class="stat-label">Users with API Keys</div>
+
+        <div class="section">
+            <h2><span>👥</span> All Users</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th style="text-align: center;">API Keys</th>
+                        <th>Last Active</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {users_html if users_html else '<tr><td colspan="4" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No users yet</td></tr>'}
+                </tbody>
+            </table>
         </div>
-        <div class="stat-card">
-            <div class="stat-value">{stats.get('total_requests', 0)}</div>
-            <div class="stat-label">Total Requests (7d)</div>
+
+        <div class="section">
+            <h2><span>📊</span> Top Tools (Last 7 Days)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tool Name</th>
+                        <th style="text-align: right;">Calls</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {top_tools_html if top_tools_html else '<tr><td colspan="2" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No usage yet</td></tr>'}
+                </tbody>
+            </table>
         </div>
-    </div>
 
-    <div class="section">
-        <h2>👥 All Users</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Email</th>
-                    <th style="text-align: center;">API Keys</th>
-                    <th>Last Active</th>
-                </tr>
-            </thead>
-            <tbody>
-                {users_html if users_html else '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">No users yet</td></tr>'}
-            </tbody>
-        </table>
-    </div>
+        <div class="section">
+            <h2><span>🔄</span> Recent Activity</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>User</th>
+                        <th>Tool</th>
+                        <th style="text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {activity_html if activity_html else '<tr><td colspan="4" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No activity yet</td></tr>'}
+                </tbody>
+            </table>
+        </div>
 
-    <div class="section">
-        <h2>📊 Top Tools (Last 7 Days)</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Tool Name</th>
-                    <th style="text-align: right;">Calls</th>
-                </tr>
-            </thead>
-            <tbody>
-                {top_tools_html if top_tools_html else '<tr><td colspan="2" style="padding: 20px; text-align: center; color: #999;">No usage yet</td></tr>'}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="section">
-        <h2>🔄 Recent Activity</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>User</th>
-                    <th>Tool</th>
-                    <th style="text-align: center;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {activity_html if activity_html else '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">No activity yet</td></tr>'}
-            </tbody>
-        </table>
-    </div>
-
-    <div style="text-align: center; margin-top: 30px;">
-        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Data</button>
+        <div style="text-align: center; margin-top: 32px;">
+            <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Data</button>
+        </div>
     </div>
 </body>
 </html>
@@ -2446,6 +2638,585 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
 </head>
 <body>
     <h1>Error loading admin dashboard</h1>
+    <p>{str(e)}</p>
+</body>
+</html>
+        """, status_code=500)
+
+
+@app.get("/admin/user/{user_id}", response_class=HTMLResponse)
+async def admin_user_detail(user_id: str, admin_password: Optional[str] = Query(None)):
+    """User detail page for admin dashboard."""
+    # Check admin password
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    if not correct_password or not admin_password or admin_password != correct_password:
+        return HTMLResponse("Unauthorized", status_code=401)
+
+    try:
+        # Get user data
+        result = server.database.supabase.table('users').select('*').eq('user_id', user_id).execute()
+
+        if not result.data:
+            return HTMLResponse("User not found", status_code=404)
+
+        user_data = result.data[0]
+
+        # Decrypt API keys to check which ones are configured
+        from cryptography.fernet import Fernet
+        cipher = Fernet(os.getenv("TOKEN_ENCRYPTION_KEY").encode())
+
+        api_keys = {}
+        if user_data.get('encrypted_api_keys'):
+            try:
+                api_keys = json.loads(cipher.decrypt(user_data['encrypted_api_keys'].encode()).decode())
+            except:
+                pass
+
+        # Get enabled tool categories
+        enabled_categories = None
+        if user_data.get('enabled_tool_categories'):
+            try:
+                import json as json_module
+                enabled_categories = json_module.loads(user_data['enabled_tool_categories'])
+            except:
+                pass
+
+        # Calculate tool count
+        tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 14}
+        if enabled_categories is None:
+            total_tools = 84
+            tool_status = "All tools enabled"
+        elif len(enabled_categories) == 0:
+            total_tools = 0
+            tool_status = "No tools enabled"
+        else:
+            total_tools = sum(tool_counts.get(cat, 0) for cat in enabled_categories)
+            tool_status = f"{len(enabled_categories)}/6 categories enabled"
+
+        # Get usage stats
+        usage_stats = server.database.get_user_usage_stats(user_id, days=30)
+
+        # Get recent activity
+        recent_logs = server.database.supabase.table('usage_logs').select('*').eq('user_id', user_id).order('timestamp', desc=True).limit(20).execute()
+
+        # Format dates
+        from dateutil import parser as date_parser
+        created_at = user_data.get('created_at', 'Unknown')
+        if created_at and created_at != 'Unknown':
+            try:
+                dt = date_parser.parse(created_at)
+                created_at = dt.strftime('%B %d, %Y at %H:%M')
+            except:
+                pass
+
+        last_active = user_data.get('last_active', 'Never')
+        if last_active and last_active != 'Never':
+            try:
+                dt = date_parser.parse(last_active)
+                last_active = dt.strftime('%B %d, %Y at %H:%M')
+            except:
+                pass
+
+        session_expiry = user_data.get('session_expiry', 'Unknown')
+        if session_expiry and session_expiry != 'Unknown':
+            try:
+                dt = date_parser.parse(session_expiry)
+                session_expiry = dt.strftime('%B %d, %Y')
+            except:
+                pass
+
+        # Build API keys badges
+        api_keys_badges = ""
+        available_keys = ['fathom', 'instantly']
+        for key in available_keys:
+            if key in api_keys and api_keys[key]:
+                api_keys_badges += f'<span class="badge badge-success">✓ {key.title()}</span> '
+            else:
+                api_keys_badges += f'<span class="badge badge-muted">{key.title()}</span> '
+
+        # Build tool categories badges
+        tool_categories_html = ""
+        all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly']
+        if enabled_categories is None:
+            for cat in all_categories:
+                tool_categories_html += f'<span class="badge badge-success">{cat.title()} ({tool_counts[cat]})</span> '
+        else:
+            for cat in all_categories:
+                if cat in enabled_categories:
+                    tool_categories_html += f'<span class="badge badge-success">✓ {cat.title()} ({tool_counts[cat]})</span> '
+                else:
+                    tool_categories_html += f'<span class="badge badge-muted">{cat.title()}</span> '
+
+        # Build recent activity timeline
+        activity_timeline = ""
+        for log in recent_logs.data[:15]:
+            timestamp = log['timestamp']
+            if isinstance(timestamp, str):
+                try:
+                    dt = date_parser.parse(timestamp)
+                    timestamp = dt.strftime('%b %d, %H:%M')
+                except:
+                    pass
+
+            status_class = "success" if log['success'] else "destructive"
+            status_icon = "✓" if log['success'] else "✗"
+
+            activity_timeline += f"""
+            <div class="timeline-item">
+                <div class="timeline-marker {status_class}"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <code>{log['tool_name']}</code>
+                        <span class="badge badge-{status_class}">{status_icon}</span>
+                    </div>
+                    <div class="timeline-time">{timestamp}</div>
+                    {f'<div class="timeline-error">{log["error_message"]}</div>' if not log['success'] and log.get('error_message') else ''}
+                </div>
+            </div>
+            """
+
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Details - {user_data['email']}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {{
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --primary: 221.2 83.2% 53.3%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96.1%;
+            --secondary-foreground: 222.2 47.4% 11.2%;
+            --muted: 210 40% 96.1%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96.1%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --radius: 0.5rem;
+            --success: 142.1 76.2% 36.3%;
+        }}
+
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: hsl(var(--muted));
+            padding: 24px;
+            color: hsl(var(--foreground));
+        }}
+
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+
+        .back-link {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: hsl(var(--muted-foreground));
+            text-decoration: none;
+            margin-bottom: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }}
+
+        .back-link:hover {{
+            color: hsl(var(--primary));
+        }}
+
+        .page-header {{
+            background: hsl(var(--card));
+            padding: 32px;
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            border: 1px solid hsl(var(--border));
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }}
+
+        .user-info {{
+            display: flex;
+            gap: 20px;
+            align-items: start;
+        }}
+
+        .user-avatar-large {{
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 32px;
+            flex-shrink: 0;
+        }}
+
+        .user-details h1 {{
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: hsl(var(--foreground));
+        }}
+
+        .user-meta {{
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            color: hsl(var(--muted-foreground));
+            font-size: 14px;
+        }}
+
+        .user-meta-item {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        .actions {{
+            display: flex;
+            gap: 12px;
+            flex-direction: column;
+        }}
+
+        .action-btn {{
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }}
+
+        .action-btn:hover {{
+            background: hsl(var(--primary) / 0.9);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+
+        .action-btn-secondary {{
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+        }}
+
+        .action-btn-destructive {{
+            background: hsl(var(--destructive));
+            color: hsl(var(--destructive-foreground));
+        }}
+
+        .grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }}
+
+        .card {{
+            background: hsl(var(--card));
+            padding: 24px;
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            border: 1px solid hsl(var(--border));
+        }}
+
+        .card h2 {{
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: hsl(var(--foreground));
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .stat-row {{
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid hsl(var(--border));
+        }}
+
+        .stat-row:last-child {{
+            border-bottom: none;
+        }}
+
+        .stat-label {{
+            color: hsl(var(--muted-foreground));
+            font-size: 14px;
+        }}
+
+        .stat-value {{
+            font-weight: 600;
+            color: hsl(var(--foreground));
+        }}
+
+        .badge {{
+            display: inline-flex;
+            align-items: center;
+            border-radius: calc(var(--radius) * 0.5);
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1;
+            white-space: nowrap;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }}
+
+        .badge-success {{
+            background: hsl(var(--success) / 0.1);
+            color: hsl(var(--success));
+        }}
+
+        .badge-muted {{
+            background: hsl(var(--muted));
+            color: hsl(var(--muted-foreground));
+        }}
+
+        .badge-destructive {{
+            background: hsl(var(--destructive) / 0.1);
+            color: hsl(var(--destructive));
+        }}
+
+        .timeline {{
+            margin-top: 16px;
+        }}
+
+        .timeline-item {{
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            position: relative;
+        }}
+
+        .timeline-item:not(:last-child)::after {{
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 24px;
+            bottom: -20px;
+            width: 2px;
+            background: hsl(var(--border));
+        }}
+
+        .timeline-marker {{
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }}
+
+        .timeline-marker.success {{
+            background: hsl(var(--success));
+        }}
+
+        .timeline-marker.destructive {{
+            background: hsl(var(--destructive));
+        }}
+
+        .timeline-content {{
+            flex: 1;
+        }}
+
+        .timeline-header {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }}
+
+        .timeline-header code {{
+            background: hsl(var(--muted));
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }}
+
+        .timeline-time {{
+            color: hsl(var(--muted-foreground));
+            font-size: 13px;
+        }}
+
+        .timeline-error {{
+            color: hsl(var(--destructive));
+            font-size: 13px;
+            margin-top: 4px;
+        }}
+
+        .info-row {{
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid hsl(var(--border));
+        }}
+
+        .info-row:last-child {{
+            border-bottom: none;
+        }}
+
+        .info-label {{
+            color: hsl(var(--muted-foreground));
+            font-size: 14px;
+            font-weight: 500;
+        }}
+
+        .info-value {{
+            color: hsl(var(--foreground));
+            text-align: right;
+        }}
+
+        @media (max-width: 768px) {{
+            .page-header {{
+                flex-direction: column;
+            }}
+
+            .actions {{
+                flex-direction: row;
+                width: 100%;
+            }}
+
+            .grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin?admin_password={admin_password}" class="back-link">
+            ← Back to Dashboard
+        </a>
+
+        <div class="page-header">
+            <div class="user-info">
+                <div class="user-avatar-large">{user_data['email'][0].upper()}</div>
+                <div class="user-details">
+                    <h1>{user_data['email']}</h1>
+                    <div class="user-meta">
+                        <div class="user-meta-item">
+                            <span>📅</span>
+                            <span>Joined {created_at}</span>
+                        </div>
+                        <div class="user-meta-item">
+                            <span>⏰</span>
+                            <span>Last active {last_active}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <a href="/dashboard?session_token={user_data['session_token']}" class="action-btn" target="_blank">
+                    View Dashboard
+                </a>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2><span>📊</span> Usage Statistics (30 Days)</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Total Requests</span>
+                    <span class="stat-value">{usage_stats['total_requests']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Successful Requests</span>
+                    <span class="stat-value">{usage_stats['successes']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Failed Requests</span>
+                    <span class="stat-value">{usage_stats['failures']}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Success Rate</span>
+                    <span class="stat-value">{usage_stats['success_rate']}%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Avg Response Time</span>
+                    <span class="stat-value">{usage_stats['avg_response_time_ms']}ms</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2><span>🔑</span> API Keys</h2>
+                <div style="margin-top: 12px;">
+                    {api_keys_badges if api_keys_badges else '<span class="badge badge-muted">No API keys configured</span>'}
+                </div>
+            </div>
+
+            <div class="card">
+                <h2><span>🛠️</span> Tool Preferences</h2>
+                <div class="stat-row">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value">{tool_status}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Tools</span>
+                    <span class="stat-value">{total_tools} / 84</span>
+                </div>
+                <div style="margin-top: 16px;">
+                    {tool_categories_html}
+                </div>
+            </div>
+
+            <div class="card">
+                <h2><span>ℹ️</span> Account Info</h2>
+                <div class="info-row">
+                    <span class="info-label">User ID</span>
+                    <span class="info-value"><code style="font-size: 12px;">{user_data['user_id']}</code></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Session Expires</span>
+                    <span class="info-value">{session_expiry}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2><span>🔄</span> Recent Activity (Last 15)</h2>
+            <div class="timeline">
+                {activity_timeline if activity_timeline else '<p style="color: hsl(var(--muted-foreground)); text-align: center; padding: 20px;">No recent activity</p>'}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+        """)
+
+    except Exception as e:
+        logger.error(f"Error in user detail page: {e}")
+        import traceback
+        traceback.print_exc()
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error</title>
+</head>
+<body>
+    <h1>Error loading user details</h1>
     <p>{str(e)}</p>
 </body>
 </html>
