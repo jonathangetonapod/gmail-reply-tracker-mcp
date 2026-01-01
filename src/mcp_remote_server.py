@@ -426,7 +426,9 @@ async def handle_jsonrpc_request(
                             return 'sheets'
                         elif 'fathom' in tool_name_lower:
                             return 'fathom'
-                        elif 'instantly' in tool_name_lower or 'bison' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
+                        elif 'bison' in tool_name_lower:
+                            return 'bison'
+                        elif 'instantly' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
                             return 'instantly'
                         return None  # Unknown category, include by default
 
@@ -1585,7 +1587,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
     # None = all enabled (default), [] = none, [...] = specific categories
 
     # Prepare checkbox states
-    all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly']
+    all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
     enabled_categories_str = {}
 
     if enabled_categories is None:
@@ -1598,7 +1600,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             enabled_categories_str[cat] = 'checked' if cat in enabled_categories else ''
 
     # Calculate tool count
-    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 14}
+    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
     if enabled_categories is None:
         total_tools = 84
     else:
@@ -1862,9 +1864,16 @@ async def dashboard(session_token: Optional[str] = Query(None)):
 
                 <label class="category-checkbox">
                     <input type="checkbox" name="instantly" {enabled_categories_str.get('instantly', 'checked')}>
-                    <span>📨 <strong>Instantly Tools</strong> (14 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management</div>
+                    <span>📨 <strong>Instantly Tools</strong> (10 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (Instantly.ai)</div>
                     <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Instantly API key</div>
+                </label>
+
+                <label class="category-checkbox">
+                    <input type="checkbox" name="bison" {enabled_categories_str.get('bison', 'checked')}>
+                    <span>🦬 <strong>Bison Tools</strong> (4 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (EmailBison)</div>
+                    <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Bison API key</div>
                 </label>
             </div>
 
@@ -1997,7 +2006,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
         }});
 
         // Update tool count dynamically as user checks/unchecks
-        const toolCounts = {{gmail: 25, calendar: 15, docs: 8, sheets: 12, fathom: 10, instantly: 14}};
+        const toolCounts = {{gmail: 25, calendar: 15, docs: 8, sheets: 12, fathom: 10, instantly: 10, bison: 4}};
         document.querySelectorAll('.category-checkbox input').forEach(checkbox => {{
             checkbox.addEventListener('change', () => {{
                 let total = 0;
@@ -2062,14 +2071,14 @@ async def update_tool_categories_endpoint(
     categories = body.get('categories', [])
 
     # Validate categories
-    valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly']
+    valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
     categories = [cat for cat in categories if cat in valid_categories]
 
     # Update in database
     server.database.update_tool_categories(ctx.user_id, categories if categories else [])
 
     # Calculate tool count
-    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 14}
+    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
     total_tools = sum(tool_counts[cat] for cat in categories) if categories else 0
 
     logger.info(f"Updated tool categories for user {ctx.email}: {categories} ({total_tools} tools)")
@@ -2836,7 +2845,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 pass
 
         # Calculate tool count
-        tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 14}
+        tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
         if enabled_categories is None:
             total_tools = 84
             tool_status = "All tools enabled"
@@ -2845,7 +2854,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             tool_status = "No tools enabled"
         else:
             total_tools = sum(tool_counts.get(cat, 0) for cat in enabled_categories)
-            tool_status = f"{len(enabled_categories)}/6 categories enabled"
+            tool_status = f"{len(enabled_categories)}/7 categories enabled"
 
         # Get usage stats
         usage_stats = server.database.get_user_usage_stats(user_id, days=30)
@@ -2890,7 +2899,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 
         # Build tool categories badges
         tool_categories_html = ""
-        all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly']
+        all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
         if enabled_categories is None:
             for cat in all_categories:
                 tool_categories_html += f'<span class="badge badge-success">{cat.title()} ({tool_counts[cat]})</span> '
