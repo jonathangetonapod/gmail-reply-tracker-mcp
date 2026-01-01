@@ -7,7 +7,7 @@ Each request creates a new RequestContext with user-specific credentials.
 import logging
 from dataclasses import dataclass
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from google.oauth2.credentials import Credentials
 from fastapi import HTTPException
@@ -88,7 +88,7 @@ async def create_request_context(
             from dateutil import parser
             session_expiry = parser.parse(session_expiry)
 
-        if datetime.now() > session_expiry:
+        if datetime.now(timezone.utc) > session_expiry:
             logger.warning(f"Expired session token for user {user['email']}")
             raise HTTPException(
                 status_code=401,
