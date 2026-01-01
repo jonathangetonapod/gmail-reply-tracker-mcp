@@ -137,6 +137,14 @@ class Database:
         google_token = json.loads(self._decrypt(user['encrypted_google_token']))
         api_keys = json.loads(self._decrypt(user['encrypted_api_keys'])) if user.get('encrypted_api_keys') else {}
 
+        # Parse enabled tool categories
+        enabled_tool_categories = None
+        if user.get('enabled_tool_categories'):
+            try:
+                enabled_tool_categories = json.loads(user['enabled_tool_categories'])
+            except:
+                enabled_tool_categories = None
+
         # Update last_active
         self.supabase.table('users').update({
             'last_active': datetime.now().isoformat()
@@ -148,6 +156,7 @@ class Database:
             "google_token": google_token,
             "api_keys": api_keys,  # Dict with all API keys
             "fathom_key": api_keys.get('fathom'),  # Backwards compatibility
+            "enabled_tool_categories": enabled_tool_categories,  # List of enabled categories or None for all
             "session_token": user['session_token'],
             "session_expiry": user['session_expiry'],
             "created_at": user['created_at'],
@@ -250,6 +259,22 @@ class Database:
         }).eq('user_id', user_id).execute()
 
         logger.info(f"Updated Google token for user: {user_id}")
+
+    def update_tool_categories(self, user_id: str, categories: list):
+        """
+        Update user's enabled tool categories.
+
+        Args:
+            user_id: User ID
+            categories: List of enabled category names (e.g., ["gmail", "calendar"])
+                       Empty list = no tools
+                       None/null = all tools (default)
+        """
+        self.supabase.table('users').update({
+            'enabled_tool_categories': json.dumps(categories) if categories is not None else None
+        }).eq('user_id', user_id).execute()
+
+        logger.info(f"Updated tool categories for user {user_id}: {categories}")
 
     def delete_user(self, user_id: str):
         """

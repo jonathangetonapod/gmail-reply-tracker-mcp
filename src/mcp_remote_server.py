@@ -408,6 +408,41 @@ async def handle_jsonrpc_request(
                 }
                 tools.append(tool_schema)
 
+            # Filter by user's enabled tool categories (if applicable)
+            if ctx:
+                enabled_categories = ctx.enabled_tool_categories
+                if enabled_categories is not None:  # None = show all, [] or [...] = filter
+                    # Map tool names to categories
+                    def get_tool_category(tool_name):
+                        """Determine which category a tool belongs to based on its name."""
+                        tool_name_lower = tool_name.lower()
+                        if any(x in tool_name_lower for x in ['email', 'gmail', 'label', 'draft', 'send', 'search']):
+                            return 'gmail'
+                        elif any(x in tool_name_lower for x in ['calendar', 'event', 'availability']):
+                            return 'calendar'
+                        elif 'doc' in tool_name_lower and 'google' not in tool_name_lower:
+                            return 'docs'
+                        elif 'sheet' in tool_name_lower:
+                            return 'sheets'
+                        elif 'fathom' in tool_name_lower:
+                            return 'fathom'
+                        elif 'instantly' in tool_name_lower or 'bison' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
+                            return 'instantly'
+                        return None  # Unknown category, include by default
+
+                    # Filter tools by enabled categories
+                    if enabled_categories == []:
+                        # Empty list = no tools
+                        tools = []
+                    else:
+                        # Filter to only enabled categories
+                        filtered_tools = []
+                        for tool in tools:
+                            category = get_tool_category(tool['name'])
+                            if category is None or category in enabled_categories:
+                                filtered_tools.append(tool)
+                        tools = filtered_tools
+
             logger.info(f"Listed {len(tools)} tools")
             return {
                 "jsonrpc": "2.0",
@@ -1545,6 +1580,30 @@ async def dashboard(session_token: Optional[str] = Query(None)):
     user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
 
+    # Get enabled tool categories
+    enabled_categories = user.get('enabled_tool_categories')
+    # None = all enabled (default), [] = none, [...] = specific categories
+
+    # Prepare checkbox states
+    all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly']
+    enabled_categories_str = {}
+
+    if enabled_categories is None:
+        # All categories enabled by default
+        for cat in all_categories:
+            enabled_categories_str[cat] = 'checked'
+    else:
+        # Specific categories enabled
+        for cat in all_categories:
+            enabled_categories_str[cat] = 'checked' if cat in enabled_categories else ''
+
+    # Calculate tool count
+    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 14}
+    if enabled_categories is None:
+        total_tools = 84
+    else:
+        total_tools = sum(tool_counts[cat] for cat in enabled_categories)
+
     # Render dashboard HTML
     return HTMLResponse(f"""
 <!DOCTYPE html>
@@ -1620,6 +1679,25 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             margin-bottom: 20px;
             display: none;
         }}
+        .category-checkbox {{
+            display: flex;
+            align-items: flex-start;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }}
+        .category-checkbox:hover {{
+            background: #f0f0f0;
+        }}
+        .category-checkbox input[type="checkbox"] {{
+            margin-right: 12px;
+            margin-top: 2px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }}
         .token-section {{
             background: #f5f5f5;
             padding: 20px;
@@ -1672,6 +1750,59 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             <button type="submit">💾 Save API Keys</button>
         </form>
 
+        <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+
+        <h2>🛠️ Tool Selection</h2>
+        <p>Choose which tool categories you want available in Claude Desktop:</p>
+
+        <div class="tools-info" style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <strong>Currently showing: <span id="tool-count">{total_tools}</span> tools</strong>
+        </div>
+
+        <form id="tool-categories-form">
+            <div style="display: grid; gap: 15px;">
+                <label class="category-checkbox">
+                    <input type="checkbox" name="gmail" {enabled_categories_str.get('gmail', 'checked')}>
+                    <span>📧 <strong>Gmail Tools</strong> (25 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Search, send, manage emails</div>
+                </label>
+
+                <label class="category-checkbox">
+                    <input type="checkbox" name="calendar" {enabled_categories_str.get('calendar', 'checked')}>
+                    <span>📅 <strong>Calendar Tools</strong> (15 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Create events, check availability</div>
+                </label>
+
+                <label class="category-checkbox">
+                    <input type="checkbox" name="docs" {enabled_categories_str.get('docs', 'checked')}>
+                    <span>📄 <strong>Google Docs Tools</strong> (8 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Create, read, update documents</div>
+                </label>
+
+                <label class="category-checkbox">
+                    <input type="checkbox" name="sheets" {enabled_categories_str.get('sheets', 'checked')}>
+                    <span>📊 <strong>Google Sheets Tools</strong> (12 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Read, write, manage spreadsheets</div>
+                </label>
+
+                <label class="category-checkbox">
+                    <input type="checkbox" name="fathom" {enabled_categories_str.get('fathom', 'checked')}>
+                    <span>🎥 <strong>Fathom Tools</strong> (10 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Meeting recordings & analytics</div>
+                    <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Fathom API key</div>
+                </label>
+
+                <label class="category-checkbox">
+                    <input type="checkbox" name="instantly" {enabled_categories_str.get('instantly', 'checked')}>
+                    <span>📨 <strong>Instantly Tools</strong> (14 tools)</span>
+                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management</div>
+                    <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Instantly API key</div>
+                </label>
+            </div>
+
+            <button type="submit" style="margin-top: 20px;">💾 Save Tool Preferences</button>
+        </form>
+
         <div class="token-section">
             <h2>Session Token</h2>
             <p>Use this token in Claude Desktop to connect to your MCP server:</p>
@@ -1710,6 +1841,62 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                 successDiv.style.display = 'none';
             }}
         }});
+
+        // Tool categories form handler
+        document.getElementById('tool-categories-form').addEventListener('submit', async (e) => {{
+            e.preventDefault();
+
+            const form = e.target;
+            const formData = new FormData(form);
+            const categories = [];
+
+            // Collect checked categories
+            for (let [key, value] of formData.entries()) {{
+                if (form.elements[key].checked) {{
+                    categories.push(key);
+                }}
+            }}
+
+            const response = await fetch('/dashboard/update-tool-categories?session_token={session_token}', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{
+                    categories: categories
+                }})
+            }});
+
+            const successDiv = document.getElementById('success-message');
+            const errorDiv = document.getElementById('error-message');
+
+            if (response.ok) {{
+                const data = await response.json();
+                successDiv.textContent = `✅ Tool preferences updated! Now showing ${{data.tool_count}} tools. Restart Claude Desktop to apply changes.`;
+                successDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+
+                // Update tool count display
+                document.getElementById('tool-count').textContent = data.tool_count;
+
+                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 5000);
+            }} else {{
+                const error = await response.json();
+                errorDiv.textContent = '❌ Error: ' + error.detail;
+                errorDiv.style.display = 'block';
+                successDiv.style.display = 'none';
+            }}
+        }});
+
+        // Update tool count dynamically as user checks/unchecks
+        const toolCounts = {{gmail: 25, calendar: 15, docs: 8, sheets: 12, fathom: 10, instantly: 14}};
+        document.querySelectorAll('.category-checkbox input').forEach(checkbox => {{
+            checkbox.addEventListener('change', () => {{
+                let total = 0;
+                document.querySelectorAll('.category-checkbox input:checked').forEach(checked => {{
+                    total += toolCounts[checked.name] || 0;
+                }});
+                document.getElementById('tool-count').textContent = total;
+            }});
+        }});
     </script>
 </body>
 </html>
@@ -1743,6 +1930,46 @@ async def update_api_keys_endpoint(
     server.database.update_api_keys(ctx.user_id, api_keys)
 
     return {"success": True, "message": "API keys updated"}
+
+
+@app.post("/dashboard/update-tool-categories")
+async def update_tool_categories_endpoint(
+    request: Request,
+    session_token: Optional[str] = Query(None)
+):
+    """Update user's enabled tool categories."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Parse request body
+    body = await request.json()
+    categories = body.get('categories', [])
+
+    # Validate categories
+    valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly']
+    categories = [cat for cat in categories if cat in valid_categories]
+
+    # Update in database
+    server.database.update_tool_categories(ctx.user_id, categories if categories else [])
+
+    # Calculate tool count
+    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 14}
+    total_tools = sum(tool_counts[cat] for cat in categories) if categories else 0
+
+    logger.info(f"Updated tool categories for user {ctx.email}: {categories} ({total_tools} tools)")
+
+    return {
+        "success": True,
+        "message": "Tool preferences updated",
+        "tool_count": total_tools,
+        "categories": categories
+    }
 
 
 # ===========================================================================

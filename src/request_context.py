@@ -38,6 +38,7 @@ class RequestContext:
     sheets_client: SheetsClient
     fathom_client: Optional[FathomClient]
     api_keys: dict  # Store all API keys for tools that need them
+    enabled_tool_categories: Optional[list]  # List of enabled tool categories or None for all
 
 
 async def create_request_context(
@@ -185,5 +186,6 @@ async def create_request_context(
         docs_client=docs_client,
         sheets_client=sheets_client,
         fathom_client=fathom_client,
-        api_keys=api_keys  # Store all API keys for tools that need them
+        api_keys=api_keys,  # Store all API keys for tools that need them
+        enabled_tool_categories=user.get('enabled_tool_categories')  # None = all tools, [...] = filter
     )
