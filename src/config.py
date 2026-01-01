@@ -66,22 +66,52 @@ class Config:
         project_root = Path(__file__).parent.parent
 
         # Resolve credentials path - support both absolute and relative paths
-        credentials_path_str = os.getenv(
-            "GMAIL_CREDENTIALS_PATH",
-            "credentials/credentials.json"  # Relative to project root
-        )
-        credentials_path = Path(credentials_path_str)
-        if not credentials_path.is_absolute():
-            credentials_path = project_root / credentials_path
+        # OR load from base64-encoded environment variable (for Railway free tier)
+        credentials_json_b64 = os.getenv("GMAIL_CREDENTIALS_JSON")
+        if credentials_json_b64:
+            # Decode base64 credentials and write to temp file
+            import base64
+            import tempfile
+            import json
+            credentials_json = base64.b64decode(credentials_json_b64).decode('utf-8')
+            # Validate it's valid JSON
+            json.loads(credentials_json)  # Will raise if invalid
+            temp_creds = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
+            temp_creds.write(credentials_json)
+            temp_creds.close()
+            credentials_path = Path(temp_creds.name)
+        else:
+            credentials_path_str = os.getenv(
+                "GMAIL_CREDENTIALS_PATH",
+                "credentials/credentials.json"  # Relative to project root
+            )
+            credentials_path = Path(credentials_path_str)
+            if not credentials_path.is_absolute():
+                credentials_path = project_root / credentials_path
 
         # Resolve token path - support both absolute and relative paths
-        token_path_str = os.getenv(
-            "GMAIL_TOKEN_PATH",
-            "credentials/token.json"  # Relative to project root
-        )
-        token_path = Path(token_path_str)
-        if not token_path.is_absolute():
-            token_path = project_root / token_path
+        # OR load from base64-encoded environment variable (for Railway free tier)
+        token_json_b64 = os.getenv("GMAIL_TOKEN_JSON")
+        if token_json_b64:
+            # Decode base64 token and write to temp file
+            import base64
+            import tempfile
+            import json
+            token_json = base64.b64decode(token_json_b64).decode('utf-8')
+            # Validate it's valid JSON
+            json.loads(token_json)  # Will raise if invalid
+            temp_token = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
+            temp_token.write(token_json)
+            temp_token.close()
+            token_path = Path(temp_token.name)
+        else:
+            token_path_str = os.getenv(
+                "GMAIL_TOKEN_PATH",
+                "credentials/token.json"  # Relative to project root
+            )
+            token_path = Path(token_path_str)
+            if not token_path.is_absolute():
+                token_path = project_root / token_path
 
         oauth_scopes_str = os.getenv(
             "GMAIL_OAUTH_SCOPES",
