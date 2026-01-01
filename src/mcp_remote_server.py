@@ -2221,7 +2221,8 @@ async def admin_login_page(error: Optional[str] = Query(None)):
         <p class="subtitle">Gmail Reply Tracker MCP - Admin Dashboard</p>
         {'<div class="error-msg">❌ Invalid password. Please try again.</div>' if error else ''}
         <form method="post" action="/admin/login">
-            <input type="password" name="admin_password" placeholder="Enter admin password" required autofocus>
+            <input type="email" name="admin_email" placeholder="Enter your email" required autofocus style="margin-bottom: 15px;">
+            <input type="password" name="admin_password" placeholder="Enter admin password" required>
             <button type="submit">Login</button>
         </form>
     </div>
@@ -2231,7 +2232,7 @@ async def admin_login_page(error: Optional[str] = Query(None)):
 
 
 @app.post("/admin/login")
-async def admin_login(request: Request, admin_password: str = Form(...)):
+async def admin_login(request: Request, admin_email: str = Form(...), admin_password: str = Form(...)):
     """Handle admin login and set cookie."""
     from fastapi.responses import RedirectResponse
 
@@ -2243,7 +2244,7 @@ async def admin_login(request: Request, admin_password: str = Form(...)):
     # Create response with redirect to dashboard
     response = RedirectResponse(url="/admin", status_code=303)
 
-    # Set secure cookie with admin session (valid for 8 hours)
+    # Set secure cookies with admin session (valid for 8 hours)
     response.set_cookie(
         key="admin_session",
         value=admin_password,  # In production, use a hashed token
@@ -2252,18 +2253,27 @@ async def admin_login(request: Request, admin_password: str = Form(...)):
         samesite="lax"
     )
 
+    response.set_cookie(
+        key="admin_email",
+        value=admin_email,
+        max_age=28800,  # 8 hours
+        httponly=False,  # Allow JavaScript to read for display
+        samesite="lax"
+    )
+
     return response
 
 
 @app.get("/admin/logout")
 async def admin_logout():
-    """Logout admin and clear cookie."""
+    """Logout admin and clear cookies."""
     from fastapi.responses import RedirectResponse
 
     response = RedirectResponse(url="/admin/login", status_code=303)
 
-    # Clear the cookie
+    # Clear both cookies
     response.delete_cookie(key="admin_session")
+    response.delete_cookie(key="admin_email")
 
     return response
 
@@ -2320,6 +2330,9 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
         # Redirect to login page
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/admin/login", status_code=303)
+
+    # Get admin email from cookie (for display)
+    admin_email = request.cookies.get("admin_email", "Admin")
 
     # Admin authenticated - show dashboard
     try:
@@ -2680,6 +2693,7 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
             <div class="header-content">
                 <h1>🛠️ Admin Dashboard</h1>
                 <p>Gmail Reply Tracker MCP - System Overview</p>
+                <p style="opacity: 0.8; font-size: 14px; margin-top: 8px;">Logged in as: {admin_email}</p>
             </div>
             <a href="/admin/logout" class="logout-btn">Logout</a>
         </div>
