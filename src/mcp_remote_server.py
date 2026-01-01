@@ -272,8 +272,7 @@ async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str]
                 "result": {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {
-                        "tools": {},
-                        "logging": {}
+                        "tools": {}
                     },
                     "serverInfo": {
                         "name": server.config.server_name,
@@ -595,7 +594,7 @@ async def mcp_sse_stream(request: Request):
 @app.post("/messages")
 async def mcp_messages_legacy(
     request: Request,
-    sessionId: str = Query(..., alias="sessionId")  # Query parameter per legacy spec
+    sessionId: Optional[str] = Query(None, alias="sessionId")  # Query parameter per legacy spec
 ):
     """
     Legacy message endpoint (2024-11-05).
@@ -603,9 +602,17 @@ async def mcp_messages_legacy(
     Receives JSON-RPC requests and returns responses.
     Used in conjunction with GET /mcp SSE stream.
     """
-    # Check if session exists
-    if sessionId not in sessions:
-        logger.warning(f"Session not found: {sessionId}")
+    # Try to get session ID from multiple sources
+    session_id = sessionId or request.headers.get("mcp-session-id") or request.headers.get("Mcp-Session-Id")
+
+    # If still not found, try to get the most recent session (fallback for Inspector)
+    if not session_id and len(sessions) > 0:
+        # Use the most recently created session
+        session_id = max(sessions.keys(), key=lambda k: sessions[k].created_at)
+        logger.warning(f"No session ID provided, using most recent: {session_id}")
+
+    if not session_id or session_id not in sessions:
+        logger.warning(f"Session not found: {session_id}")
         return JSONResponse({
             "jsonrpc": "2.0",
             "error": {
@@ -627,13 +634,13 @@ async def mcp_messages_legacy(
         }, status_code=400)
 
     # Update session activity
-    sessions[sessionId].update_activity()
+    sessions[session_id].update_activity()
 
     # Handle the request
-    response = await handle_jsonrpc_request(body, sessionId)
+    response = await handle_jsonrpc_request(body, session_id)
 
     # Queue response for SSE stream
-    await sessions[sessionId].queue.put(response)
+    await sessions[session_id].queue.put(response)
 
     # Also return immediately for polling clients
     return JSONResponse(response)
