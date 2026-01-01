@@ -3129,7 +3129,7 @@ async def admin_user_detail(user_id: str, admin_password: Optional[str] = Query(
             </div>
             <div class="actions">
                 <a href="/dashboard?session_token={user_data['session_token']}" class="action-btn" target="_blank">
-                    View Dashboard
+                    View Client Dashboard
                 </a>
             </div>
         </div>
