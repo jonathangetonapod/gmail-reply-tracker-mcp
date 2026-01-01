@@ -588,13 +588,17 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info(f"Server name: {server.config.server_name}")
 
-    # Initialize clients on startup (for backwards compatibility)
-    try:
-        server.initialize_clients()
-        logger.info("✓ Clients initialized successfully")
-    except Exception as e:
-        logger.error(f"✗ Failed to initialize clients: {e}")
-        logger.warning("Server will start but tools may not work until auth is set up")
+    # Initialize clients on startup (for backwards compatibility with single-user mode)
+    # Skip if TOKEN_ENCRYPTION_KEY is set (multi-tenant mode)
+    if not os.getenv("TOKEN_ENCRYPTION_KEY"):
+        try:
+            server.initialize_clients()
+            logger.info("✓ Clients initialized successfully (single-user mode)")
+        except Exception as e:
+            logger.error(f"✗ Failed to initialize clients: {e}")
+            logger.warning("Server will start but tools may not work until auth is set up")
+    else:
+        logger.info("✓ Multi-tenant mode enabled - clients will be created per-request")
 
     # Initialize database for multi-tenant support
     try:
