@@ -1802,7 +1802,14 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                 <label for="instantly_key">Instantly API Key</label>
                 <input type="text" id="instantly_key" name="instantly_key"
                        value="{api_keys.get('instantly', '')}"
-                       placeholder="Your Instantly API key">
+                       placeholder="Your Instantly.ai API key">
+            </div>
+
+            <div class="form-group">
+                <label for="bison_key">Bison API Key</label>
+                <input type="text" id="bison_key" name="bison_key"
+                       value="{api_keys.get('bison', '')}"
+                       placeholder="Your EmailBison API key">
             </div>
 
             <button type="submit">💾 Save API Keys</button>
@@ -1912,13 +1919,15 @@ async def dashboard(session_token: Optional[str] = Query(None)):
 
             const fathomKey = document.getElementById('fathom_key').value;
             const instantlyKey = document.getElementById('instantly_key').value;
+            const bisonKey = document.getElementById('bison_key').value;
 
             const response = await fetch('/dashboard/update-api-keys?session_token={session_token}', {{
                 method: 'POST',
                 headers: {{'Content-Type': 'application/json'}},
                 body: JSON.stringify({{
                     fathom: fathomKey,
-                    instantly: instantlyKey
+                    instantly: instantlyKey,
+                    bison: bisonKey
                 }})
             }});
 
