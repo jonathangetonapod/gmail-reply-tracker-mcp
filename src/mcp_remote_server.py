@@ -279,6 +279,7 @@ async def execute_tool_with_context(
         original_docs = server_module.docs_client
         original_sheets = server_module.sheets_client
         original_fathom = server_module.fathom_client
+        original_instantly = server_module.instantly_api_key
 
         # Temporarily replace with user's clients
         server_module.gmail_client = ctx.gmail_client
@@ -286,6 +287,7 @@ async def execute_tool_with_context(
         server_module.docs_client = ctx.docs_client
         server_module.sheets_client = ctx.sheets_client
         server_module.fathom_client = ctx.fathom_client
+        server_module.instantly_api_key = ctx.api_keys.get('instantly')
 
         logger.info(f"Executing tool '{tool_name}' for user {ctx.email}")
 
@@ -298,6 +300,7 @@ async def execute_tool_with_context(
         server_module.docs_client = original_docs
         server_module.sheets_client = original_sheets
         server_module.fathom_client = original_fathom
+        server_module.instantly_api_key = original_instantly
 
         # Format result
         if isinstance(result, str):

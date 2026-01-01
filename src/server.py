@@ -63,11 +63,12 @@ calendar_client: Optional[CalendarClient] = None
 docs_client: Optional[DocsClient] = None
 sheets_client: Optional[SheetsClient] = None
 fathom_client: Optional[FathomClient] = None
+instantly_api_key: Optional[str] = None
 
 
 def initialize_clients():
     """Initialize Gmail, Calendar, Docs, Sheets, and Fathom clients."""
-    global auth_manager, gmail_client, email_analyzer, calendar_client, docs_client, sheets_client, fathom_client
+    global auth_manager, gmail_client, email_analyzer, calendar_client, docs_client, sheets_client, fathom_client, instantly_api_key
 
     if gmail_client is not None and calendar_client is not None and docs_client is not None and sheets_client is not None:
         return
@@ -7195,6 +7196,13 @@ async def list_instantly_campaigns(
         - "What campaigns does Michael Hernandez have?"
     """
     try:
+        # Check if user has Instantly API key configured
+        if not instantly_api_key:
+            return json.dumps({
+                "success": False,
+                "error": "Instantly API key not configured. Please add your Instantly API key in the dashboard at /dashboard"
+            }, indent=2)
+
         initialize_clients()
         config = Config.from_env()
         from leads import sheets_client, instantly_client
@@ -7238,10 +7246,10 @@ async def list_instantly_campaigns(
 
         status_number = status_map.get(status.lower(), 1)  # Default to active
 
-        # Get campaigns
+        # Get campaigns using user's API key
         campaigns = await asyncio.to_thread(
             instantly_client.list_instantly_campaigns,
-            workspace["api_key"],
+            instantly_api_key,
             status=status_number
         )
 
