@@ -523,13 +523,14 @@ from fastapi import Depends
 
 
 async def get_request_context(
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    session_token: Optional[str] = Query(None)
 ) -> RequestContext:
     """
     FastAPI dependency that extracts session token and creates per-user context.
 
     This middleware:
-    1. Extracts the Authorization header from the request
+    1. Extracts session token from Authorization header OR query parameter
     2. Validates the session token format
     3. Looks up the user in the database
     4. Creates user-specific API clients (Gmail, Calendar, Docs, Sheets, Fathom)
@@ -537,6 +538,7 @@ async def get_request_context(
 
     Args:
         authorization: Authorization header (format: "Bearer <session_token>")
+        session_token: Session token as query parameter (alternative to header)
 
     Returns:
         RequestContext with user-specific API clients
@@ -544,19 +546,18 @@ async def get_request_context(
     Raises:
         HTTPException(401): If authorization is missing, invalid, or expired
     """
-    if not authorization:
+    # Extract token from header or query parameter
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # Strip "Bearer "
+    elif session_token:
+        token = session_token
+
+    if not token:
         raise HTTPException(
             status_code=401,
-            detail="Missing Authorization header. Please add your session token."
+            detail="Missing session token. Provide via Authorization header or ?session_token= parameter."
         )
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid Authorization format. Expected: Bearer <session_token>"
-        )
-
-    session_token = authorization[7:]  # Strip "Bearer " prefix
 
     # Check if database is initialized
     if not hasattr(server, 'database') or server.database is None:
@@ -568,7 +569,7 @@ async def get_request_context(
     # Create user-specific clients from database
     ctx = await create_request_context(
         database=server.database,
-        session_token=session_token,
+        session_token=token,
         config=server.config
     )
 
