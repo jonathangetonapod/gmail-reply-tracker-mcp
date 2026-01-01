@@ -1182,7 +1182,7 @@ async def setup_callback(
         user_data = server.database.create_user(
             email=email,
             google_token=google_token,
-            fathom_key=None  # Will be set later if needed
+            api_keys={}  # Empty initially, user will add via dashboard
         )
 
         logger.info(f"User created/updated in database: {email} (ID: {user_data['user_id']})")
