@@ -1139,8 +1139,8 @@ async def setup_callback(
 
         logger.info(f"User created/updated in database: {email} (ID: {user_data['user_id']})")
 
-        # Get server URL for Claude config
-        server_url = str(request.base_url).rstrip('/')
+        # Get server URL for Claude config (force HTTPS for Railway)
+        server_url = f"https://{request.url.hostname}"
         session_token = user_data['session_token']
 
         # Show success page with session token
