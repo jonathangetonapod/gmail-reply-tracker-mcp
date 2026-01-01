@@ -70,6 +70,7 @@ class MCPSession:
     last_activity: datetime
     transport_type: str  # "sse" or "streamable_http"
     queue: asyncio.Queue = field(default_factory=asyncio.Queue)
+    user_context: Optional[RequestContext] = None  # User-specific API clients for multi-tenant
 
     def update_activity(self):
         """Update last activity timestamp."""
@@ -109,12 +110,13 @@ async def cleanup_stale_sessions():
             logger.error(f"Error in session cleanup task: {e}")
 
 
-def create_session(transport_type: str) -> str:
+def create_session(transport_type: str, user_context: Optional[RequestContext] = None) -> str:
     """
     Create a new MCP session.
 
     Args:
         transport_type: "sse" or "streamable_http"
+        user_context: Optional user-specific API clients for multi-tenant mode
 
     Returns:
         session_id: UUID string
@@ -124,7 +126,8 @@ def create_session(transport_type: str) -> str:
         session_id=session_id,
         created_at=datetime.now(),
         last_activity=datetime.now(),
-        transport_type=transport_type
+        transport_type=transport_type,
+        user_context=user_context
     )
     logger.info(f"Created {transport_type} session: {session_id}")
     return session_id
@@ -812,15 +815,34 @@ async def mcp_streamable_http(
 # ===========================================================================
 
 @app.get("/mcp")
-async def mcp_sse_stream(request: Request):
+async def mcp_sse_stream(
+    request: Request,
+    session_token: Optional[str] = Query(None)
+):
     """
-    Legacy SSE stream endpoint (2024-11-05).
+    Legacy SSE stream endpoint (2024-11-05) with multi-tenant support.
 
     Establishes a Server-Sent Events connection and sends the message endpoint URL.
     Clients then use POST /messages to send requests.
+
+    Multi-tenant mode:
+    - Include ?session_token= query parameter
+    - User context will be attached to the session
     """
-    # Generate new session ID
-    session_id = create_session("sse")
+    # Try to get user context if session_token provided
+    ctx = None
+    if session_token:
+        try:
+            ctx = await get_request_context(None, session_token)
+            logger.info(f"SSE session authenticated for user: {ctx.email}")
+        except HTTPException as e:
+            logger.warning(f"Failed to authenticate SSE session: {e.detail}")
+            # Continue without auth for backwards compatibility
+        except Exception as e:
+            logger.error(f"Unexpected auth error in SSE: {e}")
+
+    # Generate new session ID with user context
+    session_id = create_session("sse", user_context=ctx)
 
     async def event_generator():
         """Generate SSE events."""
@@ -921,8 +943,11 @@ async def mcp_messages_legacy(
     # Update session activity
     sessions[session_id].update_activity()
 
-    # Handle the request
-    response = await handle_jsonrpc_request(body, session_id)
+    # Get user context from session (if available)
+    ctx = sessions[session_id].user_context
+
+    # Handle the request with user context
+    response = await handle_jsonrpc_request(body, session_id, ctx)
 
     # Queue response for SSE stream
     await sessions[session_id].queue.put(response)
