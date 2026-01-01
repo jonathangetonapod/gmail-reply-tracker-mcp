@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Dict, Optional, Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Header, Query, HTTPException
+from fastapi import FastAPI, Request, Header, Query, HTTPException, Form
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette import EventSourceResponse
@@ -2086,10 +2086,9 @@ async def update_tool_categories_endpoint(
 # ADMIN DASHBOARD
 # ===========================================================================
 
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(admin_password: Optional[str] = Query(None)):
-    """Admin dashboard for managing users and viewing analytics."""
-    # Check admin password
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(error: Optional[str] = Query(None)):
+    """Admin login page."""
     correct_password = os.getenv("ADMIN_PASSWORD")
     if not correct_password:
         return HTMLResponse("""
@@ -2138,8 +2137,7 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
 </html>
         """, status_code=500)
 
-    if not admin_password or admin_password != correct_password:
-        return HTMLResponse("""
+    return HTMLResponse("""
 <!DOCTYPE html>
 <html>
 <head>
@@ -2206,20 +2204,122 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
         button:hover {
             opacity: 0.9;
         }
+        .error-msg {
+            background: hsl(0 84.2% 60.2% / 0.1);
+            color: hsl(0 84.2% 60.2%);
+            padding: 12px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="login-card">
         <h1>🔐 Admin Login</h1>
         <p class="subtitle">Gmail Reply Tracker MCP - Admin Dashboard</p>
-        <form method="get">
+        {'<div class="error-msg">❌ Invalid password. Please try again.</div>' if error else ''}
+        <form method="post" action="/admin/login">
             <input type="password" name="admin_password" placeholder="Enter admin password" required autofocus>
             <button type="submit">Login</button>
         </form>
     </div>
 </body>
 </html>
-        """, status_code=401)
+        """)
+
+
+@app.post("/admin/login")
+async def admin_login(request: Request, admin_password: str = Form(...)):
+    """Handle admin login and set cookie."""
+    from fastapi.responses import RedirectResponse
+
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    if not correct_password or admin_password != correct_password:
+        # Redirect back to login with error
+        return RedirectResponse(url="/admin/login?error=1", status_code=303)
+
+    # Create response with redirect to dashboard
+    response = RedirectResponse(url="/admin", status_code=303)
+
+    # Set secure cookie with admin session (valid for 8 hours)
+    response.set_cookie(
+        key="admin_session",
+        value=admin_password,  # In production, use a hashed token
+        max_age=28800,  # 8 hours
+        httponly=True,
+        samesite="lax"
+    )
+
+    return response
+
+
+@app.get("/admin/logout")
+async def admin_logout():
+    """Logout admin and clear cookie."""
+    from fastapi.responses import RedirectResponse
+
+    response = RedirectResponse(url="/admin/login", status_code=303)
+
+    # Clear the cookie
+    response.delete_cookie(key="admin_session")
+
+    return response
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request, admin_password: Optional[str] = Query(None)):
+    """Admin dashboard for managing users and viewing analytics."""
+    # Check admin password from cookie or query param (backward compatibility)
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    if not correct_password:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - Not Configured</title>
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --muted: 210 40% 96.1%;
+            --border: 214.3 31.8% 91.4%;
+            --radius: 0.5rem;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: hsl(var(--muted));
+        }
+        .card {
+            background: hsl(var(--card));
+            padding: 40px;
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚠️ Admin Dashboard Not Configured</h1>
+        <p>Please set <code>ADMIN_PASSWORD</code> environment variable in Railway.</p>
+    </div>
+</body>
+</html>
+        """, status_code=500)
+
+    # Check cookie first, then query param
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not authenticated:
+        # Redirect to login page
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/admin/login", status_code=303)
 
     # Admin authenticated - show dashboard
     try:
@@ -2249,7 +2349,7 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
             api_keys_badge = '<span class="badge badge-success">✓ API Keys</span>' if user.get('has_api_keys') else '<span class="badge badge-muted">No Keys</span>'
 
             users_html += f"""
-            <tr class="user-row" onclick="window.location.href='/admin/user/{user['user_id']}?admin_password={admin_password}'">
+            <tr class="user-row" onclick="window.location.href='/admin/user/{user['user_id']}'">
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-weight: 500;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div class="user-avatar">{user['email'][0].upper()}</div>
@@ -2259,7 +2359,7 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{api_keys_badge}</td>
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px; color: hsl(var(--muted-foreground));">{last_active}</td>
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: right;">
-                    <button class="action-btn" onclick="event.stopPropagation(); window.location.href='/admin/user/{user['user_id']}?admin_password={admin_password}'">View</button>
+                    <button class="action-btn" onclick="event.stopPropagation(); window.location.href='/admin/user/{user['user_id']}'">View</button>
                 </td>
             </tr>
             """
@@ -2353,17 +2453,38 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
             border-radius: calc(var(--radius) * 2);
             margin-bottom: 32px;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }}
 
-        .header h1 {{
+        .header-content h1 {{
             font-size: 32px;
             font-weight: 700;
             margin-bottom: 8px;
         }}
 
-        .header p {{
+        .header-content p {{
             opacity: 0.9;
             font-size: 16px;
+        }}
+
+        .logout-btn {{
+            background: hsl(var(--primary-foreground) / 0.2);
+            color: hsl(var(--primary-foreground));
+            padding: 10px 20px;
+            border: 2px solid hsl(var(--primary-foreground) / 0.3);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }}
+
+        .logout-btn:hover {{
+            background: hsl(var(--primary-foreground) / 0.3);
+            border-color: hsl(var(--primary-foreground) / 0.5);
         }}
 
         .stats-grid {{
@@ -2556,8 +2677,11 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛠️ Admin Dashboard</h1>
-            <p>Gmail Reply Tracker MCP - System Overview</p>
+            <div class="header-content">
+                <h1>🛠️ Admin Dashboard</h1>
+                <p>Gmail Reply Tracker MCP - System Overview</p>
+            </div>
+            <a href="/admin/logout" class="logout-btn">Logout</a>
         </div>
 
         <div class="stats-grid">
@@ -2657,12 +2781,16 @@ async def admin_dashboard(admin_password: Optional[str] = Query(None)):
 
 
 @app.get("/admin/user/{user_id}", response_class=HTMLResponse)
-async def admin_user_detail(user_id: str, admin_password: Optional[str] = Query(None)):
+async def admin_user_detail(request: Request, user_id: str, admin_password: Optional[str] = Query(None)):
     """User detail page for admin dashboard."""
-    # Check admin password
+    # Check admin password from cookie or query param
     correct_password = os.getenv("ADMIN_PASSWORD")
-    if not correct_password or not admin_password or admin_password != correct_password:
-        return HTMLResponse("Unauthorized", status_code=401)
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/admin/login", status_code=303)
 
     try:
         # Get user data
@@ -3118,7 +3246,7 @@ async def admin_user_detail(user_id: str, admin_password: Optional[str] = Query(
 </head>
 <body>
     <div class="container">
-        <a href="/admin?admin_password={admin_password}" class="back-link">
+        <a href="/admin" class="back-link">
             ← Back to Dashboard
         </a>
 
