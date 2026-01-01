@@ -33,6 +33,9 @@ from sse_starlette import EventSourceResponse
 # This gives us access to all 82 tools already registered
 import server
 
+# Import Database for multi-tenant support
+from database import Database
+
 # Load environment variables
 try:
     from dotenv import load_dotenv
@@ -228,11 +231,113 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> str:
         raise RuntimeError(f"Tool execution failed: {e}")
 
 
+async def execute_tool_with_context(
+    tool_name: str,
+    arguments: Dict[str, Any],
+    ctx: RequestContext,
+    request_id: int
+) -> dict:
+    """
+    Execute a tool with user-specific API clients.
+
+    This function temporarily replaces the global clients with user-specific
+    clients before executing the tool, then restores the original clients.
+
+    This is a quick MVP approach. For production, tools should be refactored
+    to accept RequestContext as a parameter.
+
+    Args:
+        tool_name: Name of the tool to execute
+        arguments: Dict of arguments to pass to the tool
+        ctx: RequestContext with user-specific API clients
+        request_id: JSON-RPC request ID
+
+    Returns:
+        JSON-RPC response dict with tool result or error
+
+    Note:
+        Uses global variable replacement as a temporary solution for MVP.
+        Tools will use ctx.gmail_client, ctx.calendar_client, etc.
+    """
+    import server as server_module  # Import to access global clients
+
+    try:
+        # Store original global clients
+        original_gmail = server_module.gmail_client
+        original_calendar = server_module.calendar_client
+        original_docs = server_module.docs_client
+        original_sheets = server_module.sheets_client
+        original_fathom = server_module.fathom_client
+
+        # Temporarily replace with user's clients
+        server_module.gmail_client = ctx.gmail_client
+        server_module.calendar_client = ctx.calendar_client
+        server_module.docs_client = ctx.docs_client
+        server_module.sheets_client = ctx.sheets_client
+        server_module.fathom_client = ctx.fathom_client
+
+        logger.info(f"Executing tool '{tool_name}' for user {ctx.email}")
+
+        # Execute tool (will use injected user-specific clients)
+        result = await server.mcp.call_tool(tool_name, arguments)
+
+        # Restore original global clients
+        server_module.gmail_client = original_gmail
+        server_module.calendar_client = original_calendar
+        server_module.docs_client = original_docs
+        server_module.sheets_client = original_sheets
+        server_module.fathom_client = original_fathom
+
+        # Format result
+        if isinstance(result, str):
+            content = result
+        elif isinstance(result, (dict, list)):
+            content = json.dumps(result, indent=2)
+        else:
+            content = str(result)
+
+        logger.info(f"Tool '{tool_name}' executed successfully for user {ctx.email}")
+
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "content": [{"type": "text", "text": content}]
+            }
+        }
+
+    except Exception as e:
+        # Restore original clients even on error
+        try:
+            server_module.gmail_client = original_gmail
+            server_module.calendar_client = original_calendar
+            server_module.docs_client = original_docs
+            server_module.sheets_client = original_sheets
+            server_module.fathom_client = original_fathom
+        except:
+            pass
+
+        logger.error(f"Tool execution error for '{tool_name}' (user: {ctx.email}): {e}", exc_info=True)
+
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {
+                "code": -32603,
+                "message": f"Tool execution failed: {str(e)}"
+            }
+        }
+
+
 # ===========================================================================
 # JSON-RPC REQUEST HANDLER
 # ===========================================================================
 
-async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str] = None) -> Dict[str, Any]:
+async def handle_jsonrpc_request(
+    body: Dict[str, Any],
+    session_id: Optional[str] = None,
+    ctx: Optional[RequestContext] = None
+) -> Dict[str, Any]:
     """
     Handle JSON-RPC request per MCP protocol.
 
@@ -244,6 +349,7 @@ async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str]
     Args:
         body: JSON-RPC request dict
         session_id: Optional session ID for tracking
+        ctx: Optional RequestContext for multi-tenant user isolation
 
     Returns:
         JSON-RPC response dict
@@ -252,7 +358,10 @@ async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str]
     params = body.get("params", {})
     request_id = body.get("id")
 
-    logger.info(f"Handling {method} (session: {session_id})")
+    if ctx:
+        logger.info(f"Handling {method} for user {ctx.email} (session: {session_id})")
+    else:
+        logger.info(f"Handling {method} (session: {session_id})")
 
     try:
         if method == "initialize":
@@ -301,21 +410,71 @@ async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str]
             if not tool_name:
                 raise ValueError("Missing tool name")
 
-            # Execute tool
-            result = await execute_tool(tool_name, arguments)
+            # Track execution time for analytics
+            import time
+            start_time = time.time()
 
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": result
+            try:
+                # If multi-tenant context provided, use per-user clients
+                if ctx:
+                    # Execute with user-specific clients
+                    response = await execute_tool_with_context(
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        ctx=ctx,
+                        request_id=request_id
+                    )
+
+                    # Log usage to database
+                    if hasattr(server, 'database') and server.database:
+                        elapsed_ms = int((time.time() - start_time) * 1000)
+                        try:
+                            server.database.log_usage(
+                                user_id=ctx.user_id,
+                                tool_name=tool_name,
+                                method="tools/call",
+                                success=True,
+                                response_time_ms=elapsed_ms
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to log usage: {e}")
+
+                    return response
+
+                else:
+                    # Legacy single-user mode
+                    result = await execute_tool(tool_name, arguments)
+
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "result": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": result
+                                }
+                            ]
                         }
-                    ]
-                }
-            }
+                    }
+
+            except Exception as e:
+                # Log failed execution
+                if ctx and hasattr(server, 'database') and server.database:
+                    elapsed_ms = int((time.time() - start_time) * 1000)
+                    try:
+                        server.database.log_usage(
+                            user_id=ctx.user_id,
+                            tool_name=tool_name,
+                            method="tools/call",
+                            success=False,
+                            error_message=str(e),
+                            response_time_ms=elapsed_ms
+                        )
+                    except Exception as log_err:
+                        logger.warning(f"Failed to log error usage: {log_err}")
+
+                raise  # Re-raise to be handled by outer try/except
 
         else:
             return {
@@ -349,6 +508,67 @@ async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str]
 
 
 # ===========================================================================
+# AUTHENTICATION MIDDLEWARE
+# ===========================================================================
+
+from fastapi import Depends
+from request_context import RequestContext, create_request_context
+
+
+async def get_request_context(
+    authorization: Optional[str] = Header(None)
+) -> RequestContext:
+    """
+    FastAPI dependency that extracts session token and creates per-user context.
+
+    This middleware:
+    1. Extracts the Authorization header from the request
+    2. Validates the session token format
+    3. Looks up the user in the database
+    4. Creates user-specific API clients (Gmail, Calendar, Docs, Sheets, Fathom)
+    5. Returns a RequestContext with all user data and clients
+
+    Args:
+        authorization: Authorization header (format: "Bearer <session_token>")
+
+    Returns:
+        RequestContext with user-specific API clients
+
+    Raises:
+        HTTPException(401): If authorization is missing, invalid, or expired
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing Authorization header. Please add your session token."
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Authorization format. Expected: Bearer <session_token>"
+        )
+
+    session_token = authorization[7:]  # Strip "Bearer " prefix
+
+    # Check if database is initialized
+    if not hasattr(server, 'database') or server.database is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Multi-tenant mode not available. Database not initialized."
+        )
+
+    # Create user-specific clients from database
+    ctx = await create_request_context(
+        database=server.database,
+        session_token=session_token,
+        config=server.config
+    )
+
+    return ctx
+
+
+# ===========================================================================
 # FASTAPI APPLICATION
 # ===========================================================================
 
@@ -360,13 +580,29 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info(f"Server name: {server.config.server_name}")
 
-    # Initialize clients on startup
+    # Initialize clients on startup (for backwards compatibility)
     try:
         server.initialize_clients()
         logger.info("✓ Clients initialized successfully")
     except Exception as e:
         logger.error(f"✗ Failed to initialize clients: {e}")
         logger.warning("Server will start but tools may not work until auth is set up")
+
+    # Initialize database for multi-tenant support
+    try:
+        encryption_key = os.getenv("TOKEN_ENCRYPTION_KEY")
+        if encryption_key:
+            database_path = os.getenv("DATABASE_PATH", "./mcp_users.db")
+            server.database = Database(database_path, encryption_key)
+            logger.info(f"✓ Database initialized at {database_path}")
+        else:
+            logger.warning("⚠ TOKEN_ENCRYPTION_KEY not set - multi-tenant features disabled")
+            logger.warning("⚠ Server will only work with legacy single-user mode")
+            server.database = None
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize database: {e}")
+        logger.warning("Server will start in single-user mode only")
+        server.database = None
 
     # Count registered tools
     tools = await server.mcp.list_tools()
@@ -469,13 +705,22 @@ async def root():
 @app.post("/mcp")
 async def mcp_streamable_http(
     request: Request,
-    mcp_session_id: Optional[str] = Header(None, alias="Mcp-Session-Id")
+    mcp_session_id: Optional[str] = Header(None, alias="Mcp-Session-Id"),
+    authorization: Optional[str] = Header(None)
 ):
     """
-    Modern Streamable HTTP transport (2025-03-26).
+    Modern Streamable HTTP transport (2025-03-26) with multi-tenant support.
 
     Single endpoint for all MCP operations. Session ID in header.
     Simpler than HTTP+SSE but same functionality.
+
+    Multi-tenant mode:
+    - Include Authorization: Bearer <session_token> header
+    - Each user gets isolated API clients with their own credentials
+
+    Legacy single-user mode:
+    - No Authorization header required
+    - Uses global clients (backwards compatible)
     """
     # Parse request body
     try:
@@ -491,13 +736,37 @@ async def mcp_streamable_http(
 
     method = body.get("method", "")
 
+    # Try to get user context if Authorization header present
+    ctx = None
+    if authorization:
+        try:
+            ctx = await get_request_context(authorization)
+        except HTTPException as e:
+            # Auth failed - return error
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32000,
+                    "message": e.detail
+                }
+            }, status_code=e.status_code)
+        except Exception as e:
+            logger.error(f"Unexpected auth error: {e}")
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32000,
+                    "message": f"Authentication error: {str(e)}"
+                }
+            }, status_code=500)
+
     # Check if this is an initialize request (new session)
     if method == "initialize":
         # Generate new session ID
         session_id = create_session("streamable_http")
 
-        # Handle the request
-        response_data = await handle_jsonrpc_request(body, session_id)
+        # Handle the request (with optional user context)
+        response_data = await handle_jsonrpc_request(body, session_id, ctx)
 
         # Return with session ID in header (proper casing!)
         return JSONResponse(
@@ -520,8 +789,8 @@ async def mcp_streamable_http(
         # Update session activity
         sessions[mcp_session_id].update_activity()
 
-        # Handle the request
-        response_data = await handle_jsonrpc_request(body, mcp_session_id)
+        # Handle the request (with optional user context)
+        response_data = await handle_jsonrpc_request(body, mcp_session_id, ctx)
         return JSONResponse(response_data)
 
 

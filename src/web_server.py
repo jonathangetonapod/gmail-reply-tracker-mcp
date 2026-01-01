@@ -2482,122 +2482,436 @@ class WebServer:
 
         @self.app.route('/setup/start')
         def setup_start():
-            """Show simple form to collect email and Fathom key."""
-            form_html = """
+            """Initiate Google OAuth flow for multi-tenant setup."""
+            try:
+                # Create OAuth flow
+                flow = Flow.from_client_config(
+                    {
+                        "web": {
+                            "client_id": self.client_id,
+                            "client_secret": self.client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "redirect_uris": [self.redirect_uri]
+                        }
+                    },
+                    scopes=self.scopes
+                )
+                flow.redirect_uri = self.redirect_uri
+
+                # Generate authorization URL
+                auth_url, state = flow.authorization_url(
+                    access_type='offline',
+                    include_granted_scopes='true',
+                    prompt='consent'  # Force consent to get refresh token
+                )
+
+                # Store state for verification (with timestamp for cleanup)
+                self.oauth_states[state] = {
+                    'timestamp': datetime.now(),
+                    'flow': flow
+                }
+
+                logger.info(f"Initiating OAuth flow with state: {state}")
+
+                # Redirect to Google authorization
+                return redirect(auth_url)
+
+            except Exception as e:
+                logger.error(f"OAuth initiation error: {e}")
+                return f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Setup - Gmail Calendar MCP</title>
+    <title>Setup Error</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }}
+        .card {{
+            max-width: 500px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+        }}
+        h1 {{ color: #e53935; margin-bottom: 20px; }}
+        p {{ color: #666; margin-bottom: 30px; }}
+        .button {{
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚠️ Setup Error</h1>
+        <p>OAuth configuration error. Please contact support.</p>
+        <p style="font-size: 12px; color: #999;">Error: {str(e)}</p>
+        <a href="/" class="button">← Back to Home</a>
+    </div>
+</body>
+</html>
+                """, 500
+
+        @self.app.route('/setup/callback')
+        def setup_callback():
+            """Handle OAuth callback from Google."""
+            try:
+                # Get authorization code and state from callback
+                code = request.args.get('code')
+                state = request.args.get('state')
+                error = request.args.get('error')
+
+                # Check for OAuth errors
+                if error:
+                    logger.error(f"OAuth error: {error}")
+                    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authorization Failed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }}
+        .card {{
+            max-width: 500px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+        }}
+        h1 {{ color: #e53935; margin-bottom: 20px; }}
+        p {{ color: #666; margin-bottom: 30px; }}
+        .button {{
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>❌ Authorization Failed</h1>
+        <p>You declined the authorization request. Please try again and grant the required permissions.</p>
+        <a href="/setup/start" class="button">Try Again</a>
+    </div>
+</body>
+</html>
+                    """, 403
+
+                if not code or not state:
+                    return "Missing code or state parameter", 400
+
+                # Verify state matches stored value
+                if state not in self.oauth_states:
+                    logger.error(f"Invalid state parameter: {state}")
+                    return "Invalid state parameter", 400
+
+                # Retrieve flow from stored state
+                oauth_data = self.oauth_states[state]
+                flow = oauth_data['flow']
+
+                # Clean up used state
+                del self.oauth_states[state]
+
+                # Exchange authorization code for tokens
+                logger.info(f"Exchanging auth code for tokens (state: {state})")
+                flow.fetch_token(code=code)
+                credentials = flow.credentials
+
+                # Get user's email from Gmail API
+                from googleapiclient.discovery import build
+                gmail_service = build('gmail', 'v1', credentials=credentials)
+                profile = gmail_service.users().getProfile(userId='me').execute()
+                email = profile['emailAddress']
+
+                logger.info(f"OAuth successful for user: {email}")
+
+                # Prepare token data for database storage
+                google_token = {
+                    'token': credentials.token,
+                    'refresh_token': credentials.refresh_token,
+                    'token_uri': credentials.token_uri,
+                    'client_id': credentials.client_id,
+                    'client_secret': credentials.client_secret,
+                    'scopes': credentials.scopes,
+                    'expiry': credentials.expiry.isoformat() if credentials.expiry else None
+                }
+
+                # Store user in database (creates or updates)
+                user_data = self.database.create_user(
+                    email=email,
+                    google_token=google_token,
+                    fathom_key=None  # Will be set later if needed
+                )
+
+                logger.info(f"User created/updated in database: {email} (ID: {user_data['user_id']})")
+
+                # Get server URL for Claude config
+                server_url = request.host_url.rstrip('/')
+
+                # Show success page with session token
+                return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup Complete</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f5;
             min-height: 100vh;
             padding: 40px 20px;
-        }
-        .card {
-            max-width: 600px;
+        }}
+        .card {{
+            max-width: 700px;
             margin: 0 auto;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             padding: 40px;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 24px;
-        }
-        .subtitle {
+        }}
+        h1 {{
+            color: #4caf50;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }}
+        .success-icon {{
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-align: center;
+        }}
+        p {{
             color: #666;
-            font-size: 16px;
-            margin-bottom: 30px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }}
+        .token-box {{
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 30px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            word-break: break-all;
+            position: relative;
+        }}
+        .token-label {{
+            font-weight: bold;
+            margin-bottom: 10px;
             color: #333;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        input[type="email"],
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-        input:focus {
-            outline: none;
-            border-color: #2196f3;
-        }
-        .help-text {
             font-size: 12px;
-            color: #999;
-            margin-top: -15px;
-            margin-bottom: 20px;
-        }
-        .button {
+            text-transform: uppercase;
+        }}
+        .token-value {{
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-top: 8px;
+        }}
+        .copy-button {{
             background: #2196f3;
             color: white;
             border: none;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: 500;
+            padding: 8px 16px;
+            font-size: 14px;
             border-radius: 4px;
             cursor: pointer;
-            width: 100%;
-        }
-        .button:hover {
+            margin-top: 10px;
+        }}
+        .copy-button:hover {{
             background: #1976d2;
-        }
-        .note {
+        }}
+        .instructions {{
             background: #e3f2fd;
-            padding: 15px;
+            padding: 20px;
             border-radius: 6px;
-            margin: 20px 0;
             border-left: 4px solid #2196f3;
+            margin: 20px 0;
+        }}
+        .instructions h2 {{
+            color: #1976d2;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }}
+        .instructions ol {{
+            margin-left: 20px;
+            color: #555;
+        }}
+        .instructions li {{
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }}
+        .code-block {{
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }}
+        .note {{
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #856404;
             font-size: 14px;
-            color: #666;
-        }
+        }}
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>Gmail + Calendar + Fathom MCP</h1>
-        <p class="subtitle">Set up Gmail and Calendar tools for Claude Desktop</p>
+        <div class="success-icon">✅</div>
+        <h1>Setup Complete!</h1>
+        <p>Your Gmail and Calendar are now connected. You're one step away from using all {82} tools in Claude Desktop.</p>
 
-        <div class="note">
-            <strong>How it works:</strong><br>
-            1. Enter your email and optional Fathom key<br>
-            2. Get a custom install command<br>
-            3. Run it in your terminal<br>
-            4. Authorize Google (one time)<br>
-            5. Done!
+        <div class="token-box">
+            <div class="token-label">Your Session Token</div>
+            <div class="token-value" id="sessionToken">{user_data['session_token']}</div>
+            <button class="copy-button" onclick="copyToken()">📋 Copy Token</button>
         </div>
 
-        <form method="POST" action="/setup/generate">
-            <label for="email">Your Email:</label>
-            <input type="email" id="email" name="email" placeholder="you@example.com" required>
-            <div class="help-text">Used to identify your setup</div>
+        <div class="instructions">
+            <h2>📝 Next Steps:</h2>
+            <ol>
+                <li>Open Claude Desktop</li>
+                <li>Go to <strong>Settings → Developer → Edit Config</strong></li>
+                <li>Add this configuration to your <code>claude_desktop_config.json</code>:</li>
+            </ol>
 
-            <label for="fathom_key">Fathom API Key (Optional):</label>
-            <input type="text" id="fathom_key" name="fathom_key" placeholder="Leave blank to skip">
-            <div class="help-text">
-                Get your key at <a href="https://fathom.video/settings/integrations" target="_blank">fathom.video/settings/integrations</a>
-            </div>
+            <div class="code-block">{{
+  "mcpServers": {{
+    "gmail-mcp": {{
+      "url": "{server_url}/mcp",
+      "headers": {{
+        "Authorization": "Bearer {user_data['session_token']}"
+      }}
+    }}
+  }}
+}}</div>
 
-            <button type="submit" class="button">Generate Install Command</button>
-        </form>
+            <ol start="4">
+                <li>Restart Claude Desktop</li>
+                <li>Done! You can now use all 84 tools in Claude</li>
+            </ol>
+        </div>
+
+        <div class="note">
+            <strong>⚠️ Keep your session token private!</strong> It gives access to your Gmail and Calendar. Don't share it or commit it to version control.
+        </div>
+
+        <p style="text-align: center; margin-top: 30px; color: #999; font-size: 14px;">
+            Email: <strong>{email}</strong><br>
+            Session valid for: 90 days
+        </p>
+    </div>
+
+    <script>
+        function copyToken() {{
+            const token = document.getElementById('sessionToken').textContent;
+            navigator.clipboard.writeText(token).then(() => {{
+                const button = event.target;
+                button.textContent = '✓ Copied!';
+                setTimeout(() => {{
+                    button.textContent = '📋 Copy Token';
+                }}, 2000);
+            }});
+        }}
+    </script>
+</body>
+</html>
+                """
+
+            except Exception as e:
+                logger.error(f"OAuth callback error: {e}", exc_info=True)
+                return f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup Error</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }}
+        .card {{
+            max-width: 500px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+        }}
+        h1 {{ color: #e53935; margin-bottom: 20px; }}
+        p {{ color: #666; margin-bottom: 30px; }}
+        .button {{
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚠️ Setup Error</h1>
+        <p>An error occurred during setup. Please try again.</p>
+        <p style="font-size: 12px; color: #999;">Error: {str(e)}</p>
+        <a href="/setup/start" class="button">Try Again</a>
     </div>
 </body>
 </html>
-            """
-            return form_html
+                """, 500
 
         @self.app.route('/setup/generate', methods=['POST'])
         def setup_generate():
