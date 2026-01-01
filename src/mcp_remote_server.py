@@ -1,0 +1,679 @@
+#!/usr/bin/env python3
+"""
+Remote MCP Server - Exposes all tools via FastAPI with dual transport support.
+
+Supports both:
+- Modern Transport (2025-03-26): Single POST /mcp endpoint with Mcp-Session-Id header
+- Legacy Transport (2024-11-05): GET /mcp (SSE stream) + POST /messages (requests)
+"""
+
+import sys
+from pathlib import Path
+
+# Add the src directory to Python path
+sys.path.insert(0, str(Path(__file__).parent))
+
+import os
+import asyncio
+import logging
+import inspect
+import json
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, Optional, Any
+from uuid import uuid4
+
+from fastapi import FastAPI, Request, Header, Query, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from sse_starlette import EventSourceResponse
+
+# Import the existing MCP server instance from server.py
+# This gives us access to all 82 tools already registered
+import server
+
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass
+
+# Initialize logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+# ===========================================================================
+# SESSION MANAGEMENT
+# ===========================================================================
+
+@dataclass
+class MCPSession:
+    """Session data for MCP connections."""
+    session_id: str
+    created_at: datetime
+    last_activity: datetime
+    transport_type: str  # "sse" or "streamable_http"
+    queue: asyncio.Queue = field(default_factory=asyncio.Queue)
+
+    def update_activity(self):
+        """Update last activity timestamp."""
+        self.last_activity = datetime.now()
+
+
+# Session storage
+sessions: Dict[str, MCPSession] = {}
+
+
+async def cleanup_stale_sessions():
+    """
+    Background task to cleanup inactive sessions.
+
+    Removes sessions inactive for more than 5 minutes to prevent memory leaks.
+    """
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every minute
+            now = datetime.now()
+
+            # Find stale sessions (inactive for 5+ minutes)
+            stale_session_ids = [
+                sid for sid, session in sessions.items()
+                if (now - session.last_activity).total_seconds() > 300
+            ]
+
+            # Remove stale sessions
+            for sid in stale_session_ids:
+                del sessions[sid]
+                logger.info(f"Cleaned up stale session: {sid}")
+
+        except Exception as e:
+            logger.error(f"Error in session cleanup task: {e}")
+
+
+def create_session(transport_type: str) -> str:
+    """
+    Create a new MCP session.
+
+    Args:
+        transport_type: "sse" or "streamable_http"
+
+    Returns:
+        session_id: UUID string
+    """
+    session_id = str(uuid4())
+    sessions[session_id] = MCPSession(
+        session_id=session_id,
+        created_at=datetime.now(),
+        last_activity=datetime.now(),
+        transport_type=transport_type
+    )
+    logger.info(f"Created {transport_type} session: {session_id}")
+    return session_id
+
+
+# ===========================================================================
+# TOOL EXECUTION
+# ===========================================================================
+
+def get_tool_schema(tool_name: str, tool_func) -> Dict[str, Any]:
+    """
+    Generate MCP tool schema from function signature.
+
+    Args:
+        tool_name: Name of the tool
+        tool_func: Tool function object
+
+    Returns:
+        Tool schema dict compatible with MCP protocol
+    """
+    # Extract description from docstring
+    description = "No description available"
+    if tool_func.__doc__:
+        doc_lines = tool_func.__doc__.strip().split('\n')
+        for line in doc_lines:
+            line = line.strip()
+            if line:
+                description = line
+                break
+
+    # Build input schema from function signature
+    input_schema = {
+        "type": "object",
+        "properties": {},
+        "required": []
+    }
+
+    sig = inspect.signature(tool_func)
+    for param_name, param in sig.parameters.items():
+        # Skip self/cls
+        if param_name in ('self', 'cls'):
+            continue
+
+        # Determine JSON schema type from Python type annotation
+        param_type = "string"  # default
+        if param.annotation != inspect.Parameter.empty:
+            annotation = param.annotation
+            if annotation == int:
+                param_type = "integer"
+            elif annotation == float:
+                param_type = "number"
+            elif annotation == bool:
+                param_type = "boolean"
+            elif annotation == list:
+                param_type = "array"
+            elif annotation == dict:
+                param_type = "object"
+
+        param_schema = {"type": param_type}
+
+        # Add default value if present
+        if param.default != inspect.Parameter.empty:
+            param_schema["default"] = param.default
+        else:
+            # No default = required parameter
+            input_schema["required"].append(param_name)
+
+        input_schema["properties"][param_name] = param_schema
+
+    return {
+        "name": tool_name,
+        "description": description,
+        "inputSchema": input_schema
+    }
+
+
+async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> str:
+    """
+    Execute a tool through FastMCP instance.
+
+    Args:
+        tool_name: Name of the tool to execute
+        arguments: Dict of arguments to pass to the tool
+
+    Returns:
+        Tool result as string
+
+    Raises:
+        ValueError: If tool not found or invalid arguments
+        RuntimeError: If tool execution fails
+    """
+    if not hasattr(server.mcp, '_tools'):
+        raise RuntimeError("No tools registered")
+
+    if tool_name not in server.mcp._tools:
+        raise ValueError(f"Tool not found: {tool_name}")
+
+    tool_func = server.mcp._tools[tool_name]
+
+    try:
+        # Execute with proper async/sync handling
+        if asyncio.iscoroutinefunction(tool_func):
+            result = await tool_func(**arguments)
+        else:
+            # Run sync functions in thread pool to avoid blocking
+            result = await asyncio.to_thread(tool_func, **arguments)
+
+        # Format result as string
+        if isinstance(result, str):
+            return result
+        elif isinstance(result, dict):
+            return json.dumps(result, indent=2)
+        else:
+            return str(result)
+
+    except TypeError as e:
+        # Parameter mismatch error
+        raise ValueError(f"Invalid arguments for {tool_name}: {e}")
+    except Exception as e:
+        # Tool execution error
+        logger.error(f"Tool {tool_name} execution failed: {e}", exc_info=True)
+        raise RuntimeError(f"Tool execution failed: {e}")
+
+
+# ===========================================================================
+# JSON-RPC REQUEST HANDLER
+# ===========================================================================
+
+async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Handle JSON-RPC request per MCP protocol.
+
+    Supports methods:
+    - initialize: Server capabilities
+    - tools/list: List available tools
+    - tools/call: Execute a tool
+
+    Args:
+        body: JSON-RPC request dict
+        session_id: Optional session ID for tracking
+
+    Returns:
+        JSON-RPC response dict
+    """
+    method = body.get("method")
+    params = body.get("params", {})
+    request_id = body.get("id")
+
+    logger.info(f"Handling {method} (session: {session_id})")
+
+    try:
+        if method == "initialize":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {},
+                        "logging": {}
+                    },
+                    "serverInfo": {
+                        "name": server.config.server_name,
+                        "version": "1.0.0"
+                    }
+                }
+            }
+
+        elif method == "tools/list":
+            tools = []
+            if hasattr(server.mcp, '_tools'):
+                for tool_name, tool_func in server.mcp._tools.items():
+                    tool_schema = get_tool_schema(tool_name, tool_func)
+                    tools.append(tool_schema)
+
+            logger.info(f"Listed {len(tools)} tools")
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "tools": tools
+                }
+            }
+
+        elif method == "tools/call":
+            tool_name = params.get("name")
+            arguments = params.get("arguments", {})
+
+            if not tool_name:
+                raise ValueError("Missing tool name")
+
+            # Execute tool
+            result = await execute_tool(tool_name, arguments)
+
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": result
+                        }
+                    ]
+                }
+            }
+
+        else:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}"
+                }
+            }
+
+    except ValueError as e:
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {
+                "code": -32602,
+                "message": f"Invalid params: {str(e)}"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Request handling error: {e}", exc_info=True)
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {
+                "code": -32603,
+                "message": f"Internal error: {str(e)}"
+            }
+        }
+
+
+# ===========================================================================
+# FASTAPI APPLICATION
+# ===========================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown events."""
+    logger.info("=" * 60)
+    logger.info("Starting Remote MCP Server")
+    logger.info("=" * 60)
+    logger.info(f"Server name: {server.config.server_name}")
+
+    # Initialize clients on startup
+    try:
+        server.initialize_clients()
+        logger.info("✓ Clients initialized successfully")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize clients: {e}")
+        logger.warning("Server will start but tools may not work until auth is set up")
+
+    # Count registered tools
+    tool_count = len(server.mcp._tools) if hasattr(server.mcp, '_tools') else 0
+    logger.info(f"✓ {tool_count} tools registered and ready")
+
+    # Start session cleanup task
+    cleanup_task = asyncio.create_task(cleanup_stale_sessions())
+    logger.info("✓ Session cleanup task started")
+    logger.info("=" * 60)
+
+    yield
+
+    # Cleanup on shutdown
+    logger.info("Shutting down Remote MCP Server...")
+    cleanup_task.cancel()
+    sessions.clear()
+    logger.info("✓ Cleanup complete")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="LeadGenJay MCP Remote Server",
+    description="Remote MCP server exposing 82+ tools for Gmail, Calendar, Docs, Sheets, and more",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+
+# Add CORS middleware (CRITICAL for web-based MCP clients)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
+    allow_headers=["*"],
+    expose_headers=["Mcp-Session-Id", "Content-Type"]  # Proper casing per MCP spec
+)
+
+
+# ===========================================================================
+# HEALTH & INFO ENDPOINTS
+# ===========================================================================
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Railway and monitoring."""
+    tool_count = len(server.mcp._tools) if hasattr(server.mcp, '_tools') else 0
+
+    return JSONResponse({
+        "status": "healthy",
+        "server_name": server.config.server_name,
+        "tools_count": tool_count,
+        "sessions_active": len(sessions),
+        "version": "1.0.0"
+    })
+
+
+@app.get("/")
+async def root():
+    """Root endpoint with server information."""
+    tool_count = len(server.mcp._tools) if hasattr(server.mcp, '_tools') else 0
+
+    # Get list of tool names
+    tool_names = []
+    if hasattr(server.mcp, '_tools'):
+        tool_names = sorted(list(server.mcp._tools.keys()))
+
+    return JSONResponse({
+        "server": "LeadGenJay MCP Remote Server",
+        "status": "online",
+        "version": "1.0.0",
+        "protocol_version": "2024-11-05",
+        "tools_count": tool_count,
+        "tools_preview": tool_names[:20],  # First 20 tools
+        "sessions_active": len(sessions),
+        "transports": [
+            "Modern: POST /mcp (Streamable HTTP)",
+            "Legacy: GET /mcp (SSE) + POST /messages"
+        ],
+        "endpoints": {
+            "health": "GET /health",
+            "modern_transport": "POST /mcp",
+            "legacy_sse_stream": "GET /mcp",
+            "legacy_messages": "POST /messages"
+        },
+        "documentation": "https://github.com/jonathangetonapod/gmail-reply-tracker-mcp"
+    })
+
+
+# ===========================================================================
+# MODERN TRANSPORT: Streamable HTTP (2025-03-26)
+# ===========================================================================
+
+@app.post("/mcp")
+async def mcp_streamable_http(
+    request: Request,
+    mcp_session_id: Optional[str] = Header(None, alias="Mcp-Session-Id")
+):
+    """
+    Modern Streamable HTTP transport (2025-03-26).
+
+    Single endpoint for all MCP operations. Session ID in header.
+    Simpler than HTTP+SSE but same functionality.
+    """
+    # Parse request body
+    try:
+        body = await request.json()
+    except Exception as e:
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32700,
+                "message": f"Parse error: {str(e)}"
+            }
+        }, status_code=400)
+
+    method = body.get("method", "")
+
+    # Check if this is an initialize request (new session)
+    if method == "initialize":
+        # Generate new session ID
+        session_id = create_session("streamable_http")
+
+        # Handle the request
+        response_data = await handle_jsonrpc_request(body, session_id)
+
+        # Return with session ID in header (proper casing!)
+        return JSONResponse(
+            response_data,
+            headers={"Mcp-Session-Id": session_id}
+        )
+
+    else:
+        # Existing session - verify session ID
+        if not mcp_session_id or mcp_session_id not in sessions:
+            logger.warning(f"Invalid or missing session ID: {mcp_session_id}")
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32001,
+                    "message": "Session not found. Please reinitialize."
+                }
+            }, status_code=404)
+
+        # Update session activity
+        sessions[mcp_session_id].update_activity()
+
+        # Handle the request
+        response_data = await handle_jsonrpc_request(body, mcp_session_id)
+        return JSONResponse(response_data)
+
+
+# ===========================================================================
+# LEGACY TRANSPORT: HTTP+SSE (2024-11-05)
+# ===========================================================================
+
+@app.get("/mcp")
+async def mcp_sse_stream(request: Request):
+    """
+    Legacy SSE stream endpoint (2024-11-05).
+
+    Establishes a Server-Sent Events connection and sends the message endpoint URL.
+    Clients then use POST /messages to send requests.
+    """
+    # Generate new session ID
+    session_id = create_session("sse")
+
+    async def event_generator():
+        """Generate SSE events."""
+        try:
+            # Send endpoint URL per MCP spec
+            yield {
+                "event": "endpoint",
+                "data": "/messages"
+            }
+
+            # Keep connection alive with periodic pings
+            while session_id in sessions:
+                # Update activity
+                sessions[session_id].update_activity()
+
+                # Wait for messages in queue or timeout
+                try:
+                    message = await asyncio.wait_for(
+                        sessions[session_id].queue.get(),
+                        timeout=30.0
+                    )
+                    # Send queued message
+                    yield {
+                        "event": "message",
+                        "data": json.dumps(message)
+                    }
+                except asyncio.TimeoutError:
+                    # Send keepalive ping
+                    yield {
+                        "event": "ping",
+                        "data": ""
+                    }
+
+        except asyncio.CancelledError:
+            logger.info(f"SSE connection closed - Session: {session_id}")
+            if session_id in sessions:
+                del sessions[session_id]
+            raise
+        except Exception as e:
+            logger.error(f"Error in SSE stream (session {session_id}): {e}")
+            if session_id in sessions:
+                del sessions[session_id]
+            raise
+
+    # Return SSE response with proper headers
+    return EventSourceResponse(
+        event_generator(),
+        headers={
+            "Mcp-Session-Id": session_id,  # Note: proper casing per MCP spec
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
+
+
+@app.post("/messages")
+async def mcp_messages_legacy(
+    request: Request,
+    sessionId: str = Query(..., alias="sessionId")  # Query parameter per legacy spec
+):
+    """
+    Legacy message endpoint (2024-11-05).
+
+    Receives JSON-RPC requests and returns responses.
+    Used in conjunction with GET /mcp SSE stream.
+    """
+    # Check if session exists
+    if sessionId not in sessions:
+        logger.warning(f"Session not found: {sessionId}")
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32001,
+                "message": "Session not found. Please reinitialize."
+            }
+        }, status_code=404)
+
+    # Parse request body
+    try:
+        body = await request.json()
+    except Exception as e:
+        return JSONResponse({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32700,
+                "message": f"Parse error: {str(e)}"
+            }
+        }, status_code=400)
+
+    # Update session activity
+    sessions[sessionId].update_activity()
+
+    # Handle the request
+    response = await handle_jsonrpc_request(body, sessionId)
+
+    # Queue response for SSE stream
+    await sessions[sessionId].queue.put(response)
+
+    # Also return immediately for polling clients
+    return JSONResponse(response)
+
+
+# ===========================================================================
+# SESSION MANAGEMENT ENDPOINTS
+# ===========================================================================
+
+@app.delete("/mcp/session/{session_id}")
+async def delete_session(session_id: str):
+    """
+    Explicit session cleanup endpoint.
+
+    Per SimpleScraper guide: Implement cleanup to prevent memory leaks.
+    """
+    if session_id in sessions:
+        del sessions[session_id]
+        logger.info(f"Deleted session: {session_id}")
+        return JSONResponse({"status": "session deleted"})
+    else:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+# ===========================================================================
+# MAIN ENTRY POINT
+# ===========================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.getenv("PORT", 8080))
+    host = "0.0.0.0"
+
+    logger.info(f"Starting server on {host}:{port}")
+
+    uvicorn.run(
+        "mcp_remote_server:app",
+        host=host,
+        port=port,
+        reload=True,
+        log_level="info"
+    )

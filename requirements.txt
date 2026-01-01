@@ -1,6 +1,12 @@
 # MCP SDK
 mcp>=1.2.0
 
+# Remote MCP Server (FastAPI + SSE)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sse-starlette>=1.6.5
+pydantic>=2.0.0
+
 # Gmail API
 google-auth>=2.43.0
 google-auth-oauthlib>=1.2.0
