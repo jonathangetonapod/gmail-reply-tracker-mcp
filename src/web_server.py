@@ -13,6 +13,7 @@ from google.oauth2.credentials import Credentials
 import secrets
 
 from database import Database
+from version import VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +336,7 @@ SETUP_LANDING_HTML = """
                 🔧 Troubleshooting Guide
             </button>
             <a href="/changelog" class="info-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); text-decoration: none;">
-                ✨ What's New (v2.3.1)
+                ✨ What's New (v{{ version }})
             </a>
         </div>
 
@@ -377,26 +378,79 @@ SETUP_LANDING_HTML = """
         <div class="modal-content">
             <div class="modal-header">
                 <span class="close" onclick="closeModal()">&times;</span>
-                <h2>📬 How This MCP Server Works</h2>
-                <p>34 powerful tools to supercharge your productivity with Claude</p>
+                <h2>🚀 Your AI Productivity Command Center</h2>
+                <p>{{ tool_count }} powerful tools that transform Claude into your personal productivity assistant</p>
             </div>
             <div class="modal-body">
 
                 <div class="section">
-                    <h3>🚀 What You Get</h3>
-                    <p><strong>34 production-ready tools</strong> that connect Claude to your entire productivity stack:</p>
+                    <h3>💫 The Complete Toolkit - {{ tool_count }} Tools Across 9 Platforms</h3>
+                    <p>This isn't just email and calendar - it's a <strong>complete productivity ecosystem</strong>:</p>
                     <div class="highlight-box">
                         <strong>📧 Gmail</strong><span class="tool-count">13 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Smart email management, unreplied email tracking, send/reply, search, drafts</p>
+                        <p style="margin-top: 8px; font-size: 14px;">• Smart unreplied email detection (auto-filters newsletters & automated emails)<br>
+                        • Thread-aware replies (never creates duplicate threads)<br>
+                        • Send emails, create drafts, search with Gmail query syntax<br>
+                        • Full conversation history & inbox analytics<br>
+                        • Reply to email threads, reply all, unreplied by sender</p>
 
                         <strong>📅 Google Calendar</strong><span class="tool-count">7 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Natural language scheduling, auto-timezone detection, event management, invitations</p>
+                        <p style="margin-top: 8px; font-size: 14px;">• Natural language scheduling ("tomorrow at 2pm")<br>
+                        • Automatic Google Meet links for all meetings<br>
+                        • Auto-timezone detection (no more UTC confusion)<br>
+                        • Email invitations sent to all attendees<br>
+                        • Recurring events, multi-calendar support</p>
+
+                        <strong>📝 Google Docs</strong><span class="tool-count">9 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Create, read, and edit Google Docs directly from Claude<br>
+                        • Append content, insert at specific positions<br>
+                        • Find and replace text (template population)<br>
+                        • Add formatted headings (H1-H6)<br>
+                        • <strong>NEW:</strong> Create tables with data and header formatting<br>
+                        • <strong>NEW:</strong> Find and format text with RGB colors<br>
+                        • <strong>NEW:</strong> Apply professional styling with one command<br>
+                        • Multi-tenant safe with per-user OAuth</p>
+
+                        <strong>📊 Google Sheets</strong><span class="tool-count">18 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• <strong>Full CRUD:</strong> Create, read, update, delete spreadsheets & sheets<br>
+                        • <strong>Professional formatting:</strong> Bold, colors, alignment, frozen headers<br>
+                        • Insert/delete rows & columns, sort by column, auto-resize<br>
+                        • List tabs, rename sheets, find & replace across workbooks<br>
+                        • A1 notation support, RGB colors, 300 req/min rate limiting</p>
 
                         <strong>🎙️ Fathom AI</strong><span class="tool-count">6 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Meeting transcripts, AI summaries, action items, search recordings</p>
+                        <p style="margin-top: 8px; font-size: 14px;">• Full meeting transcripts with timestamps<br>
+                        • AI-generated summaries & action item extraction<br>
+                        • Search recordings by title or attendee<br>
+                        • Calendar event cross-reference</p>
 
-                        <strong>🎯 Lead Management</strong><span class="tool-count">8 tools</span>
-                        <p style="margin-top: 8px; font-size: 14px;">Track 88 clients (Instantly.ai + Bison), campaign analytics, interested leads</p>
+                        <strong>🎯 Campaign Management</strong><span class="tool-count">4 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Create Bison sequences & Instantly campaigns (88+ clients)<br>
+                        • Auto-convert placeholders ({{firstname}} → {FIRST_NAME})<br>
+                        • HTML email formatting for Instantly campaigns<br>
+                        • Check campaign spam with EmailGuard API<br>
+                        • Fuzzy client name matching (handles typos)</p>
+
+                        <strong>💎 Lead Intelligence</strong><span class="tool-count">14 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• <strong>Hidden Gems:</strong> Find interested leads AI missed (HOT/WARM/COLD scoring)<br>
+                        • Dual-marking: Automatically marks responder AND original lead ✨<br>
+                        • Fixed pagination: fetches all 50-80+ sender emails per client<br>
+                        • Mark leads as interested across Instantly & Bison<br>
+                        • Fast parallel search across 88+ clients<br>
+                        • Campaign analytics, top performers, weekly summaries</p>
+
+                        <strong>🛡️ Spam Detection</strong><span class="tool-count">1 tool</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Check any email subject/body for spam words<br>
+                        • Scan entire Bison & Instantly campaigns<br>
+                        • EmailGuard API integration with detailed scoring</p>
+
+                        <strong>📮 Mailbox Health Monitoring</strong><span class="tool-count">5 tools</span>
+                        <p style="margin-top: 8px; font-size: 14px;">• Monitor Instantly & Bison email account health<br>
+                        • Real-time warmup scores (0-100) for Instantly<br>
+                        • Track connection status & all-time metrics for Bison<br>
+                        • 3-tier health classification (healthy/early/at_risk)<br>
+                        • Aggregate daily sending capacity planning<br>
+                        • Unhealthy mailbox alerts with parallel processing</p>
                     </div>
                 </div>
 
@@ -415,6 +469,8 @@ SETUP_LANDING_HTML = """
                         <ul>
                             <li>Gmail: Read, send, and modify (gmail.modify scope)</li>
                             <li>Calendar: Full access to create/edit events</li>
+                            <li>Google Docs: Create, read, and edit documents (documents scope)</li>
+                            <li>Google Sheets: Create, read, and edit spreadsheets (spreadsheets scope)</li>
                             <li>Fathom: Read-only via your API key (optional)</li>
                         </ul>
                         <p style="margin-top: 12px; font-size: 13px; color: #666;">
@@ -437,63 +493,120 @@ SETUP_LANDING_HTML = """
                 </div>
 
                 <div class="section">
-                    <h3>💬 Example Prompts You Can Use</h3>
+                    <h3>💬 What You Can Actually Do (Real Examples)</h3>
 
                     <p><strong>📧 Email Management:</strong></p>
                     <div class="example-prompt">"Show me emails I haven't replied to from the last 3 days"</div>
-                    <div class="example-prompt">"Search for emails about the Q4 budget proposal"</div>
-                    <div class="example-prompt">"Draft a reply thanking them for the update"</div>
-                    <div class="example-prompt">"Send an email to team@company.com about tomorrow's meeting"</div>
+                    <div class="example-prompt">"Reply to the thread from john@company.com about the proposal"</div>
+                    <div class="example-prompt">"Search for emails about the Q4 budget"</div>
+                    <div class="example-prompt">"Draft an email to sarah@company.com thanking her for the intro"</div>
 
-                    <p style="margin-top: 15px;"><strong>📅 Calendar & Scheduling:</strong></p>
+                    <p style="margin-top: 15px;"><strong>📅 Calendar & Meetings:</strong></p>
+                    <div class="example-prompt">"Schedule a meeting with sarah@company.com tomorrow at 2pm and send invite"</div>
+                    <div class="example-prompt">"Create a 30-min call with john@company.com Friday at 3pm" <span style="color: #4caf50;">← Auto-adds Google Meet!</span></div>
                     <div class="example-prompt">"What's on my calendar this week?"</div>
-                    <div class="example-prompt">"Schedule a meeting with sarah@company.com tomorrow at 2pm"</div>
-                    <div class="example-prompt">"Create a team standup every Monday at 9am and invite everyone"</div>
-                    <div class="example-prompt">"Cancel my 3pm meeting today"</div>
+                    <div class="example-prompt">"Create a recurring Monday standup at 9am and invite the team"</div>
 
-                    <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence:</strong></p>
-                    <div class="example-prompt">"Get the transcript from yesterday's client call"</div>
-                    <div class="example-prompt">"What action items came out of the engineering sync?"</div>
+                    <p style="margin-top: 15px;"><strong>📝 Google Docs Automation:</strong></p>
+                    <div class="example-prompt">"Create a meeting notes doc called 'Q4 Planning - Dec 20'"</div>
+                    <div class="example-prompt">"Insert a 3x4 table in the doc with headers: Name, Role, Action"</div>
+                    <div class="example-prompt">"Find all text 'IMPORTANT' and make it bold and red"</div>
+                    <div class="example-prompt">"Apply professional formatting to this document"</div>
+                    <div class="example-prompt">"Replace all {{client_name}} with 'Acme Corp' in the template"</div>
+                    <div class="example-prompt">"Add an H2 heading 'Budget Analysis' to the report doc"</div>
+
+                    <p style="margin-top: 15px;"><strong>📊 Google Sheets Powerhouse:</strong></p>
+                    <div class="example-prompt">"Create a Q1 Sales Tracker with sheets for Jan, Feb, Mar"</div>
+                    <div class="example-prompt">"Format the header row A1:E1 as bold, centered, light blue background"</div>
+                    <div class="example-prompt">"Read the data from Sheet1 range A1:E10 and analyze trends"</div>
+                    <div class="example-prompt">"Sort by column C descending and freeze the top row"</div>
+                    <div class="example-prompt">"Insert 5 rows at row 10 to make space for new entries"</div>
+                    <div class="example-prompt">"Auto-resize columns A through Z so everything is readable"</div>
+                    <div class="example-prompt">"Find and replace 'Q3' with 'Q4' across all sheets"</div>
+
+                    <p style="margin-top: 15px;"><strong>🎙️ Meeting Intelligence (Fathom):</strong></p>
+                    <div class="example-prompt">"What were the action items from yesterday's client call?"</div>
                     <div class="example-prompt">"Summarize the Project Phoenix kickoff meeting"</div>
-                    <div class="example-prompt">"Find all meetings where we discussed the new feature"</div>
+                    <div class="example-prompt">"Show me all meetings where we discussed pricing"</div>
+                    <div class="example-prompt">"Get the transcript from the engineering sync last Tuesday"</div>
 
-                    <p style="margin-top: 15px;"><strong>🎯 Lead Management:</strong></p>
-                    <div class="example-prompt">"Show me all clients from Instantly and Bison"</div>
-                    <div class="example-prompt">"Get interested leads from ABC Corp in the last 7 days"</div>
-                    <div class="example-prompt">"Which clients are underperforming this week?"</div>
+                    <p style="margin-top: 15px;"><strong>💎 Hidden Gems (Find Missed Opportunities):</strong></p>
+                    <div class="example-prompt">"Find missed opportunities for Brian Bliss from the last 7 days"</div>
+                    <div class="example-prompt">"Show me hidden gems for Rick Pendrick - interested leads AI missed"</div>
+                    <div class="example-prompt">"Mark john@example.com as interested for Brian Bliss"</div>
+                    <div class="example-prompt">"Mark lead@company.com as Meeting Booked for Lena Kadriu"</div>
+
+                    <p style="margin-top: 15px;"><strong>🎯 Campaign Creation:</strong></p>
+                    <div class="example-prompt">"Create a Bison campaign for Michael Hernandez with a 3-step sequence"</div>
+                    <div class="example-prompt">"Set up an Instantly campaign for Brian Bliss targeting speakers"</div>
+                    <div class="example-prompt">"Use fuzzy matching to find client 'brian blis' and create a campaign" <span style="color: #4caf50;">← Handles typos!</span></div>
+                    <div class="example-prompt">"Create a campaign with custom wait times: 3 days, then 5 days, then 7 days"</div>
+
+                    <p style="margin-top: 15px;"><strong>📊 Lead Analytics:</strong></p>
+                    <div class="example-prompt">"Show me interested leads from Brian Bliss campaigns this week"</div>
+                    <div class="example-prompt">"Which clients are underperforming and need attention?"</div>
+                    <div class="example-prompt">"Get campaign statistics for all Instantly clients this month"</div>
                     <div class="example-prompt">"Show me the top 5 clients by reply rate"</div>
-                    <div class="example-prompt">"Generate a weekly summary of all lead activity"</div>
+                    <div class="example-prompt">"Generate a weekly summary of all lead activity across both platforms"</div>
 
-                    <p style="margin-top: 15px;"><strong>🔀 Cross-Platform:</strong></p>
-                    <div class="example-prompt">"What's the status of the marketing campaign? Check emails, calendar, and meetings"</div>
+                    <p style="margin-top: 15px;"><strong>🛡️ Spam Detection:</strong></p>
+                    <div class="example-prompt">"Check spam in Instantly campaigns for Brian Bliss"</div>
+                    <div class="example-prompt">"Scan the Bison campaign for Michael Hernandez for spam words"</div>
+                    <div class="example-prompt">"Check if this subject line is spammy: 'FREE OFFER - Act Now!!!'"</div>
+
+                    <p style="margin-top: 15px;"><strong>🔀 Cross-Platform Magic:</strong></p>
+                    <div class="example-prompt">"What's the status of the ABC Corp deal? Check emails, calendar, and Fathom"</div>
+                    <div class="example-prompt">"Create meeting notes doc, add attendees, schedule follow-up for next week" <span style="color: #4caf50;">← 3 platforms!</span></div>
                     <div class="example-prompt">"Find all action items from this week across meetings and emails"</div>
+                    <div class="example-prompt">"Summarize the client call and create a Google Doc with the notes"</div>
                     <div class="example-prompt">"Who have I been meeting with most this month?"</div>
+                    <div class="example-prompt">"Show me all communication with john@company.com - emails, meetings, everything"</div>
                 </div>
 
                 <div class="section">
-                    <h3>🎯 Why This Is Powerful</h3>
+                    <h3>🎯 Why This Is Game-Changing</h3>
                     <ul>
-                        <li><strong>Natural language</strong> - No more clicking through interfaces</li>
-                        <li><strong>Context-aware</strong> - Claude understands your full work context</li>
-                        <li><strong>Time-saving</strong> - Automate repetitive email/calendar tasks</li>
-                        <li><strong>Smart filtering</strong> - Automatically filters automated emails, newsletters</li>
-                        <li><strong>Multi-app queries</strong> - Ask about emails, calendar, meetings in one go</li>
-                        <li><strong>Action items tracking</strong> - Never miss a follow-up</li>
+                        <li><strong>Natural language everything</strong> - No more clicking through interfaces, menus, or forms</li>
+                        <li><strong>Complete Google Workspace</strong> - Gmail, Calendar, Docs, AND Sheets in one place</li>
+                        <li><strong>Spreadsheet powerhouse</strong> - 18 tools for formatting, organizing, and automating Sheets</li>
+                        <li><strong>Context-aware intelligence</strong> - Claude sees your full work context across 9 platforms</li>
+                        <li><strong>Hidden gems discovery</strong> - AI finds interested leads that other AIs missed (unique feature!)</li>
+                        <li><strong>Dual-marking</strong> - Automatically marks responder AND original lead for forwarded replies</li>
+                        <li><strong>Fixed pagination</strong> - Fetches all 50-80+ sender emails per client (eliminates false positives)</li>
+                        <li><strong>Thread-aware replies</strong> - Never creates duplicate email threads (smart detection)</li>
+                        <li><strong>Auto Google Meet</strong> - Every meeting with attendees gets a Meet link automatically</li>
+                        <li><strong>Smart filtering</strong> - Automatically filters newsletters, automated emails, auto-replies</li>
+                        <li><strong>Multi-platform queries</strong> - Ask about emails, calendar, docs, sheets, meetings, campaigns in one go</li>
+                        <li><strong>Professional formatting</strong> - Bold, colors, alignment, frozen headers at your command</li>
                     </ul>
                 </div>
 
                 <div class="section">
-                    <h3>📈 Production Features</h3>
+                    <h3>📈 Production-Ready Features</h3>
                     <div class="highlight-box">
-                        <strong>For Your Team:</strong>
+                        <strong>Built for Teams:</strong>
                         <ul style="margin-top: 8px;">
-                            <li>41 unit tests - Full test coverage</li>
-                            <li>Type hints - Complete type safety</li>
-                            <li>Rate limiting - API quota management</li>
-                            <li>Error handling - Friendly error messages</li>
-                            <li>Auto timezone detection - No more UTC confusion</li>
-                            <li>One-command setup - 5-10 minute installation</li>
+                            <li><strong>100 unit tests</strong> - Complete test coverage across all features</li>
+                            <li><strong>Type safety</strong> - Full type hints throughout codebase</li>
+                            <li><strong>Smart error handling</strong> - User-friendly messages with recovery steps</li>
+                            <li><strong>Rate limiting</strong> - API quota management for Gmail/Calendar/Instantly/Bison</li>
+                            <li><strong>Auto timezone detection</strong> - No more UTC confusion</li>
+                            <li><strong>OAuth 2.0 security</strong> - Encrypted token storage (600 permissions)</li>
+                            <li><strong>One-command setup</strong> - 5-10 minute installation with beautiful progress UX</li>
+                            <li><strong>Multi-tenant support</strong> - Railway deployment for teams</li>
+                            <li><strong>Open source</strong> - Full visibility on GitHub</li>
                         </ul>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>💡 Unique Features You Won't Find Elsewhere</h3>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px;">
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📊 Complete Google Workspace:</strong> The ONLY MCP server with full Gmail, Calendar, Docs, AND Sheets integration. {{ tool_count }} tools across all 4 platforms plus mailbox health monitoring. Create spreadsheets with tables, format cells with colors, apply professional document styling - all from Claude.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🔍 Hidden Gems Analysis:</strong> Our AI analyzes campaign replies that Instantly/Bison AI marked as "not interested" and finds the ones that are ACTUALLY interested. Uses HOT/WARM/COLD scoring. Fixed pagination fetches all 50-80+ sender emails per client. Dual-marking automatically marks both responder AND original lead. This alone can recover 10-20% more leads.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>📝 Document & Spreadsheet Automation:</strong> Create, edit, format Google Docs AND Sheets. Insert tables with data, apply professional styling, find/replace with RGB colors. Template population, bold/italic formatting, alignment. Multi-tenant safe with per-user OAuth isolation.</p>
+                        <p style="margin: 0 0 15px 0; font-size: 16px; line-height: 1.6;"><strong>🎯 Fuzzy Client Matching:</strong> "Find client 'michael hernandex'" → Finds "Michael Hernandez". 60% similarity threshold handles typos gracefully across 88+ clients.</p>
+                        <p style="margin: 0; font-size: 16px; line-height: 1.6;"><strong>🎥 Auto Google Meet:</strong> Every calendar event with attendees automatically gets a Google Meet link. No more "forgot to add the link".</p>
                     </div>
                 </div>
 
@@ -1390,18 +1503,351 @@ class WebServer:
         def index():
             """Home page."""
             return """
-            <h1>Gmail + Calendar + Fathom MCP Server</h1>
-            <p>Multi-tenant server for Claude Desktop</p>
-            <ul>
-                <li><a href="/setup">Setup your account</a></li>
-                <li><a href="/health">Health check</a></li>
-            </ul>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gmail + Calendar + Fathom MCP Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 500px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .link {
+            display: block;
+            padding: 16px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        .primary {
+            background: #667eea;
+            color: white;
+        }
+        .primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .secondary:hover {
+            background: #e0e0e0;
+        }
+        .badge {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📬 Gmail + Calendar + Fathom</h1>
+        <p>Multi-tenant MCP Server for Claude Desktop</p>
+        <div class="links">
+            <a href="/setup" class="link primary">🚀 Setup Your Account</a>
+            <a href="/coming-soon" class="link primary">✨ Coming Soon <span class="badge">45+ Features</span></a>
+            <a href="/changelog" class="link secondary">📝 What's New</a>
+            <a href="/health" class="link secondary">💚 Health Check</a>
+        </div>
+    </div>
+</body>
+</html>
             """
 
         @self.app.route('/health')
         def health():
-            """Health check endpoint."""
-            return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+            """Health check endpoint with visual dashboard."""
+            # Gather health metrics
+            checks = []
+            overall_status = "healthy"
+
+            # 1. Database check
+            try:
+                users = self.database.list_users()
+                user_count = len(users)
+                checks.append({
+                    "name": "Database",
+                    "status": "healthy",
+                    "icon": "💚",
+                    "message": f"Connected • {user_count} users registered"
+                })
+            except Exception as e:
+                overall_status = "unhealthy"
+                checks.append({
+                    "name": "Database",
+                    "status": "unhealthy",
+                    "icon": "❌",
+                    "message": f"Connection failed: {str(e)}"
+                })
+                user_count = 0
+
+            # 2. Environment variables check
+            required_vars = [
+                'GOOGLE_CLIENT_ID',
+                'GOOGLE_CLIENT_SECRET',
+                'GOOGLE_REDIRECT_URI',
+                'TOKEN_ENCRYPTION_KEY'
+            ]
+            missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+            if missing_vars:
+                overall_status = "degraded"
+                checks.append({
+                    "name": "Environment Variables",
+                    "status": "warning",
+                    "icon": "⚠️",
+                    "message": f"Missing: {', '.join(missing_vars)}"
+                })
+            else:
+                checks.append({
+                    "name": "Environment Variables",
+                    "status": "healthy",
+                    "icon": "💚",
+                    "message": "All required variables set"
+                })
+
+            # 3. Lead sheets check
+            lead_sheets_url = os.getenv('LEAD_SHEETS_URL')
+            if lead_sheets_url:
+                checks.append({
+                    "name": "Lead Management",
+                    "status": "healthy",
+                    "icon": "💚",
+                    "message": "Google Sheets configured"
+                })
+            else:
+                checks.append({
+                    "name": "Lead Management",
+                    "status": "warning",
+                    "icon": "⚠️",
+                    "message": "Lead Sheets URL not configured"
+                })
+
+            # 4. Optional integrations
+            fathom_key = os.getenv('FATHOM_API_KEY')
+            emailguard_key = os.getenv('EMAILGUARD_API_KEY')
+            anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+
+            optional_count = sum([
+                1 if fathom_key else 0,
+                1 if emailguard_key else 0,
+                1 if anthropic_key else 0
+            ])
+
+            checks.append({
+                "name": "Optional Integrations",
+                "status": "healthy",
+                "icon": "🔌",
+                "message": f"{optional_count}/3 configured (Fathom, EmailGuard, Anthropic)"
+            })
+
+            # 5. Server info
+            checks.append({
+                "name": "Server",
+                "status": "healthy",
+                "icon": "🚀",
+                "message": f"Running on port {os.getenv('PORT', '8080')}"
+            })
+
+            # Build HTML
+            status_color = {
+                "healthy": "#4caf50",
+                "degraded": "#ff9800",
+                "unhealthy": "#f44336"
+            }
+
+            status_emoji = {
+                "healthy": "✅",
+                "degraded": "⚠️",
+                "unhealthy": "❌"
+            }
+
+            checks_html = ""
+            for check in checks:
+                check_status_color = {
+                    "healthy": "#e8f5e9",
+                    "warning": "#fff3e0",
+                    "unhealthy": "#ffebee"
+                }
+
+                checks_html += f"""
+                <div style="background: {check_status_color.get(check['status'], '#f5f5f5')};
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-bottom: 15px;
+                            border-left: 4px solid {status_color.get(check['status'], '#ccc')};">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="font-size: 32px;">{check['icon']}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #333; font-size: 16px; margin-bottom: 5px;">
+                                {check['name']}
+                            </div>
+                            <div style="color: #666; font-size: 14px;">
+                                {check['message']}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                """
+
+            html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Check - MCP Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="30">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }}
+        .container {{
+            max-width: 900px;
+            margin: 0 auto;
+        }}
+        .header {{
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }}
+        .header h1 {{
+            font-size: 42px;
+            margin-bottom: 10px;
+        }}
+        .header p {{
+            font-size: 16px;
+            opacity: 0.9;
+        }}
+        .status-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }}
+        .status-indicator {{
+            display: inline-block;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }}
+        .status-text {{
+            font-size: 32px;
+            font-weight: 600;
+            color: {status_color[overall_status]};
+            margin-bottom: 10px;
+        }}
+        .timestamp {{
+            color: #999;
+            font-size: 14px;
+        }}
+        .checks-card {{
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        .checks-card h2 {{
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }}
+        .back-button {{
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .back-button:hover {{
+            background: #f8f9fa;
+        }}
+        .refresh-note {{
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            margin-top: 30px;
+            opacity: 0.8;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💚 System Health</h1>
+            <p>Real-time status of your MCP server</p>
+        </div>
+
+        <a href="/" class="back-button">← Back to Home</a>
+
+        <div class="status-card">
+            <div class="status-indicator">{status_emoji[overall_status]}</div>
+            <div class="status-text">{overall_status.title()}</div>
+            <div class="timestamp">Last checked: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</div>
+        </div>
+
+        <div class="checks-card">
+            <h2>System Components</h2>
+            {checks_html}
+        </div>
+
+        <div class="refresh-note">
+            ⟳ Auto-refreshes every 30 seconds
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            return html
 
         @self.app.route('/changelog')
         def changelog():
@@ -1591,11 +2037,448 @@ class WebServer:
 
             return html
 
+        @self.app.route('/coming-soon')
+        def coming_soon():
+            """Show coming soon features roadmap."""
+            html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coming Soon - Gmail Calendar MCP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .category {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+        .category-icon {
+            font-size: 36px;
+        }
+        .category-title {
+            font-size: 24px;
+            color: #333;
+            flex: 1;
+        }
+        .category-count {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .feature {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .feature-example {
+            font-size: 13px;
+            color: #999;
+            font-style: italic;
+            border-left: 2px solid #ddd;
+            padding-left: 10px;
+            margin-top: 8px;
+        }
+        .back-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .back-button:hover {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Coming Soon</h1>
+            <p>Features we're working on to make Claude even more powerful</p>
+        </div>
+
+        <a href="/setup" class="back-button">← Back to Setup</a>
+
+        <!-- Gmail Enhancements -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📧</span>
+                <h2 class="category-title">Gmail Enhancements</h2>
+                <span class="category-count">6 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">get_sent_emails</div>
+                    <div class="feature-desc">View emails you've sent to specific people or time periods</div>
+                    <div class="feature-example">"What did I send to John last week?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_emails_by_date_range</div>
+                    <div class="feature-desc">Search emails within specific date ranges</div>
+                    <div class="feature-example">"Show me all emails between Dec 1-15"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">list_drafts</div>
+                    <div class="feature-desc">See all your draft emails in one place</div>
+                    <div class="feature-example">"Show me my draft emails"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">send_draft</div>
+                    <div class="feature-desc">Send drafts you've already created</div>
+                    <div class="feature-example">"Send the draft I created for sarah@company.com"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_draft</div>
+                    <div class="feature-desc">Edit existing drafts before sending</div>
+                    <div class="feature-example">"Update my draft to John and add the pricing details"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">archive_email</div>
+                    <div class="feature-desc">Archive emails to clean up your inbox</div>
+                    <div class="feature-example">"Archive all read emails from last week"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign Management -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">🎯</span>
+                <h2 class="category-title">Campaign Management</h2>
+                <span class="category-count">5 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">check_campaign_lead_capacity</div>
+                    <div class="feature-desc">Identify campaigns running low on leads and need more contacts added</div>
+                    <div class="feature-example">"Which campaigns are running out of leads?" or "Show me campaigns that need more leads added"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_bison_campaign</div>
+                    <div class="feature-desc">Edit existing Bison campaign sequences</div>
+                    <div class="feature-example">"Update step 2 in Michael's campaign to fix the typo"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_instantly_campaign</div>
+                    <div class="feature-desc">Modify Instantly campaigns and variants</div>
+                    <div class="feature-example">"Change the subject line in variant A of Brian's campaign"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">pause_campaign</div>
+                    <div class="feature-desc">Pause/resume campaigns across platforms</div>
+                    <div class="feature-example">"Pause the Instantly campaign for Rick Pendrick"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">delete_campaign</div>
+                    <div class="feature-desc">Remove campaigns that are no longer needed</div>
+                    <div class="feature-example">"Delete the old test campaign for Lena Kadriu"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Drive Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📁</span>
+                <h2 class="category-title">Google Drive Integration</h2>
+                <span class="category-count">8 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">search_drive_files</div>
+                    <div class="feature-desc">Find files and folders in your Drive</div>
+                    <div class="feature-example">"Find all PDFs from last month"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">upload_to_drive</div>
+                    <div class="feature-desc">Upload files directly to Google Drive</div>
+                    <div class="feature-example">"Upload contract.pdf to the Clients folder"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">share_drive_file</div>
+                    <div class="feature-desc">Share files with specific people or create public links</div>
+                    <div class="feature-example">"Share the proposal doc with john@company.com"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">create_drive_folder</div>
+                    <div class="feature-desc">Organize files with new folders</div>
+                    <div class="feature-example">"Create a folder called 'Q1 2025 Projects'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">download_drive_file</div>
+                    <div class="feature-desc">Download files from Drive to your computer</div>
+                    <div class="feature-example">"Download the latest version of budget.xlsx"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">move_drive_file</div>
+                    <div class="feature-desc">Move files between folders</div>
+                    <div class="feature-example">"Move all invoices to the Archive folder"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">list_recent_files</div>
+                    <div class="feature-desc">See your recently modified files</div>
+                    <div class="feature-example">"What files did I work on yesterday?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_drive_storage_info</div>
+                    <div class="feature-desc">Check how much Drive storage you're using</div>
+                    <div class="feature-example">"How much Drive storage do I have left?"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Sheets Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📊</span>
+                <h2 class="category-title">Google Sheets Integration</h2>
+                <span class="category-count">7 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">read_sheet_data</div>
+                    <div class="feature-desc">Read data from any Google Sheet</div>
+                    <div class="feature-example">"Show me the data in the Sales Pipeline sheet"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">append_to_sheet</div>
+                    <div class="feature-desc">Add new rows to sheets automatically</div>
+                    <div class="feature-example">"Add John Doe as a new lead in the Prospects sheet"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_sheet_cell</div>
+                    <div class="feature-desc">Update specific cells or ranges</div>
+                    <div class="feature-example">"Change the status to 'Closed' for row 5"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">create_new_sheet</div>
+                    <div class="feature-desc">Create new spreadsheets from scratch</div>
+                    <div class="feature-example">"Create a new sheet called 'Q1 Budget Tracking'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">search_sheet_data</div>
+                    <div class="feature-desc">Find specific data within sheets</div>
+                    <div class="feature-example">"Find all rows where status is 'Pending'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">format_sheet_range</div>
+                    <div class="feature-desc">Apply formatting like bold, colors, borders</div>
+                    <div class="feature-example">"Make the header row bold and freeze it"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">create_sheet_chart</div>
+                    <div class="feature-desc">Generate charts from sheet data</div>
+                    <div class="feature-example">"Create a pie chart of sales by region"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notion Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">📝</span>
+                <h2 class="category-title">Notion Integration</h2>
+                <span class="category-count">6 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">create_notion_page</div>
+                    <div class="feature-desc">Create new pages in your Notion workspace</div>
+                    <div class="feature-example">"Create a meeting notes page for today's client call"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">update_notion_page</div>
+                    <div class="feature-desc">Edit existing Notion pages</div>
+                    <div class="feature-example">"Add action items to yesterday's meeting notes"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">search_notion</div>
+                    <div class="feature-desc">Search across all your Notion content</div>
+                    <div class="feature-example">"Find all pages mentioning 'Q4 planning'"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">add_notion_database_row</div>
+                    <div class="feature-desc">Add items to Notion databases</div>
+                    <div class="feature-example">"Add a new task to my To-Do database"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">query_notion_database</div>
+                    <div class="feature-desc">Query and filter Notion databases</div>
+                    <div class="feature-example">"Show me all high-priority tasks due this week"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">append_notion_blocks</div>
+                    <div class="feature-desc">Add content blocks to existing pages</div>
+                    <div class="feature-example">"Add a checklist to my project planning page"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slack Integration -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">💬</span>
+                <h2 class="category-title">Slack Integration</h2>
+                <span class="category-count">8 tools</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">send_slack_message</div>
+                    <div class="feature-desc">Send messages to channels or DMs</div>
+                    <div class="feature-example">"Send 'Meeting in 5 minutes' to the #team channel"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">search_slack_messages</div>
+                    <div class="feature-desc">Search Slack history for specific content</div>
+                    <div class="feature-example">"Find all messages about the product launch"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_slack_thread</div>
+                    <div class="feature-desc">View full conversation threads</div>
+                    <div class="feature-example">"Show me the discussion thread about the budget"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">set_slack_status</div>
+                    <div class="feature-desc">Update your Slack status automatically</div>
+                    <div class="feature-example">"Set my status to 'In a meeting' for 1 hour"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">list_slack_channels</div>
+                    <div class="feature-desc">See all your Slack channels</div>
+                    <div class="feature-example">"What channels am I a member of?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">upload_to_slack</div>
+                    <div class="feature-desc">Share files in Slack channels</div>
+                    <div class="feature-example">"Upload report.pdf to #executives"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">react_to_slack_message</div>
+                    <div class="feature-desc">Add emoji reactions to messages</div>
+                    <div class="feature-example">"React with 👍 to the latest message in #general"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">get_slack_reminders</div>
+                    <div class="feature-desc">View and manage your Slack reminders</div>
+                    <div class="feature-example">"What reminders do I have set?"</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Prompts & Workflows -->
+        <div class="category">
+            <div class="category-header">
+                <span class="category-icon">🤖</span>
+                <h2 class="category-title">Advanced Prompts & Workflows</h2>
+                <span class="category-count">Coming Soon</span>
+            </div>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-title">Email Digest Generator</div>
+                    <div class="feature-desc">Get AI-generated daily summaries of important emails</div>
+                    <div class="feature-example">"Summarize my inbox from today and highlight urgent items"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Meeting Prep Assistant</div>
+                    <div class="feature-desc">Automatically prepare for upcoming meetings with context</div>
+                    <div class="feature-example">"Prepare me for my 2pm meeting with John"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Lead Scoring & Prioritization</div>
+                    <div class="feature-desc">AI ranks leads by engagement and closes potential</div>
+                    <div class="feature-example">"Which of my leads should I focus on this week?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Smart Follow-Up Suggestions</div>
+                    <div class="feature-desc">AI suggests when and how to follow up with leads</div>
+                    <div class="feature-example">"Who should I follow up with and what should I say?"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Campaign Performance Insights</div>
+                    <div class="feature-desc">AI analyzes campaigns and suggests improvements</div>
+                    <div class="feature-example">"Analyze my campaigns and tell me what's working"</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-title">Automated Weekly Reports</div>
+                    <div class="feature-desc">Generate comprehensive weekly productivity reports</div>
+                    <div class="feature-example">"Create my weekly report with all key metrics"</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="/setup" class="back-button">← Back to Setup</a>
+        </div>
+    </div>
+</body>
+</html>
+            """
+            return html
+
         @self.app.route('/setup')
         def setup_landing():
             """Show setup landing page with explanation."""
             server_url = os.environ.get('SERVER_URL', request.host_url.rstrip('/'))
-            return render_template_string(SETUP_LANDING_HTML, server_url=server_url)
+            return render_template_string(SETUP_LANDING_HTML, server_url=server_url, version=VERSION, tool_count=82)
 
         @self.app.route('/setup/start')
         def setup_start():

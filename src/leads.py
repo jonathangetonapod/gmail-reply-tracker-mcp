@@ -840,3 +840,495 @@ def get_weekly_summary(
     except Exception as e:
         logger.error(f"Error generating weekly summary: {e}")
         raise
+
+
+# ==============================================================================
+# MAILBOX HEALTH MONITORING
+# ==============================================================================
+
+# API URLs for mailbox/account endpoints
+INSTANTLY_ACCOUNTS_URL = "https://api.instantly.ai/api/v1/account/list"
+INSTANTLY_WORKSPACE_URL = "https://api.instantly.ai/api/v1/workspaces/current"
+EMAIL_BISON_ACCOUNTS_URL = "https://app.emailbison.com/api/sender-email-accounts"
+
+
+def _fetch_workspace_info(api_key: str) -> Dict[str, str]:
+    """
+    Fetch workspace info from Instantly API.
+
+    Args:
+        api_key: Instantly API key
+
+    Returns:
+        Dictionary with workspace_id and workspace_name
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        resp = requests.get(INSTANTLY_WORKSPACE_URL, headers=headers, timeout=30)
+        if not resp.ok:
+            logger.warning(f"Error fetching workspace info: {resp.status_code}")
+            resp.raise_for_status()
+
+        data = resp.json()
+        return {
+            "workspace_id": data.get("id", ""),
+            "workspace_name": data.get("name", "")
+        }
+    except Exception as e:
+        logger.error(f"Exception fetching workspace info: {e}")
+        return {"workspace_id": "", "workspace_name": ""}
+
+
+def _fetch_instantly_accounts(api_key: str, limit: int = 100) -> List[Dict[str, Any]]:
+    """
+    Fetch email accounts from Instantly API with pagination.
+
+    Args:
+        api_key: Instantly API key
+        limit: Page size
+
+    Returns:
+        List of account dictionaries
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+    all_accounts = []
+    starting_after = None
+
+    try:
+        while True:
+            params = {"limit": limit}
+            if starting_after:
+                params["starting_after"] = starting_after
+
+            resp = requests.get(
+                INSTANTLY_ACCOUNTS_URL,
+                headers=headers,
+                params=params,
+                timeout=30
+            )
+
+            if not resp.ok:
+                logger.warning(f"Error fetching Instantly accounts: {resp.status_code}")
+                resp.raise_for_status()
+
+            data = resp.json()
+            items = data.get("items", [])
+            all_accounts.extend(items)
+
+            # Check for next page
+            starting_after = data.get("next_starting_after")
+            if not starting_after:
+                break
+
+        logger.info(f"Fetched {len(all_accounts)} Instantly email accounts")
+        return all_accounts
+
+    except Exception as e:
+        logger.error(f"Exception fetching Instantly accounts: {e}")
+        return []
+
+
+def _fetch_emailbison_accounts(api_key: str) -> List[Dict[str, Any]]:
+    """
+    Fetch email accounts from Email Bison API with pagination.
+
+    Args:
+        api_key: Email Bison API key
+
+    Returns:
+        List of account dictionaries
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+    all_accounts = []
+    page = 1
+
+    try:
+        while True:
+            params = {"page": page}
+
+            resp = requests.get(
+                EMAIL_BISON_ACCOUNTS_URL,
+                headers=headers,
+                params=params,
+                timeout=30
+            )
+
+            if not resp.ok:
+                logger.warning(f"Error fetching Email Bison accounts (page {page}): {resp.status_code}")
+                resp.raise_for_status()
+
+            data = resp.json()
+            accounts = data.get("data", [])
+            all_accounts.extend(accounts)
+
+            # Check pagination
+            meta = data.get("meta", {})
+            links = data.get("links", {})
+            current_page = meta.get("current_page", page)
+            last_page = meta.get("last_page", 1)
+            next_url = links.get("next")
+
+            logger.info(f"Fetched Email Bison page {current_page}/{last_page} ({len(accounts)} accounts)")
+
+            if not next_url or current_page >= last_page:
+                break
+
+            page += 1
+
+        logger.info(f"Fetched total {len(all_accounts)} Email Bison accounts")
+        return all_accounts
+
+    except Exception as e:
+        logger.error(f"Exception fetching Email Bison accounts: {e}")
+        return all_accounts if all_accounts else []
+
+
+def get_instantly_mailboxes(
+    sheet_url: str,
+    instantly_gid: str,
+    workspace_id: str
+) -> Dict[str, Any]:
+    """
+    Get all connected email accounts (mailboxes) for an Instantly workspace.
+
+    Args:
+        sheet_url: Google Sheets URL with API keys
+        instantly_gid: Instantly sheet GID
+        workspace_id: Workspace ID to query
+
+    Returns:
+        Dictionary with mailbox data and health status
+    """
+    try:
+        # Load clients
+        df = _fetch_sheet_data(sheet_url, instantly_gid)
+
+        # Find the workspace
+        workspace_row = df[df['workspace_id'] == workspace_id]
+        if workspace_row.empty:
+            raise ValueError(f"Workspace {workspace_id} not found")
+
+        api_key = workspace_row.iloc[0]['api_key']
+
+        # Get workspace info
+        workspace_info = _fetch_workspace_info(api_key)
+        workspace_name = workspace_info.get("workspace_name") or workspace_id
+
+        # Fetch accounts
+        accounts = _fetch_instantly_accounts(api_key)
+
+        # Status code mapping
+        status_map = {
+            1: "Active",
+            2: "Paused",
+            -1: "Connection Error",
+            -2: "Soft Bounce Error",
+            -3: "Sending Error"
+        }
+
+        warmup_map = {1: "Active", 0: "Inactive"}
+
+        # Process accounts
+        processed_accounts = []
+        status_breakdown = {}
+        healthy_count = 0
+        at_risk_count = 0
+        early_count = 0
+
+        for account in accounts:
+            status_code = account.get("status")
+            status_name = status_map.get(status_code, f"Unknown ({status_code})")
+            status_breakdown[status_name] = status_breakdown.get(status_name, 0) + 1
+
+            # Determine health
+            if status_code == 1:
+                health = "healthy"
+                healthy_count += 1
+            elif status_code == 2:
+                health = "early"
+                early_count += 1
+            else:
+                health = "at_risk"
+                at_risk_count += 1
+
+            processed_accounts.append({
+                "email": account.get("email", "Unknown"),
+                "status": status_name,
+                "status_code": status_code,
+                "daily_limit": account.get("daily_limit", 0),
+                "warmup_status": warmup_map.get(account.get("warmup_status"), "Unknown"),
+                "warmup_score": account.get("stat_warmup_score", 0),
+                "last_used": account.get("timestamp_last_used", "Never"),
+                "health": health,
+                "provider": account.get("provider_code", "Unknown")
+            })
+
+        logger.info(
+            f"Instantly workspace {workspace_name}: {len(processed_accounts)} accounts | "
+            f"Healthy: {healthy_count}, At Risk: {at_risk_count}, Early: {early_count}"
+        )
+
+        return {
+            "workspace_id": workspace_id,
+            "workspace_name": workspace_name,
+            "platform": "instantly",
+            "total_accounts": len(processed_accounts),
+            "healthy_count": healthy_count,
+            "at_risk_count": at_risk_count,
+            "early_count": early_count,
+            "status_breakdown": status_breakdown,
+            "accounts": processed_accounts
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting Instantly mailboxes: {e}")
+        raise
+
+
+def get_bison_mailboxes(
+    sheet_url: str,
+    bison_gid: str,
+    client_name: str
+) -> Dict[str, Any]:
+    """
+    Get all connected email accounts (mailboxes) for a Bison client.
+
+    Args:
+        sheet_url: Google Sheets URL with API keys
+        bison_gid: Bison sheet GID
+        client_name: Client name to query
+
+    Returns:
+        Dictionary with mailbox data and health status
+    """
+    try:
+        # Load clients
+        df = _fetch_sheet_data(sheet_url, bison_gid)
+
+        # Find the client
+        client_row = df[df['client_name'].str.lower() == client_name.lower()]
+        if client_row.empty:
+            raise ValueError(f"Client {client_name} not found")
+
+        api_key = client_row.iloc[0]['api_key']
+
+        # Fetch accounts
+        accounts = _fetch_emailbison_accounts(api_key)
+
+        # Process accounts
+        processed_accounts = []
+        status_breakdown = {}
+        healthy_count = 0
+        at_risk_count = 0
+
+        for account in accounts:
+            status = account.get("status", "Unknown")
+            status_breakdown[status] = status_breakdown.get(status, 0) + 1
+
+            # Determine health
+            health = "healthy" if status == "Connected" else "at_risk"
+            if health == "healthy":
+                healthy_count += 1
+            else:
+                at_risk_count += 1
+
+            # Extract tags
+            tags = account.get("tags", [])
+            tag_names = [tag.get("name") for tag in tags if tag.get("name")]
+
+            processed_accounts.append({
+                "email": account.get("email", "Unknown"),
+                "name": account.get("name", ""),
+                "status": status,
+                "daily_limit": account.get("daily_limit", 0),
+                "emails_sent": account.get("emails_sent_count", 0),
+                "total_replies": account.get("total_replied_count", 0),
+                "unique_replies": account.get("unique_replied_count", 0),
+                "opens": account.get("total_opened_count", 0),
+                "bounces": account.get("bounced_count", 0),
+                "interested_leads": account.get("interested_leads_count", 0),
+                "health": health,
+                "tags": tag_names,
+                "type": account.get("type", "")
+            })
+
+        logger.info(
+            f"Bison client {client_name}: {len(processed_accounts)} accounts | "
+            f"Healthy: {healthy_count}, At Risk: {at_risk_count}"
+        )
+
+        return {
+            "client_name": client_name,
+            "platform": "bison",
+            "total_accounts": len(processed_accounts),
+            "healthy_count": healthy_count,
+            "at_risk_count": at_risk_count,
+            "status_breakdown": status_breakdown,
+            "accounts": processed_accounts
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting Bison mailboxes: {e}")
+        raise
+
+
+def get_all_mailbox_health(
+    sheet_url: str,
+    instantly_gid: str,
+    bison_gid: str
+) -> Dict[str, Any]:
+    """
+    Get aggregated mailbox health across all clients and platforms.
+
+    Args:
+        sheet_url: Google Sheets URL
+        instantly_gid: Instantly sheet GID
+        bison_gid: Bison sheet GID
+
+    Returns:
+        Dictionary with aggregated mailbox health data
+    """
+    try:
+        # Get all clients
+        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+
+        total_accounts = 0
+        total_healthy = 0
+        total_at_risk = 0
+        total_early = 0
+
+        instantly_totals = {"accounts": 0, "healthy": 0, "at_risk": 0, "early": 0}
+        bison_totals = {"accounts": 0, "healthy": 0, "at_risk": 0}
+
+        client_summaries = []
+
+        # Process each client
+        for client in all_clients['clients']:
+            try:
+                if client['platform'] == 'instantly':
+                    mailboxes = get_instantly_mailboxes(
+                        sheet_url, instantly_gid,
+                        client['workspace_id']
+                    )
+
+                    instantly_totals['accounts'] += mailboxes['total_accounts']
+                    instantly_totals['healthy'] += mailboxes['healthy_count']
+                    instantly_totals['at_risk'] += mailboxes['at_risk_count']
+                    instantly_totals['early'] += mailboxes['early_count']
+
+                    total_accounts += mailboxes['total_accounts']
+                    total_healthy += mailboxes['healthy_count']
+                    total_at_risk += mailboxes['at_risk_count']
+                    total_early += mailboxes['early_count']
+
+                elif client['platform'] == 'bison':
+                    mailboxes = get_bison_mailboxes(
+                        sheet_url, bison_gid,
+                        client['client_name']
+                    )
+
+                    bison_totals['accounts'] += mailboxes['total_accounts']
+                    bison_totals['healthy'] += mailboxes['healthy_count']
+                    bison_totals['at_risk'] += mailboxes['at_risk_count']
+
+                    total_accounts += mailboxes['total_accounts']
+                    total_healthy += mailboxes['healthy_count']
+                    total_at_risk += mailboxes['at_risk_count']
+
+                # Add to summaries
+                client_summaries.append({
+                    'client_name': client.get('client_name') or client.get('workspace_name'),
+                    'platform': client['platform'],
+                    'total_accounts': mailboxes['total_accounts'],
+                    'healthy': mailboxes['healthy_count'],
+                    'at_risk': mailboxes['at_risk_count'],
+                    'early': mailboxes.get('early_count', 0)
+                })
+
+            except Exception as e:
+                logger.warning(f"Error getting mailboxes for {client}: {e}")
+
+        # Calculate health percentage
+        health_percentage = round((total_healthy / total_accounts * 100), 2) if total_accounts > 0 else 0
+
+        return {
+            'total_accounts': total_accounts,
+            'healthy_count': total_healthy,
+            'at_risk_count': total_at_risk,
+            'early_count': total_early,
+            'health_percentage': health_percentage,
+            'instantly_totals': instantly_totals,
+            'bison_totals': bison_totals,
+            'client_summaries': client_summaries,
+            'total_clients': all_clients['total_clients']
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting all mailbox health: {e}")
+        raise
+
+
+def get_unhealthy_mailboxes(
+    sheet_url: str,
+    instantly_gid: str,
+    bison_gid: str
+) -> Dict[str, Any]:
+    """
+    Get all unhealthy (at_risk) mailboxes across all platforms.
+
+    Args:
+        sheet_url: Google Sheets URL
+        instantly_gid: Instantly sheet GID
+        bison_gid: Bison sheet GID
+
+    Returns:
+        Dictionary with unhealthy mailboxes needing attention
+    """
+    try:
+        # Get all clients
+        all_clients = get_all_clients(sheet_url, instantly_gid, bison_gid)
+
+        unhealthy_mailboxes = []
+
+        # Process each client
+        for client in all_clients['clients']:
+            try:
+                if client['platform'] == 'instantly':
+                    mailboxes = get_instantly_mailboxes(
+                        sheet_url, instantly_gid,
+                        client['workspace_id']
+                    )
+                elif client['platform'] == 'bison':
+                    mailboxes = get_bison_mailboxes(
+                        sheet_url, bison_gid,
+                        client['client_name']
+                    )
+                else:
+                    continue
+
+                # Filter for unhealthy accounts
+                for account in mailboxes['accounts']:
+                    if account['health'] == 'at_risk':
+                        unhealthy_mailboxes.append({
+                            'client_name': client.get('client_name') or client.get('workspace_name'),
+                            'platform': client['platform'],
+                            'email': account['email'],
+                            'status': account['status'],
+                            'daily_limit': account.get('daily_limit', 0),
+                            'issue': account.get('status')
+                        })
+
+            except Exception as e:
+                logger.warning(f"Error checking mailboxes for {client}: {e}")
+
+        logger.info(f"Found {len(unhealthy_mailboxes)} unhealthy mailboxes across all platforms")
+
+        return {
+            'count': len(unhealthy_mailboxes),
+            'mailboxes': unhealthy_mailboxes
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting unhealthy mailboxes: {e}")
+        raise

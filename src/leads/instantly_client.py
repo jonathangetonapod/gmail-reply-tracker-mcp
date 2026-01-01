@@ -70,7 +70,7 @@ def fetch_workspace_details(api_key: str):
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        print(f"[API] Failed to fetch workspace details: {e}")
+        # Error logging removed for MCP compatibility
         return None
 
 
@@ -190,11 +190,9 @@ def create_instantly_campaign_api(
     Raises:
         HTTPError: If timezone is invalid or other API errors occur
     """
-    # Validate timezone
+    # Validate timezone (logging removed for MCP compatibility)
     if timezone not in INSTANTLY_VALID_TIMEZONES:
-        print(f"[Instantly] WARNING: Timezone '{timezone}' may not be valid.")
-        print(f"[Instantly] Valid timezones include: America/Chicago, America/Detroit, America/Boise, etc.")
-        print(f"[Instantly] See INSTANTLY_VALID_TIMEZONES list for all options.")
+        pass  # Invalid timezone - validation warning removed for MCP compatibility
 
     url = "https://api.instantly.ai/api/v2/campaigns"
     headers = {
@@ -255,8 +253,7 @@ def create_instantly_campaign_api(
             if body:
                 original_body = body
                 body = convert_to_instantly_html(body)
-                if original_body != body:
-                    print(f"[Instantly] Converted plain text to HTML div format")
+                # Conversion logging removed for MCP compatibility
             variants = [{
                 "subject": step.get('subject', ''),
                 "body": body
@@ -267,8 +264,7 @@ def create_instantly_campaign_api(
                 if 'body' in variant and variant['body']:
                     original_body = variant['body']
                     variant['body'] = convert_to_instantly_html(variant['body'])
-                    if original_body != variant['body']:
-                        print(f"[Instantly] Converted variant body to HTML div format")
+                    # Conversion logging removed for MCP compatibility
 
         # Create step with correct Instantly API structure
         transformed_step = {
@@ -312,16 +308,13 @@ def create_instantly_campaign_api(
     if email_accounts:
         payload["email_list"] = email_accounts
 
-    # Debug: Print request details
-    import json as json_module
-    print(f"[INSTANTLY] POST {url}")
-    print(f"[INSTANTLY] Payload: {json_module.dumps(payload, indent=2)}")
+    # Debug logging removed for MCP compatibility
 
     response = requests.post(url, headers=headers, json=payload, timeout=30)
 
-    # Debug: print error response if request fails
+    # Error logging removed for MCP compatibility
     if not response.ok:
-        print(f"[INSTANTLY] API Error {response.status_code}: {response.text}")
+        pass  # Error response logging removed for MCP compatibility
 
     response.raise_for_status()
 
@@ -356,7 +349,7 @@ def list_instantly_campaigns(api_key: str, status: int = None):
             }
         ]
     """
-    url = "https://api.instantly.ai/api/v2/campaigns/list"
+    url = "https://api.instantly.ai/api/v2/campaigns"
     headers = {"Authorization": f"Bearer {api_key}"}
 
     params = {}
@@ -366,7 +359,20 @@ def list_instantly_campaigns(api_key: str, status: int = None):
     response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
 
-    return response.json()
+    data = response.json()
+
+    # Handle different response structures (V2 API returns {"items": [...], "next_starting_after": ...})
+    if isinstance(data, dict) and "items" in data:
+        return data["items"]
+    elif isinstance(data, list):
+        return data
+    elif isinstance(data, dict) and "data" in data:
+        return data["data"]
+    elif isinstance(data, dict) and "campaigns" in data:
+        return data["campaigns"]
+    else:
+        # Unexpected structure warning removed for MCP compatibility
+        return data if isinstance(data, list) else []
 
 
 def get_instantly_campaign_details(api_key: str, campaign_id: str):
@@ -404,6 +410,147 @@ def get_instantly_campaign_details(api_key: str, campaign_id: str):
     headers = {"Authorization": f"Bearer {api_key}"}
 
     response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def get_thread_emails(thread_id: str, api_key: str):
+    """
+    DEPRECATED: Use get_lead_emails() instead.
+    Fetch all emails in a thread from Instantly API.
+
+    Args:
+        thread_id: Thread ID to fetch
+        api_key: Instantly API key
+
+    Returns:
+        List of email dicts with timestamp_email and ue_type fields
+        ue_type: 1 = sent (outbound), 2 = received (reply)
+    """
+    url = "https://api.instantly.ai/api/v2/emails"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    params = {
+        "thread_id": thread_id,
+        "limit": 100  # Should be enough for most threads
+    }
+
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+
+    data = response.json()
+    return data.get("items", [])
+
+
+def get_lead_emails(lead_email: str, api_key: str, campaign_id: str = None, sort_order: str = "asc"):
+    """
+    Fetch all emails for a specific lead from Instantly API.
+
+    This uses the 'lead' parameter to filter emails by the lead's email address,
+    which returns ALL emails (sent and received) for that specific lead across
+    all campaigns (or filtered by campaign_id if provided).
+
+    Args:
+        lead_email: Lead's email address to filter by
+        api_key: Instantly API key
+        campaign_id: Optional campaign ID to filter by specific campaign
+        sort_order: Sort order - "asc" (oldest first) or "desc" (newest first)
+
+    Returns:
+        List of email dicts with timestamp_email and ue_type fields
+        ue_type: 1 = Sent from campaign, 2 = Received, 3 = Sent (manual), 4 = Scheduled
+    """
+    url = "https://api.instantly.ai/api/v2/emails"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    params = {
+        "lead": lead_email,
+        "limit": 100,  # Should be enough for most leads
+        "sort_order": sort_order
+    }
+
+    if campaign_id:
+        params["campaign_id"] = campaign_id
+
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+
+    data = response.json()
+    return data.get("items", [])
+
+
+def add_leads_to_campaign(api_key: str, campaign_id: str, leads: list, skip_if_in_workspace: bool = False):
+    """
+    Add leads to an Instantly campaign.
+
+    Args:
+        api_key: Instantly API key
+        campaign_id: Campaign ID (UUID) to add leads to
+        leads: List of lead dictionaries, each containing at minimum:
+            - email (str, required): Lead's email address
+            - first_name (str, optional): Lead's first name
+            - last_name (str, optional): Lead's last name
+            - company_name (str, optional): Company name
+            - personalization (str, optional): Personalization text
+            - phone (str, optional): Phone number
+            - website (str, optional): Website URL
+            - custom_variables (dict, optional): Additional custom variables
+        skip_if_in_workspace: If True, skip leads that already exist in workspace (default: False)
+
+    Returns:
+        {
+            "status": "success",
+            "added": int,  # Number of leads successfully added
+            "skipped": int,  # Number of leads skipped (duplicates)
+            "leads": [...]  # Details of added leads
+        }
+
+    Example:
+        leads = [
+            {"email": "john@example.com", "first_name": "John", "last_name": "Doe"},
+            {"email": "jane@example.com", "first_name": "Jane"}
+        ]
+        result = add_leads_to_campaign(api_key, campaign_id, leads)
+    """
+    url = "https://api.instantly.ai/api/v2/leads"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    # Build payload - each lead needs email + campaign_id
+    payload_leads = []
+    for lead in leads:
+        lead_data = {
+            "email": lead["email"],
+            "campaign_id": campaign_id
+        }
+
+        # Add optional fields if provided
+        if "first_name" in lead:
+            lead_data["first_name"] = lead["first_name"]
+        if "last_name" in lead:
+            lead_data["last_name"] = lead["last_name"]
+        if "company_name" in lead:
+            lead_data["company_name"] = lead["company_name"]
+        if "personalization" in lead:
+            lead_data["personalization"] = lead["personalization"]
+        if "phone" in lead:
+            lead_data["phone"] = lead["phone"]
+        if "website" in lead:
+            lead_data["website"] = lead["website"]
+        if "custom_variables" in lead:
+            lead_data["variables"] = lead["custom_variables"]
+
+        payload_leads.append(lead_data)
+
+    payload = {
+        "leads": payload_leads,
+        "skip_if_in_workspace": skip_if_in_workspace
+    }
+
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
     response.raise_for_status()
 
     return response.json()

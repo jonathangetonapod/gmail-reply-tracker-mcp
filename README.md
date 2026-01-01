@@ -1,10 +1,10 @@
 <div align="center">
 
-# 📬 Gmail + Calendar + Fathom + Leads MCP Server
+# 📬 Gmail + Calendar + Docs + Sheets + Fathom + Leads MCP Server
 
 ### Production-Ready Multi-Tenant MCP Server with One-Command Setup
 
-*Transform Claude into your AI productivity command center with 34 tools across Gmail, Calendar, Fathom AI, and lead management platforms*
+*Transform Claude into your AI productivity command center with 82 tools across Gmail, Calendar, Google Docs, Google Sheets, Fathom AI, campaign management, lead intelligence, mailbox health monitoring, and spam detection platforms*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -62,16 +62,27 @@ Ask Claude things like:
 > - "Set up an Instantly campaign for Brian Bliss targeting speakers"
 > - "Use fuzzy matching to find client 'source 1 parcel' and create a campaign"
 >
+> **💎 Hidden Gems (AI Lead Intelligence)**:
+> - "Find hidden gems for Lena Kadriu in the last 90 days"
+> - "Show me missed opportunities for Michael Hernandez this month"
+> - "Analyze Rick Pendrick's replies and mark any interested leads"
+> - *AI analyzes ALL replies, identifies HOT/WARM leads that weren't marked, and marks them with one click*
+>
 > **📊 Lead Analytics**:
 > - "Show me interested leads from our top performing clients this week"
 > - "Which clients are underperforming and need attention?"
 > - "Get campaign statistics for all Instantly clients this month"
+>
+> **🛡️ Spam Detection**:
+> - "Check spam in Instantly campaigns for Brian Bliss"
+> - "Scan the Bison campaign for Michael Hernandez for spam words"
+> - "Check if this subject line is spammy: 'FREE OFFER - Act Now!!!'"
 
 ---
 
 ## 🎯 Key Features
 
-### 34 Production Tools Across 4 Platforms
+### 82 Production Tools Across 9 Categories
 
 <table>
 <tr>
@@ -80,21 +91,19 @@ Ask Claude things like:
 **📧 Gmail (13 tools)**
 - Unreplied email detection with smart filtering
 - Thread context & conversation history
-- Send emails & reply to threads
+- Send emails, replies, and reply-all
 - Draft management
-- Inbox analytics & label management
 - Search with Gmail query syntax
+- Label management
+- Inbox statistics and recent emails
 
 **📅 Google Calendar (7 tools)**
 - Natural language scheduling ("tomorrow at 2pm")
-- Automatic timezone detection
-- Email invitations sent to attendees
+- Automatic timezone detection & Google Meet links
+- Email invitations sent to attendees automatically
 - Multi-calendar support
 - Event CRUD operations
 - Quick add with natural language
-
-</td>
-<td width="50%" valign="top">
 
 **🎙️ Fathom AI (6 tools)**
 - Meeting transcripts with timestamps
@@ -104,27 +113,122 @@ Ask Claude things like:
 - Calendar event cross-reference
 - Meeting analytics
 
+**📝 Google Docs (9 tools)**
+- Create, read, and edit documents
+- Append and insert content
+- Find and replace text
+- Add formatted headings (H1-H6)
+- Create tables with data
+- Professional formatting & styling
+- Multi-tenant safe with per-user OAuth
+
+**📊 Google Sheets (19 tools)**
+- Full CRUD operations on spreadsheets
+- Move/copy rows between tabs (handles large datasets)
+- Professional cell formatting
+- Insert/delete rows & columns
+- Sort, filter, and organize data
+- Freeze headers and auto-resize columns
+- A1 notation support with RGB colors
+
+</td>
+<td width="50%" valign="top">
+
 **🎯 Campaign Management (8 tools)**
 - **Bison** & **Instantly** integrations
+- List and inspect campaigns with full sequence details
 - Create email campaigns with sequences
 - Auto-convert placeholders ({{firstname}} → {FIRST_NAME})
 - HTML email formatting for Instantly
 - Campaign analytics & performance tracking
-- Interested lead identification
-- Fuzzy client name matching
-- Track 88+ clients across both platforms
+- Fuzzy client name matching (60% similarity)
+- Track 89+ clients across both platforms
+
+**💎 Lead Intelligence (14 tools)**
+- **Hidden Gems** - AI-powered missed opportunity detection
+- HOT/WARM/COLD lead categorization with Claude API
+- Interested lead identification & tracking
+- One-click marking (green "Interested" tag on first reply)
+- Smart deduplication (1 person = 1 hidden gem)
+- Cross-platform support (Instantly + Bison)
+
+**🛡️ Spam Detection (3 tools)**
+- Ad-hoc subject & body spam checking
+- Bison campaign sequence scanning
+- Instantly campaign variant scanning
+- EmailGuard API integration
+
+**📮 Mailbox Health Monitoring (6 tools)**
+- **Instantly & Bison** email account monitoring
+- Real-time warmup scores (0-100 scale)
+- Health classification (healthy/early/at_risk)
+- Daily sending capacity tracking
+- Multi-platform aggregated dashboard
+- Bison sender email reply-level analytics
 
 </td>
 </tr>
 </table>
 
-### 🆕 Latest Features (v2.3.1)
+### 🆕 Latest Features (v2.7.5 - December 23, 2025)
 
-- 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
-- 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link with one-click join
-- ⚙️ **Smart Auto-Detection** - Intelligently adds Meet links only when needed (events with attendees)
+- 🔍 **NEW: Campaign Analysis Tools** - List and inspect campaigns with full sequence details (4 new tools, 82 total)
+- 📊 **Instantly Campaign Inspection** - `list_instantly_campaigns` and `get_instantly_campaign_details` for complete campaign analysis
+- 🦬 **Bison Campaign Inspection** - `list_bison_campaigns` and `get_bison_campaign_details` with sequence/step/variant details
+- 📧 **Full Email Sequence Access** - View subjects, bodies, wait times, A/B test variants, and settings for all campaign steps
+- 🎯 **Status Filtering** - Filter campaigns by status (active, draft, launching, paused) for focused analysis
+- 🔧 **Smart Integration** - Uses existing fuzzy matching and Google Sheets infrastructure for seamless client lookup
 
-### Recent Features (v2.3.0)
+### Latest Features (v2.7.4 - December 22, 2024)
+
+- 📊 **NEW TOOL: Move/Copy Spreadsheet Rows** - Efficiently move or copy thousands of rows between tabs
+- ⚡ **Batch Processing** - Handles large datasets (15k+ rows) with automatic 1000-row batching
+- 🔄 **Smart Data Migration** - Auto-copies headers, optional source deletion for true "move" operations
+- 🎯 **No More Manual Work** - Split datasets, reorganize data, archive records automatically
+- 🛠️ **Technical**: Added `move_spreadsheet_rows` tool with rate limiting and error handling
+- 🔧 **OAuth Scope Fix** - Added missing `spreadsheets` scope to fix 403 authentication errors
+
+### Latest Features (v2.7.3 - December 21, 2025)
+
+- ⚡ **Parallel Processing** - 16x faster mailbox health checks! 80+ clients in 10 seconds (was 160 seconds)
+- 📧 **Bison Sender Replies** - NEW TOOL: Get detailed reply data from all sender emails with pagination
+- 🔧 **Instantly API v2 Migration** - Fixed 404 errors by updating workspace endpoint to v2
+- 🚀 **Performance Optimization** - ThreadPoolExecutor with 20 workers for concurrent client processing
+- 🎯 **Reply Analytics** - Fetch ALL replies from specific sender emails with filtering & limits
+- 📊 **Smart Pagination** - Handles Bison's 15-item-per-page limit automatically
+
+### Latest Features (v2.7.0-v2.7.2 - December 21, 2025)
+
+- 📮 **Mailbox Health Monitoring** - Added 6 tools for email account monitoring (77 total at that time)
+- 🔍 **Instantly Account Health** - Track warmup scores, daily limits, and account status across all workspaces
+- 📊 **Bison Sender Email Monitoring** - Monitor all sender email accounts with real-time connection status
+- 🚨 **Unhealthy Mailbox Alerts** - Automatically identify at-risk accounts requiring attention
+- 📈 **Capacity Planning** - Aggregate daily sending limits across all healthy accounts
+- 🎯 **Health Classification** - 3-tier system: healthy (active/connected), early (paused), at_risk (errors)
+
+### Recent Features (v2.6.1 - December 21, 2025)
+
+- 📝 **Enhanced Google Docs** - Added 3 new tools: tables, formatting, professional styling (9 total)
+- 📊 **Table Creation** - Insert structured tables with header row support and custom formatting
+- 🎨 **Professional Formatting** - One-command styling for titles, headings, and consistent spacing
+- ✨ **Find & Format** - Search for specific text and apply RGB colors, bold, italic, font sizes
+- 📚 **Complete Documentation** - Updated README and examples with all 72 tools across 8 platforms
+
+### Recent Features (v2.5.0 - December 19, 2025)
+
+- 📝 **Google Docs Integration** - 6 new tools for document creation, editing, and formatting (51 total tools)
+- 🔐 **Per-User OAuth** - Each user's Google Docs access fully isolated with encrypted credential storage
+- 📋 **Real-Time Document Management** - Create, read, edit, append, insert, replace text, add headings
+- 🎯 **Template Population** - Find and replace for populating document templates
+- ⚡ **Production-Ready** - Thread-safe rate limiting (60 req/min), automatic retries, 100+ unit tests
+
+### Recent Features (v2.5.1 - December 20, 2025)
+
+- 🔧 **Fixed Bison Pagination** - Now fetches all 50-80+ sender emails per client (was only 15)
+- 🎯 **Already-Interested Detection** - Fixed detection of leads marked via client replies
+- ✅ **Eliminated False Positives** - Client emails no longer appear as interested leads
+
+### Features (v2.3.0)
 
 - ✨ **Instantly HTML Formatting** - Email bodies display with proper line breaks and paragraph spacing
 - 🔧 **Bison Placeholder Conversion** - Automatic conversion of {{firstname}}, {{company}} to Bison format
@@ -144,7 +248,7 @@ Ask Claude things like:
 │   Railway   │  ← Deploy once, serve everyone
 │   Server    │
 │             │  • Web OAuth flow
-│  34 Tools  │  • Session management
+│  78 Tools  │  • Session management
 │             │  • Multi-user support
 └──────┬──────┘
        │
@@ -241,7 +345,7 @@ Users just need to:
 
 ---
 
-## 🛠️ Complete Tool List
+## 🛠️ Complete Tool List (82 Tools)
 
 ### 📧 Gmail Tools (13)
 
@@ -284,27 +388,114 @@ Users just need to:
 | `search_fathom_meetings_by_title` | Search by title |
 | `search_fathom_meetings_by_attendee` | Search by attendee |
 
+### 📝 Google Docs Tools (9)
+
+| Tool | Description |
+|------|-------------|
+| `create_google_doc` | Create new documents |
+| `read_google_doc` | Read document content |
+| `append_to_google_doc` | Add content to end |
+| `insert_into_google_doc` | Insert at specific position |
+| `replace_text_in_google_doc` | Find and replace |
+| `add_heading_to_google_doc` | Add formatted headings (H1-H6) |
+| `create_table_in_google_doc` | Insert tables with data |
+| `format_google_doc_section` | Find and format text |
+| `format_google_doc_professional` | Apply professional styling |
+
+### 📊 Google Sheets Tools (19)
+
+| Tool | Description |
+|------|-------------|
+| `create_spreadsheet` | Create new spreadsheets |
+| `read_spreadsheet` | Read data from ranges |
+| `append_to_spreadsheet` | Append rows to end |
+| `update_spreadsheet` | Update specific cells |
+| `clear_spreadsheet_range` | Clear values |
+| `find_replace_in_spreadsheet` | Find and replace text |
+| `delete_spreadsheet_rows` | Delete specific rows |
+| `delete_spreadsheet_columns` | Delete specific columns |
+| `move_spreadsheet_rows` | Move/copy rows between tabs (handles large datasets) |
+| `add_sheet_to_spreadsheet` | Create new tabs |
+| `delete_sheet_from_spreadsheet` | Delete tabs |
+| `list_sheets_in_spreadsheet` | List all tabs |
+| `rename_spreadsheet_sheet` | Rename tabs |
+| `insert_spreadsheet_rows` | Insert blank rows |
+| `insert_spreadsheet_columns` | Insert blank columns |
+| `format_spreadsheet_cells` | Apply styling |
+| `sort_spreadsheet_range` | Sort by column |
+| `freeze_spreadsheet_rows_columns` | Freeze headers |
+| `auto_resize_spreadsheet_columns` | Auto-fit widths |
+
 ### 🎯 Campaign Management Tools (8)
 
 | Tool | Description |
 |------|-------------|
-| `get_all_clients` | All 88+ clients (Instantly + Bison) with fuzzy name matching |
-| `get_instantly_clients` | 64 Instantly.ai clients with workspace IDs and API keys |
-| `get_bison_clients` | 24 Bison clients with API credentials |
-| `create_bison_campaign` | Create email sequence with automatic placeholder conversion |
-| `create_instantly_campaign` | Create campaign with HTML formatting and sequences |
-| `get_client_campaigns` | Fetch campaign analytics and performance metrics |
-| `get_interested_leads` | Identify and track positive lead responses |
-| `get_campaign_statistics` | Weekly/monthly analytics dashboard |
+| `create_bison_sequence` | Create Bison email sequence |
+| `create_instantly_campaign` | Create Instantly campaign |
+| `list_bison_campaigns` | List all campaigns for a Bison client |
+| `get_bison_campaign_details` | Get detailed campaign info with sequences/steps |
+| `list_instantly_campaigns` | List all campaigns for an Instantly client |
+| `get_instantly_campaign_details` | Get detailed campaign info with sequences/variants |
+| `check_campaign_spam` | Check campaign for spam |
+| `check_text_spam` | Check text for spam |
 
-**Campaign Creation Features:**
-- 🔄 **Auto Placeholder Conversion**: `{{firstname}}`, `{{company}}` → `{FIRST_NAME}`, `{COMPANY_NAME}`
-- 🎨 **HTML Email Formatting**: Converts plain text to proper `<div>` structure for Instantly
-- 🔍 **Fuzzy Client Matching**: Find clients with typos ("michael hernandex" → "Michael Hernandez")
-- 📧 **Multi-Step Sequences**: Create follow-up sequences with custom wait times
-- 📊 **Performance Tracking**: Monitor reply rates, interested leads, and campaign success
+### 💎 Lead Intelligence Tools (14)
 
-**Total: 34 tools** 🎉
+| Tool | Description |
+|------|-------------|
+| `get_all_clients_with_positive_replies` | Fast parallel search across all clients |
+| `get_all_active_clients` | Find clients with recent campaign activity |
+| `get_active_instantly_clients` | Instantly clients with sent emails |
+| `get_active_bison_clients` | Bison clients with sent emails |
+| `get_client_lead_details` | Detailed lead responses for specific client |
+| `find_missed_opportunities` | Find hidden gems - interested leads AI missed |
+| `mark_lead_as_interested` | Mark leads across Instantly & Bison |
+| `get_all_lead_clients` | All clients from both platforms |
+| `get_lead_platform_stats` | Aggregated stats across platforms |
+| `get_top_clients` | Top performing clients by metric |
+| `get_underperforming_clients_list` | Clients below threshold |
+| `get_lead_weekly_summary` | Comprehensive weekly report |
+| `get_instantly_clients` | All Instantly workspaces |
+| `get_bison_clients` | All Bison clients |
+
+**Lead Intelligence Features:**
+- 💎 **Hidden Gems**: AI finds interested leads that other AIs missed with HOT/WARM/COLD scoring
+- 🔧 **Fixed Pagination**: Fetches all 50-80+ sender emails per client (eliminates false positives)
+- 🎯 **Dual-Marking**: Automatically marks both responder AND original lead for forwarded replies
+- ⚡ **Parallel Processing**: Fast search across 88+ clients in seconds
+- 🔍 **Multi-Layer Detection**: API → Keywords → Claude → Timing validation
+
+### 🛡️ Spam Detection Tools (1)
+
+| Tool | Description |
+|------|-------------|
+| `check_text_spam` | Check any email text for spam words with EmailGuard API |
+
+**Spam Detection Features:**
+- 🛡️ **EmailGuard API Integration**: Industry-standard spam detection with scoring
+- 💬 **User-Friendly Error Messages**: Clear explanations for quota limits and rate limiting
+- 📊 **Detailed Reports**: Spam scores, word counts, and specific spam words identified
+- ⚠️ **Smart Error Handling**: Graceful handling of API quota exhaustion
+
+### 📮 Mailbox Health Monitoring Tools (5)
+
+| Tool | Description |
+|------|-------------|
+| `get_instantly_mailbox_health` | Monitor Instantly email accounts with warmup scores and status |
+| `get_bison_mailbox_health` | Monitor Bison sender email accounts with connection status |
+| `get_all_mailbox_health_summary` | Aggregated health dashboard across all platforms |
+| `get_unhealthy_mailboxes_alert` | Filter for at-risk accounts requiring attention |
+| `get_mailbox_capacity_report` | Calculate total daily sending capacity |
+
+**Mailbox Health Monitoring Features:**
+- 📮 **Multi-Platform Support**: Monitor both Instantly and Bison email accounts
+- 🔍 **Warmup Score Tracking**: Real-time warmup scores (0-100) for Instantly accounts
+- 📊 **All-Time Metrics**: Track sent, opened, clicked, replied, bounced, spam, and unsubscribed for Bison
+- 🚨 **Health Classification**: 3-tier system - healthy (active/connected), early (paused), at_risk (errors)
+- 📈 **Capacity Planning**: Aggregate daily sending limits across all healthy accounts
+- ⚡ **Parallel Processing**: Fast health checks across 88+ clients simultaneously
+
+**Total: 82 tools across 9 platforms** 🎉
 
 ---
 
@@ -312,16 +503,17 @@ Users just need to:
 
 ### For Developers
 
-- ✅ **18+ unit tests** - Campaign feature test coverage with mocked API calls
+- ✅ **100 unit tests** - Complete test coverage: 27 email analysis, 14 campaign management, 14 lead fetching, 13 spam checking, 18 workspace management, 14 Gmail integration
 - ✅ **Type hints** - Complete type safety across all modules
-- ✅ **Error handling** - Friendly error messages with recovery steps
+- ✅ **Error handling** - Friendly error messages with recovery steps for EmailGuard quota limits, rate limiting, authentication failures
 - ✅ **Rate limiting** - API quota management for Gmail/Calendar
 - ✅ **Logging** - Comprehensive debug logs for troubleshooting
 - ✅ **OAuth 2.0** - Secure authentication with encrypted token storage
 - ✅ **Session management** - Multi-tenant support with SQLite
 - ✅ **SQLite database** - User session and credential storage
-- ✅ **Fuzzy matching** - Client name search with 60% similarity threshold
+- ✅ **Fuzzy matching** - Client name search with 60% similarity threshold using rapidfuzz
 - ✅ **HTML conversion** - Automatic email body formatting for Instantly
+- ✅ **Spam detection** - EmailGuard API integration with intelligent error handling
 
 ### For Users
 
@@ -391,9 +583,9 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 - Multi-tenant from day one
 - Session-based authentication
-- Proper error handling
+- Proper error handling with user-friendly messages
 - Comprehensive logging
-- 41 unit tests
+- 100 unit tests with full coverage
 
 ### 2. Amazing User Experience
 
@@ -414,11 +606,13 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for detailed manual installation.
 
 ### 4. Comprehensive Integration
 
-- 34 tools across 4 platforms
-- Lead management with 88 clients
-- Google Sheets as database
-- Campaign analytics
-- Interested lead tracking
+- 78 tools across 9 platforms
+- Complete Google Workspace integration (Gmail, Calendar, Docs, Sheets)
+- Advanced document automation (tables, formatting, professional styling)
+- Lead management with 88+ clients
+- Campaign automation and analytics
+- Hidden gems discovery with AI
+- Mailbox health monitoring with real-time status
 
 ---
 
@@ -481,6 +675,33 @@ This helps your team stay informed about new features and decide when to update!
 
 > 💡 **See full visual timeline**: Visit `/changelog` on your Railway deployment for a beautiful timeline view!
 
+**v2.7.4** (December 22, 2024) - **Bulk Data Operations & OAuth Fixes**
+- 📊 **NEW TOOL: move_spreadsheet_rows** - Move or copy thousands of rows between sheets efficiently
+- ⚡ **Batch Processing** - Automatic 1000-row batching prevents timeouts on large datasets (15k+ rows)
+- 🔄 **Smart Data Migration** - Auto-copies headers to destination, optional source deletion for true "move"
+- 🎯 **Use Cases** - Split large datasets, reorganize data across tabs, archive completed records
+- 🛠️ **Technical**: Thread-safe implementation with rate limiting and comprehensive error handling
+- 🔧 **OAuth Scope Fix** - Added missing `spreadsheets` scope to GOOGLE_OAUTH_SCOPES in .env.example
+- 📚 **Documentation** - Updated tool count to 78 tools (was 77), added comprehensive examples
+
+**v2.5.0** (December 19, 2024) - **Hidden Gems Intelligence & Deduplication**
+- 💎 **Hidden Gems Deduplication** - Groups replies by email address and keeps only the earliest reply per person
+- 🏷️ **Green Tag Support** - Marks only first reply to trigger Bison's green "Interested" status (matches Bison UX)
+- ⚡ **Performance Optimization** - Reduced API calls by marking one reply per person instead of all replies
+- 🎯 **Cleaner Results** - Hidden gems now show 1 person = 1 opportunity instead of multiple duplicate entries
+- 🛠️ **Technical**: Added email deduplication logic with timestamp-based earliest reply selection
+
+**v2.4.0** (December 17, 2024) - **Spam Detection & Enhanced Testing**
+- 🛡️ **EmailGuard API Integration** - Industry-standard spam detection for campaigns
+- 📊 **100 Unit Tests** - Complete coverage across all features (up from 41)
+- 💬 **User-Friendly Error Messages** - Clear explanations for quota limits, rate limiting, auth failures
+- 🔍 **Campaign Spam Scanning** - Check entire Bison/Instantly campaigns for spam words
+- 🎯 **Bison A/B Testing** - Fixed tool documentation to properly create A/B test variants using `variant_from_step` parameter
+- ⏰ **Smart Delay Defaults** - Intelligent wait times: 1→3→5→7 days (Bison) and 0→72→120→168 hours (Instantly) for optimal follow-up cadence
+- 🧪 **Comprehensive Test Suite** - Added 14 lead fetching tests, 14 campaign tests, 13 spam checking tests, 18 workspace tests
+- 🛠️ **Technical**: Added spam_checker.py, emailguard_client.py, enhanced error handling with status code parsing
+- 🐛 **Bug Fixes**: Removed print() statements breaking MCP JSON-RPC, fixed Instantly API endpoint from /campaigns/list to /campaigns
+
 **v2.3.1** (December 17, 2024) - **Google Meet Integration**
 - 🎥 **Automatic Google Meet Links** - Calendar events with attendees automatically include video conference links
 - 📧 **Meet Links in Email Invites** - Invitations prominently display the Google Meet link for one-click joining
@@ -516,7 +737,7 @@ This helps your team stay informed about new features and decide when to update!
 - ✨ Step-by-step progress indicators (1 of 9, 2 of 9...)
 - 🐛 Fixed Railway Python bytecode caching
 - 🐛 Fixed Google OAuth scope validation
-- 📦 Expanded from 26 to 34 tools
+- 📦 Expanded tool count significantly
 
 **v1.2.0** (December 2024)
 - ✨ Automatic timezone detection
@@ -562,7 +783,7 @@ Built with:
 
 <div align="center">
 
-**Production-ready multi-tenant MCP server with 34 tools**
+**Production-ready multi-tenant MCP server with 82 tools across 9 platforms**
 
 ⭐ Star this repo if you found it helpful!
 

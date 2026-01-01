@@ -34,7 +34,7 @@ def load_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: str = SH
         base = sheet_url
 
     csv_url = f"{base}/export?format=csv&gid={gid}"
-    print(f"[Sheets] Fetching workspace list from Google Sheet...")
+    # Silently fetch (print removed for MCP compatibility)
 
     resp = requests.get(csv_url, timeout=30)
     resp.raise_for_status()
@@ -75,7 +75,7 @@ def load_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: str = SH
             "person_name": raw_client_name,  # Column D - for search
         })
 
-    print(f"[Sheets] Loaded {len(workspaces)} workspaces")
+    # Silently return (print removed for MCP compatibility)
     return workspaces
 
 
@@ -101,7 +101,7 @@ def load_bison_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: st
         base = sheet_url
 
     csv_url = f"{base}/export?format=csv&gid={gid}"
-    print(f"[Bison] Fetching workspace list from Google Sheet...")
+    # Silently fetch (print removed for MCP compatibility)
 
     resp = requests.get(csv_url, timeout=30)
     resp.raise_for_status()
@@ -134,7 +134,7 @@ def load_bison_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid: st
             "api_key": raw_key
         })
 
-    print(f"[Bison] Loaded {len(workspaces)} workspaces")
+    # Silently return (print removed for MCP compatibility)
     return workspaces
 
 
@@ -170,7 +170,7 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
         base = sheet_url
 
     csv_url = f"{base}/export?format=csv&gid={gid}"
-    print(f"[Instantly] Fetching workspace list from Google Sheet...")
+    # Silently fetch (print removed for MCP compatibility)
 
     resp = requests.get(csv_url, timeout=30)
     resp.raise_for_status()
@@ -217,5 +217,5 @@ def load_instantly_workspaces_from_sheet(sheet_url: str = DEFAULT_SHEET_URL, gid
             "action": raw_action,                  # Column F
         })
 
-    print(f"[Instantly] Loaded {len(workspaces)} workspaces")
+    # Silently return (print removed for MCP compatibility)
     return workspaces

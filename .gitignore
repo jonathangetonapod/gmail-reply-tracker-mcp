@@ -66,7 +66,9 @@ dmypy.json
 
 # pyenv
 .python-version
+# Ignore test_*.py in root, but allow tests/ directory
 test_*.py
+!tests/test_*.py
 
 # Test scripts
 create_speaker_campaign.py

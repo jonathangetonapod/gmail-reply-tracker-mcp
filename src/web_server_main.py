@@ -54,6 +54,8 @@ def main():
             'openid',
             'https://www.googleapis.com/auth/gmail.modify',
             'https://www.googleapis.com/auth/calendar',
+            'https://www.googleapis.com/auth/documents',
+            'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/userinfo.email'
         ]
         logger.warning("No scopes provided, using defaults: %s", scopes)

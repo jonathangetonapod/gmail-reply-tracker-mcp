@@ -115,7 +115,7 @@ class Config:
 
         oauth_scopes_str = os.getenv(
             "GMAIL_OAUTH_SCOPES",
-            "https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/userinfo.email"
+            "https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/userinfo.email"
         )
         oauth_scopes = [s.strip() for s in oauth_scopes_str.split(",")]
 
@@ -134,7 +134,7 @@ class Config:
 
         max_requests_per_minute = int(os.getenv(
             "GMAIL_API_MAX_REQUESTS_PER_MINUTE",
-            "60"
+            "250"  # Gmail API allows 250 quota units/second (15,000/minute)
         ))
 
         return cls(

@@ -1,0 +1,865 @@
+"""
+AI-powered interest detection to find missed opportunities in campaign replies.
+
+This module uses a hybrid approach:
+1. Fast keyword-based analysis for obvious interest signals
+2. Claude API for nuanced/unclear cases (with parallel processing for scale)
+"""
+
+import re
+import os
+import logging
+import time
+from typing import Dict, List, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from anthropic import Anthropic
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Global cache for thread emails to avoid duplicate API calls
+_thread_cache = {}
+
+
+def is_instant_auto_reply(
+    lead_email: str,
+    reply_timestamp: str,
+    api_key: str,
+    threshold_minutes: int = 2
+) -> bool:
+    """
+    Check if reply came suspiciously fast after sent email (likely automated).
+
+    Uses lead-based timing: fetches all emails for the specific lead, finds the most
+    recent SENT email before this reply, and calculates time difference.
+
+    Args:
+        lead_email: Lead's email address to check
+        reply_timestamp: ISO timestamp of the reply
+        api_key: Instantly API key
+        threshold_minutes: Max minutes for human response (default: 2)
+
+    Returns:
+        True if reply came within threshold minutes (likely automated)
+    """
+    try:
+        from .instantly_client import get_lead_emails
+        import requests
+
+        logger.info(f"DEBUG is_instant_auto_reply: lead_email={lead_email}, reply_timestamp={reply_timestamp}")
+
+        # Check cache first to avoid duplicate API calls
+        if lead_email in _thread_cache:
+            thread_emails = _thread_cache[lead_email]
+            logger.info(f"DEBUG: Using cached lead emails ({len(thread_emails)} emails)")
+        else:
+            # Fetch lead emails (no retries - let circuit breaker handle failures)
+            logger.info(f"DEBUG: Fetching lead emails from API for lead_email={lead_email}")
+            thread_emails = get_lead_emails(lead_email, api_key, sort_order="asc")
+            logger.info(f"DEBUG: Got {len(thread_emails)} emails from API")
+            # Cache successful result
+            _thread_cache[lead_email] = thread_emails
+
+        if not thread_emails:
+            logger.info(f"DEBUG: No thread emails found, returning False")
+            return False
+
+        # Find most recent SENT email (ue_type=1) before this reply
+        reply_dt = datetime.fromisoformat(reply_timestamp.replace('Z', '+00:00'))
+
+        # DEBUG: Log what we're seeing in the thread
+        ue_types_seen = {}
+        for email in thread_emails[:5]:  # Just log first 5 for brevity
+            ue_type = email.get('ue_type')
+            timestamp = email.get('timestamp_email', 'no timestamp')
+            ue_types_seen[ue_type] = ue_types_seen.get(ue_type, 0) + 1
+            logger.info(f"DEBUG: Email sample - ue_type={ue_type}, timestamp={timestamp}")
+
+        logger.info(f"DEBUG: ue_type distribution in thread: {ue_types_seen}")
+        logger.info(f"DEBUG: Reply timestamp to compare: {reply_timestamp}")
+
+        sent_emails = []
+        for email in thread_emails:
+            if email.get('ue_type') == 1:  # Type 1 = sent (outbound)
+                email_dt = datetime.fromisoformat(
+                    email['timestamp_email'].replace('Z', '+00:00')
+                )
+                # Only consider sent emails BEFORE this reply
+                logger.info(f"DEBUG: Found sent email at {email['timestamp_email']}, comparing to reply at {reply_timestamp}")
+                if email_dt < reply_dt:
+                    sent_emails.append((email_dt, email))
+                    logger.info(f"DEBUG: ^ This sent email IS before the reply")
+                else:
+                    logger.info(f"DEBUG: ^ This sent email is NOT before the reply (email_dt={email_dt} >= reply_dt={reply_dt})")
+
+        logger.info(f"DEBUG: Found {len(sent_emails)} sent emails before this reply")
+
+        if not sent_emails:
+            logger.info(f"DEBUG: No sent emails found before reply, returning False")
+            return False
+
+        # Get the most recent sent email
+        last_sent_dt, last_sent_email = max(sent_emails, key=lambda x: x[0])
+
+        # Calculate time difference in minutes
+        time_diff = (reply_dt - last_sent_dt).total_seconds() / 60
+        logger.info(f"DEBUG: Time difference = {time_diff:.1f} minutes (threshold: {threshold_minutes})")
+
+        # Reply came within threshold minutes - likely automated
+        if 0 < time_diff <= threshold_minutes:
+            logger.info(
+                "Instant auto-reply detected: reply came %.1f minutes after sent email "
+                "(threshold: %d min)",
+                time_diff, threshold_minutes
+            )
+            logger.info(f"DEBUG: Returning True - this is an instant auto-reply")
+            return True
+
+        logger.info(f"DEBUG: Returning False - time_diff ({time_diff:.1f} min) is > threshold ({threshold_minutes} min)")
+        return False
+
+    except Exception as e:
+        logger.warning("Error checking instant auto-reply timing: %s", str(e))
+        logger.info(f"DEBUG: Exception occurred, returning False: {e}")
+        return False  # Don't filter if we can't determine
+
+
+def is_bison_instant_auto_reply(
+    reply_id: int,
+    reply_timestamp: str,
+    api_key: str,
+    threshold_minutes: int = 2
+) -> bool:
+    """
+    Check if Bison reply came suspiciously fast after sent email (likely automated).
+
+    Uses thread-based timing: fetches the conversation thread, finds the most
+    recent SENT email before this reply, and calculates time difference.
+
+    Args:
+        reply_id: Reply ID from Bison API
+        reply_timestamp: ISO timestamp of the reply (date_received)
+        api_key: Bison API key
+        threshold_minutes: Max minutes for human response (default: 2)
+
+    Returns:
+        True if reply came within threshold minutes (likely automated)
+    """
+    try:
+        from .bison_client import get_bison_conversation_thread
+        import requests
+
+        # Check cache first (use reply_id as key)
+        cache_key = f"bison_{reply_id}"
+        if cache_key in _thread_cache:
+            thread_data = _thread_cache[cache_key]
+        else:
+            # Fetch conversation thread (no retries - let circuit breaker handle failures)
+            thread_response = get_bison_conversation_thread(api_key, reply_id)
+            thread_data = thread_response.get("data", {})
+            # Cache successful result
+            _thread_cache[cache_key] = thread_data
+
+        if not thread_data:
+            return False
+
+        # Parse reply timestamp
+        reply_dt = datetime.fromisoformat(reply_timestamp.replace('Z', '+00:00'))
+
+        # Look through older messages to find most recent SENT email
+        sent_emails = []
+        for msg in thread_data.get("older_messages", []):
+            msg_type = msg.get("type", "").lower()
+            # Bison types: "sent", "received", "outbound", "inbound", etc.
+            if msg_type in ["sent", "outbound", "out"]:
+                msg_dt = datetime.fromisoformat(
+                    msg.get("date_received", "").replace('Z', '+00:00')
+                )
+                # Only consider sent emails BEFORE this reply
+                if msg_dt < reply_dt:
+                    sent_emails.append((msg_dt, msg))
+
+        if not sent_emails:
+            return False
+
+        # Get the most recent sent email
+        last_sent_dt, last_sent_msg = max(sent_emails, key=lambda x: x[0])
+
+        # Calculate time difference in minutes
+        time_diff = (reply_dt - last_sent_dt).total_seconds() / 60
+
+        # Reply came within threshold minutes - likely automated
+        if 0 < time_diff <= threshold_minutes:
+            logger.info(
+                "Instant auto-reply detected (Bison): reply came %.1f minutes after sent email "
+                "(threshold: %d min)",
+                time_diff, threshold_minutes
+            )
+            return True
+
+        return False
+
+    except Exception as e:
+        logger.warning("Error checking Bison instant auto-reply timing: %s", str(e))
+        return False  # Don't filter if we can't determine
+
+
+# Interest signal keywords (strong positive indicators)
+STRONG_INTEREST_KEYWORDS = [
+    r'\bpricing\b',
+    r'\bcost\b',
+    r'\bschedule\b',
+    r'\bmeeting\b',
+    r'\bdemo\b',
+    r'\bcall\b',
+    r'\binterested\b',
+    r'\byes\b',
+    r'\bsounds good\b',
+    r'\btell me more\b',
+    r'\bsend.*info\b',
+    r'\bbudget\b',
+    r'\bwhen can\b',
+    r'\bhow much\b',
+    r'\blet\'s talk\b',
+    r'\blet\'s discuss\b',
+    r'\blet\'s connect\b',
+    r'\blet\'s chat\b',
+    r'\bwould love to\b',
+    r'\bwould like to\b',
+    r'\bi\'d like to\b',
+    r'\bi want to\b',
+    r'\bi need\b',
+    r'\bwe need\b',
+    r'\bcan you\b',
+    r'\bplease send\b',
+    r'\bshare.*detail\b',
+    r'\bmore information\b',
+    r'\bfollow up\b',
+    r'\bnext step\b',
+]
+
+# Neutral/question keywords (moderate interest)
+MODERATE_INTEREST_KEYWORDS = [
+    r'\bhow does\b',
+    r'\bwhat is\b',
+    r'\btell me about\b',
+    r'\bcurious about\b',
+    r'\bexplain\b',
+    r'\bquestion\b',
+    r'\bclarif\b',
+]
+
+# Negative indicators (definitely not interested)
+NEGATIVE_KEYWORDS = [
+    r'\bnot interested\b',
+    r'\bno thanks?\b',  # Matches "no thank" or "no thanks"
+    r'\bunsubscribe\b',
+    r'\bremove me\b',
+    r'\bremove.*from.*list\b',  # "remove from distribution list", "remove from your list"
+    r'\bremove.*from.*distribution\b',  # "remove from distribution"
+    r'\bplease remove\b',  # "please remove from..."
+    r'^\s*stop\s*!?\s*$',  # Standalone "STOP" or "STOP!" (entire message)
+    r'\bstop.*email\b',
+    r'\bstop.*contact\b',  # "stop contacting me"
+    r'\bstop emailing\b',
+    r'\bdon\'t contact\b',
+    r'\bdo not contact\b',
+    r'\btake.*off.*list\b',  # "take me off your list"
+    r'\boff.*list\b',  # "off your list"
+    r'\boff.*email list\b',
+    r'\bnot.*right time\b',
+    r'\bnot a fit\b',
+    r'\balready have\b',
+    r'\bnot looking\b',
+    r'\bno longer\b',
+    r'\bnot.*industry\b',  # "not in that industry"
+    r'\bwrong person\b',
+    r'\bwrong company\b',
+    r'\bnot the right\b',
+    r'\bplease stop\b',  # catch generic "please stop"
+]
+
+# Auto-reply indicators (expanded to catch more patterns)
+AUTO_REPLY_KEYWORDS = [
+    r'\bout of office\b',
+    r'\bautomated? reply\b',
+    r'\bauto.{0,5}reply\b',
+    r'\bautomated? response\b',
+    r'\bauto.{0,5}response\b',
+    r'\bvacation\b',
+    r'\bmaternity leave\b',
+    r'\bparental leave\b',
+    r'\bon leave\b',
+    r'\breturning.*\d+/\d+\b',  # "returning 12/25"
+    r'\bleft.{0,20}(organization|organisation|company|role|position)\b',  # "I have left the organization"
+    r'\bhas left\b',  # "has left"
+    r'\bhave left\b',  # "I have left"
+    r'\bno longer (with|at|working)\b',  # "no longer with the company"
+    r'\bretired from\b',  # "has retired from"
+    r'\bunmonitored (mailbox|email)\b',  # "unmonitored mailbox"
+    r'\bun-monitored (mailbox|email)\b',  # "un-monitored mailbox" (with hyphen)
+    r'\bnot.*monitor(ed|ing)\b',  # "not being monitored"
+    r'\bmailbox.{0,20}not accepting\b',  # "mailbox is not accepting messages"
+    r'\bthank you for.{0,30}(automatic|automated)\b',  # "Thank you for your email. This is an automatic"
+    r'\b(am|is|are) (currently )?out\b',  # "I am currently out"
+    r'\bwill (respond|reply).{0,30}(return|back)\b',  # "will respond when I return"
+    r'\bstandard response time\b',  # "standard response time of X days"
+    r'\bmember of the team will follow up\b',  # auto-forwarding message
+    r'\ball[- ]day meeting\b',  # "all day meeting" or "all-day meeting"
+    r'\bnot expected to (check|respond)\b',  # "not expected to check or respond to emails"
+]
+
+# Test/setup emails that should be filtered (Bison connection tests, etc.)
+TEST_EMAIL_PATTERNS = [
+    r'\blead gen jay connection test\b',  # Bison's email deliverability test
+    r'\bif you receive this email.*everything is working correctly\b',  # Bison test message body
+    r'\bemail deliverability test\b',
+    r'\bconnection test\b',
+    r'\btest email\b',
+]
+
+
+def analyze_reply_with_keywords(reply_text: str, subject: str = "") -> Dict:
+    """
+    Fast keyword-based analysis to categorize email replies.
+
+    Args:
+        reply_text: The email reply body text
+        subject: The email subject line (optional, helps detect auto-replies)
+
+    Returns:
+        {
+            "category": "hot" | "warm" | "cold" | "auto_reply" | "unclear",
+            "confidence": 0-100,
+            "matched_keywords": [...],
+            "reason": str
+        }
+    """
+    if not reply_text or not reply_text.strip():
+        return {
+            "category": "unclear",
+            "confidence": 0,
+            "matched_keywords": [],
+            "reason": "Empty reply"
+        }
+
+    text_lower = reply_text.lower()
+    subject_lower = subject.lower() if subject else ""
+
+    # Check for test/setup emails FIRST (Bison connection tests, etc.)
+    for pattern in TEST_EMAIL_PATTERNS:
+        if re.search(pattern, subject_lower, re.IGNORECASE) or re.search(pattern, text_lower, re.IGNORECASE):
+            return {
+                "category": "auto_reply",  # Categorize as auto_reply to filter out
+                "confidence": 100,
+                "matched_keywords": [pattern],
+                "reason": "Test/setup email (Bison connection test or similar)"
+            }
+
+    # Check for auto-replies next (highest priority)
+    # Check BOTH subject line and body
+    auto_matches = []
+
+    # Check subject line for auto-reply indicators
+    if subject_lower and ("automatic reply" in subject_lower or "auto reply" in subject_lower or "out of office" in subject_lower):
+        auto_matches.append("subject:automatic_reply")
+
+    # Check body for auto-reply patterns
+    for pattern in AUTO_REPLY_KEYWORDS:
+        if re.search(pattern, text_lower, re.IGNORECASE):
+            auto_matches.append(pattern)
+
+    if auto_matches:
+        return {
+            "category": "auto_reply",
+            "confidence": 95,
+            "matched_keywords": auto_matches,
+            "reason": "Auto-reply detected (out of office, vacation, etc.)"
+        }
+
+    # Check for negative signals
+    negative_matches = []
+
+    # Check subject line for unsubscribe requests
+    if subject_lower and "unsubscribe" in subject_lower:
+        negative_matches.append("subject:unsubscribe")
+
+    # Check body for negative patterns
+    for pattern in NEGATIVE_KEYWORDS:
+        if re.search(pattern, text_lower, re.IGNORECASE | re.MULTILINE):
+            negative_matches.append(pattern)
+
+    if negative_matches:
+        return {
+            "category": "cold",
+            "confidence": 90,
+            "matched_keywords": negative_matches,
+            "reason": f"Negative interest signals found: {', '.join(negative_matches[:2])}"
+        }
+
+    # Check for strong interest signals
+    strong_matches = []
+    for pattern in STRONG_INTEREST_KEYWORDS:
+        if re.search(pattern, text_lower, re.IGNORECASE):
+            strong_matches.append(pattern)
+
+    if len(strong_matches) >= 2:
+        return {
+            "category": "hot",
+            "confidence": 85,
+            "matched_keywords": strong_matches,
+            "reason": f"Multiple strong interest signals: {', '.join(strong_matches[:3])}"
+        }
+    elif len(strong_matches) == 1:
+        return {
+            "category": "hot",
+            "confidence": 75,
+            "matched_keywords": strong_matches,
+            "reason": f"Strong interest signal: {strong_matches[0]}"
+        }
+
+    # Check for moderate interest signals
+    moderate_matches = []
+    for pattern in MODERATE_INTEREST_KEYWORDS:
+        if re.search(pattern, text_lower, re.IGNORECASE):
+            moderate_matches.append(pattern)
+
+    if moderate_matches:
+        return {
+            "category": "warm",
+            "confidence": 60,
+            "matched_keywords": moderate_matches,
+            "reason": f"Moderate interest signals: {', '.join(moderate_matches[:2])}"
+        }
+
+    # Very short replies are usually unclear
+    if len(reply_text.strip()) < 20:
+        return {
+            "category": "unclear",
+            "confidence": 30,
+            "matched_keywords": [],
+            "reason": "Reply too short to determine intent"
+        }
+
+    # No clear signals = unclear
+    return {
+        "category": "unclear",
+        "confidence": 40,
+        "matched_keywords": [],
+        "reason": "No clear interest or disinterest signals detected"
+    }
+
+
+def analyze_reply_with_claude(reply_text: str, subject: str = "") -> Dict:
+    """
+    Use Claude API to analyze nuanced/unclear replies.
+
+    Args:
+        reply_text: The email reply body text
+        subject: The email subject line (optional, provides context)
+
+    Returns:
+        {
+            "category": "hot" | "warm" | "cold" | "auto_reply" | "unclear",
+            "confidence": 0-100,
+            "reason": str
+        }
+    """
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+
+    if not api_key:
+        logger.warning("ANTHROPIC_API_KEY not set. Falling back to keyword analysis only.")
+        return {
+            "category": "unclear",
+            "confidence": 0,
+            "reason": "Claude API not configured"
+        }
+
+    try:
+        client = Anthropic(api_key=api_key)
+
+        prompt = f"""Analyze this email reply from a cold outreach campaign and categorize the lead's interest level.
+
+Subject: {subject}
+
+Reply:
+{reply_text}
+
+Categorize this reply as one of:
+- HOT: Strong buying signals, wants to talk/meet/get pricing
+- WARM: Shows interest, asking questions, wants more info
+- COLD: Not interested, unsubscribe, already have solution
+- AUTO_REPLY: Out of office, vacation, automated response
+- UNCLEAR: Cannot determine intent from the message
+
+Respond in JSON format:
+{{
+    "category": "hot|warm|cold|auto_reply|unclear",
+    "confidence": 0-100,
+    "reason": "brief explanation"
+}}"""
+
+        response = client.messages.create(
+            model="claude-3-5-haiku-20241022",  # Fast and cheap model
+            max_tokens=200,
+            temperature=0,  # Deterministic
+            messages=[{
+                "role": "user",
+                "content": prompt
+            }]
+        )
+
+        # Parse Claude's response
+        response_text = response.content[0].text.strip()
+
+        # Extract JSON (Claude sometimes wraps in markdown or adds extra text)
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+
+        # Try to find JSON object boundaries
+        import json
+        import re
+
+        # Look for JSON object pattern {..."category": ...}
+        json_match = re.search(r'\{[^{}]*"category"[^{}]*\}', response_text, re.DOTALL)
+        if json_match:
+            response_text = json_match.group(0)
+
+        result = json.loads(response_text)
+
+        logger.debug("Claude analysis: %s (confidence: %d%%)", result["category"], result["confidence"])
+
+        return result
+
+    except Exception as e:
+        logger.error("Claude API error: %s", str(e))
+        return {
+            "category": "unclear",
+            "confidence": 0,
+            "reason": f"Claude API error: {str(e)}"
+        }
+
+
+def analyze_reply_hybrid(reply_text: str, subject: str = "") -> Dict:
+    """
+    Hybrid approach: Use keywords first, then Claude for unclear cases.
+
+    This is the recommended function to use - it's fast for obvious cases
+    and accurate for nuanced cases.
+
+    Args:
+        reply_text: The email reply body text
+        subject: The email subject line (optional)
+
+    Returns:
+        {
+            "category": "hot" | "warm" | "cold" | "auto_reply" | "unclear",
+            "confidence": 0-100,
+            "method": "keyword" | "claude",
+            "reason": str,
+            "matched_keywords": [...] (if method=keyword)
+        }
+    """
+    # Step 1: Try keyword analysis (fast)
+    keyword_result = analyze_reply_with_keywords(reply_text)
+
+    # If keyword analysis is confident (>70%), use it
+    if keyword_result["confidence"] >= 70:
+        keyword_result["method"] = "keyword"
+        logger.debug("Keyword analysis confident: %s (%d%%)",
+                    keyword_result["category"], keyword_result["confidence"])
+        return keyword_result
+
+    # Step 2: For unclear cases, use Claude API
+    logger.debug("Keyword analysis unclear (%d%%), trying Claude...", keyword_result["confidence"])
+    claude_result = analyze_reply_with_claude(reply_text, subject)
+
+    # If Claude is available and confident, use it
+    if claude_result["confidence"] >= 50:
+        claude_result["method"] = "claude"
+        logger.debug("Claude analysis: %s (%d%%)",
+                    claude_result["category"], claude_result["confidence"])
+        return claude_result
+
+    # Fallback to keyword result (even if low confidence)
+    keyword_result["method"] = "keyword_fallback"
+    logger.debug("Using keyword analysis as fallback: %s (%d%%)",
+                keyword_result["category"], keyword_result["confidence"])
+    return keyword_result
+
+
+def categorize_leads(
+    leads: List[Dict],
+    use_claude: bool = True,
+    max_workers: int = 20,
+    api_key: Optional[str] = None
+) -> Dict:
+    """
+    Categorize a list of leads into hot/warm/cold/auto/unclear buckets.
+
+    Three-phase detection system:
+    1. Keyword analysis: Fast filter for obvious auto-replies and rejections
+    2. Claude API: Context-aware analysis (parallel processing, 20 workers)
+    3. Timing validation: Double-checks HOT/WARM opportunities for instant auto-replies
+
+    Args:
+        leads: List of lead dicts with "reply_body" and optionally "subject", "thread_id", "timestamp", "platform"
+        use_claude: Whether to use Claude API for analysis (default: True)
+        max_workers: Max parallel Claude API calls (default: 20, well under 4K RPM limit)
+        api_key: Optional Instantly/Bison API key for timing validation (Phase 3)
+
+    Returns:
+        {
+            "hot": [...],
+            "warm": [...],
+            "cold": [...],
+            "auto_reply": [...],
+            "unclear": [...],
+            "summary": {
+                "total_analyzed": int,
+                "hot_count": int,
+                "warm_count": int,
+                "cold_count": int,
+                "auto_reply_count": int,
+                "unclear_count": int
+            }
+        }
+    """
+    categorized = {
+        "hot": [],
+        "warm": [],
+        "cold": [],
+        "auto_reply": [],
+        "unclear": []
+    }
+
+    # Phase 1: Fast keyword analysis - ONLY for auto-replies and obvious rejections
+    keyword_analyzed = []
+    needs_claude = []
+
+    for lead in leads:
+        reply_text = lead.get("reply_body", "")
+        subject = lead.get("subject", "")
+
+        # Try keyword analysis first (pass subject to detect auto-replies)
+        keyword_result = analyze_reply_with_keywords(reply_text, subject=subject)
+
+        # Only skip Claude for HIGH CONFIDENCE auto-replies and rejections
+        # This avoids false positives on interest signals
+        if not use_claude:
+            # Fallback to keywords if Claude disabled
+            lead_with_analysis = {
+                **lead,
+                "ai_category": keyword_result["category"],
+                "ai_confidence": keyword_result["confidence"],
+                "ai_reason": keyword_result["reason"],
+                "ai_method": "keyword"
+            }
+            categorized[keyword_result["category"]].append(lead_with_analysis)
+            keyword_analyzed.append(lead_with_analysis)
+        elif keyword_result["category"] == "auto_reply" and keyword_result["confidence"] >= 90:
+            # Auto-replies are accurate, skip Claude
+            lead_with_analysis = {
+                **lead,
+                "ai_category": keyword_result["category"],
+                "ai_confidence": keyword_result["confidence"],
+                "ai_reason": keyword_result["reason"],
+                "ai_method": "keyword"
+            }
+            categorized["auto_reply"].append(lead_with_analysis)
+            keyword_analyzed.append(lead_with_analysis)
+        elif keyword_result["category"] == "cold" and keyword_result["confidence"] >= 90:
+            # Very clear rejections (unsubscribe, "not interested"), skip Claude
+            lead_with_analysis = {
+                **lead,
+                "ai_category": keyword_result["category"],
+                "ai_confidence": keyword_result["confidence"],
+                "ai_reason": keyword_result["reason"],
+                "ai_method": "keyword"
+            }
+            categorized["cold"].append(lead_with_analysis)
+            keyword_analyzed.append(lead_with_analysis)
+        else:
+            # Everything else goes to Claude for better context understanding
+            needs_claude.append({
+                "lead": lead,
+                "keyword_result": keyword_result
+            })
+
+    logger.info("Keyword analysis: %d auto-replies/rejections filtered, %d going to Claude",
+               len(keyword_analyzed), len(needs_claude))
+
+    # Phase 2: Parallel Claude API calls for ALL remaining leads (not just unclear)
+    # This gives much better accuracy on interest detection vs keyword matching
+    if needs_claude and use_claude:
+        logger.info("Starting parallel Claude analysis for %d leads (max_workers=%d, rate-limited)...",
+                   len(needs_claude), max_workers)
+
+        def analyze_with_claude(item):
+            """Helper function for parallel processing"""
+            lead = item["lead"]
+            keyword_result = item["keyword_result"]
+            reply_text = lead.get("reply_body", "")
+            subject = lead.get("subject", "")
+
+            try:
+                claude_result = analyze_reply_with_claude(reply_text, subject)
+
+                # Use Claude if confident, otherwise fallback to keywords
+                if claude_result["confidence"] >= 50:
+                    claude_result["method"] = "claude"
+                    return {
+                        **lead,
+                        "ai_category": claude_result["category"],
+                        "ai_confidence": claude_result["confidence"],
+                        "ai_reason": claude_result["reason"],
+                        "ai_method": "claude"
+                    }
+                else:
+                    keyword_result["method"] = "keyword_fallback"
+                    return {
+                        **lead,
+                        "ai_category": keyword_result["category"],
+                        "ai_confidence": keyword_result["confidence"],
+                        "ai_reason": keyword_result["reason"],
+                        "ai_method": "keyword_fallback"
+                    }
+            except Exception as e:
+                logger.error("Error analyzing lead with Claude: %s", str(e))
+                # Fallback to keyword result
+                keyword_result["method"] = "keyword_fallback_error"
+                return {
+                    **lead,
+                    "ai_category": keyword_result["category"],
+                    "ai_confidence": keyword_result["confidence"],
+                    "ai_reason": f"Claude error: {str(e)}",
+                    "ai_method": "keyword_fallback_error"
+                }
+
+        # Process in parallel
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks
+            future_to_item = {
+                executor.submit(analyze_with_claude, item): item
+                for item in needs_claude
+            }
+
+            # Collect results as they complete
+            for future in as_completed(future_to_item):
+                try:
+                    lead_with_analysis = future.result()
+                    categorized[lead_with_analysis["ai_category"]].append(lead_with_analysis)
+                except Exception as e:
+                    logger.error("Error processing future: %s", str(e))
+                    # Use keyword fallback for this lead
+                    item = future_to_item[future]
+                    lead = item["lead"]
+                    keyword_result = item["keyword_result"]
+                    keyword_result["method"] = "keyword_fallback_error"
+                    lead_with_analysis = {
+                        **lead,
+                        "ai_category": keyword_result["category"],
+                        "ai_confidence": keyword_result["confidence"],
+                        "ai_reason": f"Processing error: {str(e)}",
+                        "ai_method": "keyword_fallback_error"
+                    }
+                    categorized[lead_with_analysis["ai_category"]].append(lead_with_analysis)
+
+        logger.info("Parallel Claude analysis complete")
+
+    # Phase 3: TIMING VALIDATION - Double-check HOT/WARM leads for instant auto-replies
+    # This runs AFTER Claude to validate opportunities (much fewer API calls)
+    if api_key:
+        opportunities = categorized["hot"] + categorized["warm"]
+
+        if opportunities:
+            logger.info(f"Phase 3: Validating {len(opportunities)} opportunities with timing check...")
+
+            # Clear cache for fresh validation
+            global _thread_cache
+            _thread_cache = {}
+
+            downgraded_count = 0
+            validated_hot = []
+            validated_warm = []
+
+            for lead in opportunities:
+                is_timing_auto_reply = False
+
+                # DEBUG: Check what fields are available
+                logger.info(f"DEBUG: Checking {lead.get('email', 'unknown')} - "
+                           f"platform={lead.get('platform')}, "
+                           f"timestamp={lead.get('timestamp')}, "
+                           f"id={lead.get('id')}")
+
+                if lead.get("timestamp"):
+                    platform = lead.get("platform", "").lower()
+
+                    try:
+                        # Check timing based on platform
+                        if platform == "instantly" and lead.get("email"):
+                            logger.info(f"DEBUG: Calling is_instant_auto_reply for {lead.get('email')}")
+                            is_timing_auto_reply = is_instant_auto_reply(
+                                lead_email=lead["email"],
+                                reply_timestamp=lead["timestamp"],
+                                api_key=api_key,
+                                threshold_minutes=2
+                            )
+                            logger.info(f"DEBUG: is_instant_auto_reply returned {is_timing_auto_reply} for {lead.get('email')}")
+                        elif platform == "bison" and lead.get("id"):
+                            logger.info(f"DEBUG: Calling is_bison_instant_auto_reply for {lead.get('email')} with reply_id={lead['id']}")
+                            is_timing_auto_reply = is_bison_instant_auto_reply(
+                                reply_id=lead["id"],
+                                reply_timestamp=lead["timestamp"],
+                                api_key=api_key,
+                                threshold_minutes=2
+                            )
+                            logger.info(f"DEBUG: is_bison_instant_auto_reply returned {is_timing_auto_reply} for {lead.get('email')}")
+                        else:
+                            logger.info(f"DEBUG: Skipping timing check for {lead.get('email')} - no thread_id/id or wrong platform")
+                    except Exception as e:
+                        # Log but don't fail - just skip timing validation for this lead
+                        logger.warning(f"Could not validate timing for {lead.get('email', 'unknown')}: {e}")
+
+                if is_timing_auto_reply:
+                    # Downgrade to auto_reply - this was a false positive
+                    downgraded_lead = {
+                        **lead,
+                        "ai_category": "auto_reply",
+                        "ai_confidence": 95,
+                        "ai_reason": f"TIMING OVERRIDE: Reply came within 2 minutes (automated). Original: {lead.get('ai_reason', 'unknown')}",
+                        "ai_method": "timing_validation",
+                        "original_category": lead["ai_category"],
+                        "original_method": lead.get("ai_method", "unknown")
+                    }
+                    categorized["auto_reply"].append(downgraded_lead)
+                    downgraded_count += 1
+                    logger.info(f"Downgraded {lead.get('email', 'unknown')} from {lead['ai_category']} to auto_reply (replied in <2 min)")
+                else:
+                    # Validated as genuine opportunity
+                    if lead["ai_category"] == "hot":
+                        validated_hot.append(lead)
+                    else:
+                        validated_warm.append(lead)
+
+            # Update categorized with validated leads
+            categorized["hot"] = validated_hot
+            categorized["warm"] = validated_warm
+
+            logger.info(f"Timing validation complete: {downgraded_count} downgraded to auto_reply, {len(validated_hot)} hot, {len(validated_warm)} warm validated")
+
+    # Build summary
+    summary = {
+        "total_analyzed": len(leads),
+        "hot_count": len(categorized["hot"]),
+        "warm_count": len(categorized["warm"]),
+        "cold_count": len(categorized["cold"]),
+        "auto_reply_count": len(categorized["auto_reply"]),
+        "unclear_count": len(categorized["unclear"])
+    }
+
+    categorized["summary"] = summary
+
+    return categorized

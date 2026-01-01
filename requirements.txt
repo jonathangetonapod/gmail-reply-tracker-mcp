@@ -36,3 +36,6 @@ cryptography>=41.0.0
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
 rapidfuzz>=3.0.0
+
+# AI Analysis
+anthropic>=0.75.0

@@ -2,7 +2,9 @@
 Campaign spam checker - scans Bison and Instantly campaigns for spam content.
 """
 
+import requests
 from typing import List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from . import bison_client, instantly_client, emailguard_client, sheets_client
 
 
@@ -63,6 +65,30 @@ def check_text_spam(
             "body": body
         }
 
+    except requests.exceptions.HTTPError as e:
+        # Parse EmailGuard API errors for user-friendly messages
+        error_msg = str(e)
+        user_friendly_msg = error_msg
+
+        # Check for quota/rate limit errors
+        if "limit" in error_msg.lower() or "quota" in error_msg.lower():
+            user_friendly_msg = "EmailGuard API quota limit reached - please wait for reset or upgrade plan"
+        elif e.response.status_code == 429:
+            user_friendly_msg = "EmailGuard API rate limit exceeded - too many requests"
+        elif e.response.status_code == 401:
+            user_friendly_msg = "EmailGuard API authentication failed - check API key"
+        elif e.response.status_code == 403:
+            user_friendly_msg = "EmailGuard API access forbidden - check permissions"
+
+        return {
+            "error": user_friendly_msg,
+            "raw_error": error_msg[:200],
+            "is_spam": False,
+            "spam_score": 0,
+            "spam_words": [],
+            "subject": subject,
+            "body": body
+        }
     except Exception as e:
         return {
             "error": str(e),
@@ -127,8 +153,32 @@ def check_bison_campaign_spam(
         body = step.get("email_body", "")
         order = step.get("order", 0)
 
+        # Skip if both subject and body are empty
+        if not subject.strip() and not body.strip():
+            results["steps"].append({
+                "step_order": order,
+                "subject": subject,
+                "is_spam": False,
+                "spam_score": 0,
+                "spam_words": [],
+                "skipped": "Empty content - no subject or body"
+            })
+            continue
+
         # Combine subject and body for spam check
         content = f"Subject: {subject}\n\n{body}"
+
+        # Validate content has minimum length
+        if len(content.strip()) < 3:
+            results["steps"].append({
+                "step_order": order,
+                "subject": subject,
+                "is_spam": False,
+                "spam_score": 0,
+                "spam_words": [],
+                "skipped": "Content too short for spam check"
+            })
+            continue
 
         try:
             # Check with EmailGuard
@@ -150,8 +200,29 @@ def check_bison_campaign_spam(
                 "spam_words": spam_words
             })
 
+        except requests.exceptions.HTTPError as e:
+            # Parse EmailGuard API errors for user-friendly messages
+            error_msg = str(e)
+            user_friendly_msg = error_msg
+
+            # Check for quota/rate limit errors
+            if "limit" in error_msg.lower() or "quota" in error_msg.lower():
+                user_friendly_msg = "EmailGuard API quota limit reached - please wait for reset or upgrade plan"
+            elif e.response.status_code == 429:
+                user_friendly_msg = "EmailGuard API rate limit exceeded - too many requests"
+            elif e.response.status_code == 401:
+                user_friendly_msg = "EmailGuard API authentication failed - check API key"
+            elif e.response.status_code == 403:
+                user_friendly_msg = "EmailGuard API access forbidden - check permissions"
+
+            results["steps"].append({
+                "step_order": order,
+                "subject": subject,
+                "error": user_friendly_msg,
+                "raw_error": error_msg[:200]  # First 200 chars for debugging
+            })
         except Exception as e:
-            print(f"[ERROR] Failed to check step {order}: {e}")
+            # Error logging removed for MCP compatibility
             results["steps"].append({
                 "step_order": order,
                 "subject": subject,
@@ -161,18 +232,94 @@ def check_bison_campaign_spam(
     return results
 
 
+def _check_single_bison_client(
+    client: Dict[str, str],
+    emailguard_key: str,
+    status: str
+) -> Dict[str, Any]:
+    """
+    Helper function to check a single Bison client's campaigns.
+    Designed to be run in parallel.
+    """
+    api_key = client["api_key"]
+    name = client["client_name"]
+
+    # Logging removed for MCP compatibility
+
+    try:
+        # List campaigns for this client
+        campaigns_response = bison_client.list_bison_campaigns(
+            api_key,
+            status=status
+        )
+        campaigns = campaigns_response.get("data", [])
+
+        client_result = {
+            "client_name": name,
+            "total_campaigns": len(campaigns),
+            "spam_campaigns": 0,
+            "campaigns": []
+        }
+
+        # Check each campaign
+        for campaign in campaigns:
+            campaign_id = campaign["id"]
+            campaign_name = campaign["name"]
+
+            # Logging removed for MCP compatibility
+
+            spam_check = check_bison_campaign_spam(
+                api_key,
+                emailguard_key,
+                campaign_id,
+                campaign_name
+            )
+
+            if spam_check["spam_steps"] > 0:
+                client_result["spam_campaigns"] += 1
+
+            client_result["campaigns"].append(spam_check)
+
+        return client_result
+
+    except requests.exceptions.HTTPError as e:
+        # Capture HTTP error details for debugging
+        error_details = {
+            "client_name": name,
+            "error": f"HTTP {e.response.status_code}: {str(e)}",
+            "status_code": e.response.status_code
+        }
+        try:
+            error_details["api_response"] = e.response.text[:500]  # First 500 chars
+        except:
+            pass
+        return error_details
+    except Exception as e:
+        # Error logging removed for MCP compatibility
+        return {
+            "client_name": name,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
 def check_all_bison_campaigns_spam(
     emailguard_key: str,
     status: str = "active",
-    client_name: Optional[str] = None
+    client_name: Optional[str] = None,
+    max_clients: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Check spam for all Bison campaigns across all clients.
+    Check spam for all Bison campaigns across all clients (in parallel).
+
+    Uses parallel processing to check multiple clients simultaneously,
+    making it safe to scan all 88+ clients without timeout.
 
     Args:
         emailguard_key: EmailGuard API key
         status: Campaign status to filter (default: "active")
         client_name: Optional specific client name to check
+        max_clients: Optional limit on number of clients (default: None = all clients)
 
     Returns:
         {
@@ -211,6 +358,9 @@ def check_all_bison_campaigns_spam(
                 "spam_campaigns": 0,
                 "clients": []
             }
+    elif max_clients is not None:
+        # Limit to max_clients if specified
+        clients = clients[:max_clients]
 
     results = {
         "total_clients": len(clients),
@@ -219,57 +369,34 @@ def check_all_bison_campaigns_spam(
         "clients": []
     }
 
-    # Check each client
-    for client in clients:
-        api_key = client["api_key"]
-        name = client["client_name"]
+    # Check clients in parallel (max 10 at a time)
+    # Logging removed for MCP compatibility
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all client checks
+        future_to_client = {
+            executor.submit(_check_single_bison_client, client, emailguard_key, status): client
+            for client in clients
+        }
 
-        print(f"[INFO] Checking campaigns for client: {name}")
+        # Collect results as they complete
+        for future in as_completed(future_to_client):
+            client = future_to_client[future]
+            try:
+                client_result = future.result()
 
-        try:
-            # List campaigns for this client
-            campaigns_response = bison_client.list_bison_campaigns(
-                api_key,
-                status=status
-            )
-            campaigns = campaigns_response.get("data", [])
+                # Aggregate counts
+                if "error" not in client_result:
+                    results["total_campaigns"] += client_result["total_campaigns"]
+                    results["spam_campaigns"] += client_result["spam_campaigns"]
 
-            client_result = {
-                "client_name": name,
-                "total_campaigns": len(campaigns),
-                "spam_campaigns": 0,
-                "campaigns": []
-            }
+                results["clients"].append(client_result)
 
-            # Check each campaign
-            for campaign in campaigns:
-                campaign_id = campaign["id"]
-                campaign_name = campaign["name"]
-
-                print(f"[INFO]   Checking campaign: {campaign_name}")
-
-                spam_check = check_bison_campaign_spam(
-                    api_key,
-                    emailguard_key,
-                    campaign_id,
-                    campaign_name
-                )
-
-                if spam_check["spam_steps"] > 0:
-                    client_result["spam_campaigns"] += 1
-                    results["spam_campaigns"] += 1
-
-                client_result["campaigns"].append(spam_check)
-                results["total_campaigns"] += 1
-
-            results["clients"].append(client_result)
-
-        except Exception as e:
-            print(f"[ERROR] Failed to check client {name}: {e}")
-            results["clients"].append({
-                "client_name": name,
-                "error": str(e)
-            })
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                results["clients"].append({
+                    "client_name": client.get("client_name", "unknown"),
+                    "error": f"Unexpected error: {str(e)}"
+                })
 
     return results
 
@@ -329,8 +456,34 @@ def check_instantly_campaign_spam(
                 body_text = re.sub(r'<[^>]+>', '', body)
                 body_text = re.sub(r'\s+', ' ', body_text).strip()
 
+                # Skip if both subject and body are empty
+                if not subject.strip() and not body_text.strip():
+                    results["steps"].append({
+                        "step_order": step_idx + 1,
+                        "variant": variant_idx + 1 if len(variants) > 1 else None,
+                        "subject": subject,
+                        "is_spam": False,
+                        "spam_score": 0,
+                        "spam_words": [],
+                        "skipped": "Empty content - no subject or body"
+                    })
+                    continue
+
                 # Combine subject and body for spam check
                 content = f"Subject: {subject}\n\n{body_text}"
+
+                # Validate content has minimum length (at least 3 characters)
+                if len(content.strip()) < 3:
+                    results["steps"].append({
+                        "step_order": step_idx + 1,
+                        "variant": variant_idx + 1 if len(variants) > 1 else None,
+                        "subject": subject,
+                        "is_spam": False,
+                        "spam_score": 0,
+                        "spam_words": [],
+                        "skipped": "Content too short for spam check"
+                    })
+                    continue
 
                 try:
                     # Check with EmailGuard
@@ -353,8 +506,30 @@ def check_instantly_campaign_spam(
                         "spam_words": spam_words
                     })
 
+                except requests.exceptions.HTTPError as e:
+                    # Parse EmailGuard API errors for user-friendly messages
+                    error_msg = str(e)
+                    user_friendly_msg = error_msg
+
+                    # Check for quota/rate limit errors
+                    if "limit" in error_msg.lower() or "quota" in error_msg.lower():
+                        user_friendly_msg = "EmailGuard API quota limit reached - please wait for reset or upgrade plan"
+                    elif e.response.status_code == 429:
+                        user_friendly_msg = "EmailGuard API rate limit exceeded - too many requests"
+                    elif e.response.status_code == 401:
+                        user_friendly_msg = "EmailGuard API authentication failed - check API key"
+                    elif e.response.status_code == 403:
+                        user_friendly_msg = "EmailGuard API access forbidden - check permissions"
+
+                    results["steps"].append({
+                        "step_order": step_idx + 1,
+                        "variant": variant_idx + 1 if len(variants) > 1 else None,
+                        "subject": subject,
+                        "error": user_friendly_msg,
+                        "raw_error": error_msg[:200]  # First 200 chars for debugging
+                    })
                 except Exception as e:
-                    print(f"[ERROR] Failed to check step {step_idx + 1}: {e}")
+                    # Error logging removed for MCP compatibility
                     results["steps"].append({
                         "step_order": step_idx + 1,
                         "variant": variant_idx + 1 if len(variants) > 1 else None,
@@ -365,13 +540,98 @@ def check_instantly_campaign_spam(
     return results
 
 
+def _check_single_instantly_client(
+    client: Dict[str, str],
+    emailguard_key: str,
+    status_number: int
+) -> Dict[str, Any]:
+    """
+    Helper function to check a single Instantly client's campaigns.
+    Designed to be run in parallel.
+    """
+    api_key = client["api_key"]
+    name = client["client_name"]
+
+    # Logging removed for MCP compatibility
+
+    try:
+        # List campaigns for this client
+        campaigns = instantly_client.list_instantly_campaigns(api_key, status=status_number)
+
+        # Ensure campaigns is a list
+        if not isinstance(campaigns, list):
+            # Error logging removed for MCP compatibility
+            return {
+                "client_name": name,
+                "error": f"Invalid campaigns response type: {type(campaigns)}",
+                "raw_response": str(campaigns)[:500]  # First 500 chars for debugging
+            }
+
+        client_result = {
+            "client_name": name,
+            "total_campaigns": len(campaigns),
+            "spam_campaigns": 0,
+            "campaigns": []
+        }
+
+        # Check each campaign
+        for campaign in campaigns:
+            campaign_id = campaign.get("id")
+            campaign_name = campaign.get("name", "Unknown")
+
+            # Validate campaign_id
+            if not campaign_id:
+                # Warning logging removed for MCP compatibility
+                continue
+
+            # Logging removed for MCP compatibility
+
+            spam_check = check_instantly_campaign_spam(
+                api_key,
+                emailguard_key,
+                campaign_id,
+                campaign_name
+            )
+
+            if spam_check["spam_steps"] > 0:
+                client_result["spam_campaigns"] += 1
+
+            client_result["campaigns"].append(spam_check)
+
+        return client_result
+
+    except requests.exceptions.HTTPError as e:
+        # Capture HTTP error details for debugging
+        error_details = {
+            "client_name": name,
+            "error": f"HTTP {e.response.status_code}: {str(e)}",
+            "status_code": e.response.status_code
+        }
+        try:
+            error_details["api_response"] = e.response.text[:500]  # First 500 chars
+        except:
+            pass
+        return error_details
+    except Exception as e:
+        # Error logging removed for MCP compatibility
+        return {
+            "client_name": name,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+
+
 def check_all_instantly_campaigns_spam(
     emailguard_key: str,
     status: str = "active",
-    client_name: Optional[str] = None
+    client_name: Optional[str] = None,
+    max_clients: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Check spam for all Instantly campaigns across all clients.
+    Check spam for all Instantly campaigns across all clients (in parallel).
+
+    Uses parallel processing to check multiple clients simultaneously,
+    making it safe to scan all 88+ clients without timeout.
 
     Args:
         emailguard_key: EmailGuard API key
@@ -379,6 +639,7 @@ def check_all_instantly_campaigns_spam(
             Can be string: "draft", "active", "paused", "completed"
             Or number: 0 (Draft), 1 (Active), 2 (Paused), 3 (Completed)
         client_name: Optional specific client name to check
+        max_clients: Optional limit on number of clients (default: None = all clients)
 
     Returns:
         {
@@ -428,6 +689,9 @@ def check_all_instantly_campaigns_spam(
                 "spam_campaigns": 0,
                 "clients": []
             }
+    elif max_clients is not None:
+        # Limit to max_clients if specified
+        clients = clients[:max_clients]
 
     results = {
         "total_clients": len(clients),
@@ -436,52 +700,33 @@ def check_all_instantly_campaigns_spam(
         "clients": []
     }
 
-    # Check each client
-    for client in clients:
-        api_key = client["api_key"]
-        name = client["client_name"]
+    # Check clients in parallel (max 10 at a time)
+    # Logging removed for MCP compatibility
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all client checks
+        future_to_client = {
+            executor.submit(_check_single_instantly_client, client, emailguard_key, status_number): client
+            for client in clients
+        }
 
-        print(f"[INFO] Checking campaigns for client: {name}")
+        # Collect results as they complete
+        for future in as_completed(future_to_client):
+            client = future_to_client[future]
+            try:
+                client_result = future.result()
 
-        try:
-            # List campaigns for this client
-            campaigns = instantly_client.list_instantly_campaigns(api_key, status=status_number)
+                # Aggregate counts
+                if "error" not in client_result:
+                    results["total_campaigns"] += client_result["total_campaigns"]
+                    results["spam_campaigns"] += client_result["spam_campaigns"]
 
-            client_result = {
-                "client_name": name,
-                "total_campaigns": len(campaigns),
-                "spam_campaigns": 0,
-                "campaigns": []
-            }
+                results["clients"].append(client_result)
 
-            # Check each campaign
-            for campaign in campaigns:
-                campaign_id = campaign["id"]
-                campaign_name = campaign["name"]
-
-                print(f"[INFO]   Checking campaign: {campaign_name}")
-
-                spam_check = check_instantly_campaign_spam(
-                    api_key,
-                    emailguard_key,
-                    campaign_id,
-                    campaign_name
-                )
-
-                if spam_check["spam_steps"] > 0:
-                    client_result["spam_campaigns"] += 1
-                    results["spam_campaigns"] += 1
-
-                client_result["campaigns"].append(spam_check)
-                results["total_campaigns"] += 1
-
-            results["clients"].append(client_result)
-
-        except Exception as e:
-            print(f"[ERROR] Failed to check client {name}: {e}")
-            results["clients"].append({
-                "client_name": name,
-                "error": str(e)
-            })
+            except Exception as e:
+                # Error logging removed for MCP compatibility
+                results["clients"].append({
+                    "client_name": client.get("client_name", "unknown"),
+                    "error": f"Unexpected error: {str(e)}"
+                })
 
     return results

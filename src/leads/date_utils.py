@@ -36,7 +36,7 @@ def validate_and_parse_dates(start_date: str = None, end_date: str = None, days:
         start = end - timedelta(days=days)
         start_date = start.strftime("%Y-%m-%d")
         end_date = end.strftime("%Y-%m-%d")
-        print(f"[Date Validation] Using date range: {start_date} to {end_date} (last {days} days)")
+        # Progress logging removed for MCP compatibility
         return start_date, end_date, warnings
 
     # Parse provided dates
@@ -91,13 +91,7 @@ def validate_and_parse_dates(start_date: str = None, end_date: str = None, days:
             f"WARNING: End date ({end_date}) is in the future"
         )
 
-    # Log validation results
-    if warnings:
-        print(f"[Date Validation] Using dates: {start_date} to {end_date}")
-        for warning in warnings:
-            print(f"[Date Validation] {warning}")
-    else:
-        print(f"[Date Validation] Dates validated: {start_date} to {end_date}")
+    # Log validation results removed for MCP compatibility
 
     # Return dates in YYYY-MM-DD format
     return start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"), warnings
