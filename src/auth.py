@@ -88,6 +88,23 @@ class GmailAuthManager:
             try:
                 logger.info("Refreshing expired token...")
                 self._credentials.refresh(Request())
+                # IMPORTANT: Preserve original scopes after refresh
+                # Google's token refresh doesn't always return all scopes
+                if self._credentials.scopes != self.scopes:
+                    logger.warning(
+                        "Scopes changed after refresh. Restoring original scopes. "
+                        f"Original: {self.scopes}, After refresh: {self._credentials.scopes}"
+                    )
+                    # Recreate credentials with original scopes to ensure they're preserved
+                    self._credentials = Credentials(
+                        token=self._credentials.token,
+                        refresh_token=self._credentials.refresh_token,
+                        token_uri=self._credentials.token_uri,
+                        client_id=self._credentials.client_id,
+                        client_secret=self._credentials.client_secret,
+                        scopes=self.scopes,  # Use original scopes from config
+                        expiry=self._credentials.expiry
+                    )
                 self._save_token()
                 logger.info("Token refreshed successfully")
                 return self._credentials
