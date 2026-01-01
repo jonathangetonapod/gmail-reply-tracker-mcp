@@ -33,8 +33,9 @@ from sse_starlette import EventSourceResponse
 # This gives us access to all 82 tools already registered
 import server
 
-# Import Database for multi-tenant support
+# Import Database and RequestContext for multi-tenant support
 from database import Database
+from request_context import RequestContext, create_request_context
 
 # Load environment variables
 try:
@@ -512,7 +513,6 @@ async def handle_jsonrpc_request(
 # ===========================================================================
 
 from fastapi import Depends
-from request_context import RequestContext, create_request_context
 
 
 async def get_request_context(
