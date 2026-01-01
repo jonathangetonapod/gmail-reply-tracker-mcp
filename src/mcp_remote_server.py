@@ -1811,6 +1811,18 @@ async def dashboard(session_token: Optional[str] = Query(None)):
         <h2>🛠️ Tool Selection</h2>
         <p>Choose which tool categories you want available in Claude Desktop:</p>
 
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: start; gap: 12px;">
+                <div style="font-size: 24px;">⚠️</div>
+                <div>
+                    <strong style="color: #856404; font-size: 15px;">Important: Restart Required</strong>
+                    <div style="color: #856404; margin-top: 6px; font-size: 14px;">
+                        After saving tool preferences, you <strong>must restart Claude Desktop</strong> to see changes. This is an MCP protocol limitation.
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="tools-info" style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <strong>Currently showing: <span id="tool-count">{total_tools}</span> tools</strong>
         </div>
@@ -1906,13 +1918,13 @@ async def dashboard(session_token: Optional[str] = Query(None)):
 
             if (response.ok) {{
                 // Show toast notification
-                showToast('✅ API keys updated successfully!');
+                showToast('✅ API keys updated successfully! Changes apply immediately (no restart needed).');
 
                 // Also show inline message
-                successDiv.textContent = '✅ API keys updated successfully!';
+                successDiv.textContent = '✅ API keys updated successfully! Changes apply immediately - no restart needed.';
                 successDiv.style.display = 'block';
                 errorDiv.style.display = 'none';
-                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 3000);
+                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 4000);
             }} else {{
                 const error = await response.json();
                 const errorMsg = '❌ Error: ' + error.detail;
@@ -1956,20 +1968,20 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             if (response.ok) {{
                 const data = await response.json();
                 const successMsg = `✅ Tool preferences saved! Now showing ${{data.tool_count}} tools.`;
-                const reminderMsg = '🔄 Restart Claude Desktop to see changes.';
+                const reminderMsg = '⚠️ IMPORTANT: You must restart Claude Desktop to see these changes (MCP protocol limitation).';
 
                 // Show prominent toast notification
                 showToast(successMsg + ' ' + reminderMsg);
 
                 // Also show inline message
-                successDiv.innerHTML = `<strong>${{successMsg}}</strong><br>${{reminderMsg}}`;
+                successDiv.innerHTML = `<strong>${{successMsg}}</strong><br><strong style="color: #856404;">${{reminderMsg}}</strong>`;
                 successDiv.style.display = 'block';
                 errorDiv.style.display = 'none';
 
                 // Update tool count display
                 document.getElementById('tool-count').textContent = data.tool_count;
 
-                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 5000);
+                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 6000);
             }} else {{
                 const error = await response.json();
                 const errorMsg = '❌ Error: ' + error.detail;
