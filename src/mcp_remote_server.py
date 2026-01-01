@@ -602,6 +602,10 @@ async def lifespan(app: FastAPI):
             logger.warning("Server will start but tools may not work until auth is set up")
     else:
         logger.info("✓ Multi-tenant mode enabled - clients will be created per-request")
+        # Initialize EmailAnalyzer globally (doesn't need credentials)
+        from email_analyzer import EmailAnalyzer
+        server.email_analyzer = EmailAnalyzer()
+        logger.info("✓ EmailAnalyzer initialized for multi-tenant mode")
 
     # Initialize database for multi-tenant support
     try:
