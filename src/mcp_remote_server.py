@@ -205,30 +205,20 @@ async def execute_tool(tool_name: str, arguments: Dict[str, Any]) -> str:
         ValueError: If tool not found or invalid arguments
         RuntimeError: If tool execution fails
     """
-    if not hasattr(server.mcp, '_tools'):
-        raise RuntimeError("No tools registered")
-
-    if tool_name not in server.mcp._tools:
-        raise ValueError(f"Tool not found: {tool_name}")
-
-    tool_func = server.mcp._tools[tool_name]
-
+    # Use FastMCP's call_tool method instead of accessing _tools directly
     try:
-        # Execute with proper async/sync handling
-        if asyncio.iscoroutinefunction(tool_func):
-            result = await tool_func(**arguments)
-        else:
-            # Run sync functions in thread pool to avoid blocking
-            result = await asyncio.to_thread(tool_func, **arguments)
+        result = await server.mcp.call_tool(tool_name, arguments)
 
         # Format result as string
         if isinstance(result, str):
             return result
-        elif isinstance(result, dict):
+        elif isinstance(result, (dict, list)):
             return json.dumps(result, indent=2)
         else:
             return str(result)
 
+    except KeyError:
+        raise ValueError(f"Tool not found: {tool_name}")
     except TypeError as e:
         # Parameter mismatch error
         raise ValueError(f"Invalid arguments for {tool_name}: {e}")
@@ -282,11 +272,18 @@ async def handle_jsonrpc_request(body: Dict[str, Any], session_id: Optional[str]
             }
 
         elif method == "tools/list":
+            # Use FastMCP's list_tools method
+            tool_list = await server.mcp.list_tools()
+
+            # Convert Tool objects to MCP protocol format
             tools = []
-            if hasattr(server.mcp, '_tools'):
-                for tool_name, tool_func in server.mcp._tools.items():
-                    tool_schema = get_tool_schema(tool_name, tool_func)
-                    tools.append(tool_schema)
+            for tool in tool_list:
+                tool_schema = {
+                    "name": tool.name,
+                    "description": tool.description or "No description available",
+                    "inputSchema": tool.inputSchema
+                }
+                tools.append(tool_schema)
 
             logger.info(f"Listed {len(tools)} tools")
             return {
@@ -372,7 +369,8 @@ async def lifespan(app: FastAPI):
         logger.warning("Server will start but tools may not work until auth is set up")
 
     # Count registered tools
-    tool_count = len(server.mcp._tools) if hasattr(server.mcp, '_tools') else 0
+    tools = await server.mcp.list_tools()
+    tool_count = len(tools)
     logger.info(f"✓ {tool_count} tools registered and ready")
 
     # Start session cleanup task
@@ -416,7 +414,11 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Railway and monitoring."""
-    tool_count = len(server.mcp._tools) if hasattr(server.mcp, '_tools') else 0
+    try:
+        tools = await server.mcp.list_tools()
+        tool_count = len(tools)
+    except Exception:
+        tool_count = 0
 
     return JSONResponse({
         "status": "healthy",
@@ -430,12 +432,13 @@ async def health_check():
 @app.get("/")
 async def root():
     """Root endpoint with server information."""
-    tool_count = len(server.mcp._tools) if hasattr(server.mcp, '_tools') else 0
-
-    # Get list of tool names
-    tool_names = []
-    if hasattr(server.mcp, '_tools'):
-        tool_names = sorted(list(server.mcp._tools.keys()))
+    try:
+        tools = await server.mcp.list_tools()
+        tool_count = len(tools)
+        tool_names = sorted([t.name for t in tools])
+    except Exception:
+        tool_count = 0
+        tool_names = []
 
     return JSONResponse({
         "server": "LeadGenJay MCP Remote Server",
