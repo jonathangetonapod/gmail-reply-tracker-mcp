@@ -124,6 +124,29 @@ async def create_request_context(
             detail="Invalid stored credentials. Please re-authenticate."
         )
 
+    # Validate that stored token has all required scopes
+    stored_scopes = set(google_token.get('scopes', []))
+    required_scopes = set(config.oauth_scopes)
+    missing_scopes = required_scopes - stored_scopes
+
+    if missing_scopes:
+        logger.warning(
+            f"User {user['email']} has outdated token missing scopes: {missing_scopes}"
+        )
+        missing_scope_names = [s.split('/')[-1] for s in missing_scopes]
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Your authentication token is missing required permissions: {', '.join(missing_scope_names)}.\n\n"
+                f"This happens when new features are added that require additional Google API access.\n\n"
+                f"To fix this, please visit the authentication portal and re-authorize:\n"
+                f"1. Go to your MCP server's web portal\n"
+                f"2. Click 'Re-authenticate' or log out and log back in\n"
+                f"3. Grant the new permissions when prompted\n\n"
+                f"Missing scopes: {', '.join(missing_scopes)}"
+            )
+        )
+
     # Check if token needs refresh
     if credentials.expired and credentials.refresh_token:
         logger.info(f"Refreshing expired token for user {user['email']}")
