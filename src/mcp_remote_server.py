@@ -4874,6 +4874,7 @@ async def dashboard(
         <!-- Tabs -->
         <div style="display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0;">
             <button class="tab active" data-tab="subscriptions" style="padding: 12px 24px; background: none; border: none; color: #667eea; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid #667eea; transition: all 0.2s;">💰 Subscriptions</button>
+            <button class="tab" data-tab="teams" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">👥 Teams</button>
             <button class="tab" data-tab="api-keys" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">🔑 API Keys</button>
             <button class="tab" data-tab="setup" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">⚙️ Setup</button>
         </div>
@@ -4972,6 +4973,46 @@ async def dashboard(
                         </button>
                     </div>
                     <div id="cart-items-list" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 14px; opacity: 0.9;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Teams -->
+        <div class="tab-content" id="teams" style="display: none;">
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">👥 Teams</h2>
+                <p style="color: #718096; margin-bottom: 30px;">Share subscriptions with your team. One subscription covers everyone!</p>
+
+                <!-- Create Team Section -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="color: white; font-size: 1.25rem; margin-bottom: 15px;">✨ Create a Team</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin-bottom: 20px; font-size: 15px;">
+                        Team subscriptions cost the same as personal ($5/category/month), but all team members get access!
+                    </p>
+
+                    <form id="create-team-form" style="display: flex; gap: 15px; align-items: end;">
+                        <div style="flex: 1;">
+                            <label style="color: white; font-weight: 600; font-size: 14px; display: block; margin-bottom: 8px;">Team Name</label>
+                            <input type="text" id="team-name-input" placeholder="e.g., Acme Marketing Team"
+                                   style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; border-radius: 8px; font-size: 15px; font-weight: 500;"
+                                   required minlength="3" maxlength="50">
+                        </div>
+                        <button type="submit" style="background: white; color: #667eea; padding: 12px 32px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                            Create Team
+                        </button>
+                    </form>
+                </div>
+
+                <!-- My Teams Section -->
+                <div id="teams-list">
+                    <h3 style="color: #1a202c; font-size: 1.25rem; margin-bottom: 15px;">My Teams</h3>
+                    <div id="teams-container" style="display: flex; flex-direction: column; gap: 15px;">
+                        <!-- Teams will be loaded here -->
+                        <div style="text-align: center; padding: 60px; background: #f9fafb; border-radius: 12px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">👥</div>
+                            <p style="color: #6b7280; font-size: 16px;">Loading your teams...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5279,6 +5320,81 @@ async def update_tool_categories_endpoint(
         "message": "Tool preferences updated",
         "tool_count": total_tools,
         "categories": categories
+    }
+
+
+# ===========================================================================
+# TEAM MANAGEMENT ENDPOINTS
+# ===========================================================================
+
+@app.post("/teams")
+async def create_team_endpoint(
+    request: Request,
+    session_token: Optional[str] = Query(None)
+):
+    """Create a new team."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Parse request body
+    body = await request.json()
+    team_name = body.get('team_name', '').strip()
+
+    if not team_name:
+        raise HTTPException(400, "Team name is required")
+
+    if len(team_name) < 3:
+        raise HTTPException(400, "Team name must be at least 3 characters")
+
+    if len(team_name) > 50:
+        raise HTTPException(400, "Team name must be 50 characters or less")
+
+    # Get user email for billing
+    user = server.database.get_user_by_session(session_token)
+    if not user:
+        raise HTTPException(401, "User not found")
+
+    # Create team in database
+    team = server.database.create_team(
+        team_name=team_name,
+        owner_user_id=ctx.user_id,
+        billing_email=user['email']
+    )
+
+    logger.info(f"Team created: {team['team_id']} by user {ctx.email}")
+
+    return {
+        "success": True,
+        "team": team
+    }
+
+
+@app.get("/teams")
+async def get_user_teams_endpoint(
+    session_token: Optional[str] = Query(None)
+):
+    """Get all teams for the current user."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Get user's teams
+    teams = server.database.get_user_teams(ctx.user_id)
+
+    return {
+        "success": True,
+        "teams": teams
     }
 
 
