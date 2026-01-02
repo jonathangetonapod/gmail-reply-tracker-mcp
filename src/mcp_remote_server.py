@@ -2300,7 +2300,6 @@ async def dashboard(
         ''' if trial_status['is_trial'] else ''}
 
         <!-- Usage Counter -->
-        {(lambda: f'''
         <div style="background: {"linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" if usage_limit and daily_usage >= 8 else "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
             <div style="display: flex; align-items: center; gap: 20px;">
                 <div style="font-size: 48px;">{"⚠️" if usage_limit and daily_usage >= 8 else "📊"}</div>
@@ -2308,20 +2307,18 @@ async def dashboard(
                     <h3 style="color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">
                         {f"Daily Usage Limit ({daily_usage}/{usage_limit} calls today)" if usage_limit else f"Usage Today: {daily_usage} calls"}
                     </h3>
-                    {(f"""
+                    {f"""
                     <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 12px; overflow: hidden; margin-bottom: 12px;">
-                        <div style="background: {"#ef4444" if daily_usage >= 8 else "#10b981"}; height: 100%; width: {min(100, (daily_usage / usage_limit) * 100) if usage_limit else 0}%; transition: width 0.3s;"></div>
+                        <div style="background: {"#ef4444" if usage_limit and daily_usage >= 8 else "#10b981"}; height: 100%; width: {min(100, (daily_usage / usage_limit) * 100) if usage_limit else 0}%; transition: width 0.3s;"></div>
                     </div>
                     <p style="margin: 0; font-size: 14px; opacity: 0.95;">
                         {f"You have {usage_limit - daily_usage} calls remaining today. " if usage_limit and daily_usage < usage_limit else ""}
-                        {f"<strong>⚠️ You're close to your limit! </strong> Upgrade to get unlimited usage." if usage_limit and daily_usage >= 8 else ""}
+                        {f"<strong>⚠️ You're close to your limit! </strong> Upgrade to get unlimited usage." if usage_limit and daily_usage >= 8 and daily_usage < usage_limit else ""}
                         {f"<strong>🚫 Limit exceeded! </strong> Subscribe to continue using tools." if usage_limit and daily_usage >= usage_limit else ""}
                     </p>
-                    """ if usage_limit else f"""<p style="margin: 0; font-size: 14px; opacity: 0.9;">✨ Unlimited usage ({"Active Trial" if trial_status["is_trial"] else "Paid Subscription"})</p>""")}
-                </div>
+                    """ if usage_limit else f"""<p style="margin: 0; font-size: 14px; opacity: 0.9;">✨ Unlimited usage ({"Active Trial" if trial_status["is_trial"] else "Paid Subscription"})</p>"""}</div>
             </div>
         </div>
-        ''')() if user_tier == 'free' or (user_tier == 'trial' and daily_usage > 0) else ''}
 
         <!-- Tabs -->
         <div style="display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0;">
