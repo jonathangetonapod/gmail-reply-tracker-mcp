@@ -2010,12 +2010,27 @@ async def dashboard(
     user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
 
+    # Get trial status and usage info
+    trial_status = server.database.check_trial_status(ctx.user_id)
+    daily_usage = server.database.get_daily_usage(ctx.user_id)
+
     # Get active subscriptions (category names only)
     active_subscriptions = server.database.get_active_subscriptions(ctx.user_id)
 
     # Get full subscription details (for showing cancellation info)
     all_subscriptions = server.database.get_user_subscriptions(ctx.user_id)
     subscription_details = {sub['tool_category']: sub for sub in all_subscriptions if sub['status'] == 'active'}
+
+    # Determine user tier
+    if trial_status['is_trial']:
+        user_tier = 'trial'
+        usage_limit = None  # Unlimited during trial
+    elif len(active_subscriptions) > 0:
+        user_tier = 'paid'
+        usage_limit = None  # Unlimited for paid users
+    else:
+        user_tier = 'free'
+        usage_limit = 10  # Free tier limit
 
     # Get enabled tool categories
     enabled_categories = user.get('enabled_tool_categories')
@@ -2265,6 +2280,48 @@ async def dashboard(
             <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Got it! ✓</button>
         </div>
         ''' if subscription_success == 'true' else ''}
+
+        <!-- Trial Status Banner -->
+        {f'''
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-size: 48px;">🎉</div>
+                <div style="flex: 1;">
+                    <h2 style="color: white; margin: 0 0 8px 0; font-size: 22px; font-weight: 700;">Free Trial Active!</h2>
+                    <p style="margin: 0 0 12px 0; font-size: 15px; opacity: 0.95;">
+                        You have <strong>{trial_status["days_remaining"]} days and {trial_status["hours_remaining"] % 24} hours</strong> remaining in your trial.
+                    </p>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.9;">
+                        All 84 tools are unlocked! Subscribe before your trial ends to keep unlimited access.
+                    </p>
+                </div>
+            </div>
+        </div>
+        ''' if trial_status['is_trial'] else ''}
+
+        <!-- Usage Counter -->
+        {f'''
+        <div style="background: {"linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" if usage_limit and daily_usage >= 8 else "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-size: 48px;">{"⚠️" if usage_limit and daily_usage >= 8 else "📊"}</div>
+                <div style="flex: 1;">
+                    <h3 style="color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">
+                        {f"Daily Usage Limit ({daily_usage}/{usage_limit} calls today)" if usage_limit else f"Usage Today: {daily_usage} calls"}
+                    </h3>
+                    {f\'\'\'
+                    <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 12px; overflow: hidden; margin-bottom: 12px;">
+                        <div style="background: {"#ef4444" if daily_usage >= 8 else "#10b981"}; height: 100%; width: {min(100, (daily_usage / usage_limit) * 100) if usage_limit else 0}%; transition: width 0.3s;"></div>
+                    </div>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.95;">
+                        {f"You have {usage_limit - daily_usage} calls remaining today. " if usage_limit and daily_usage < usage_limit else ""}
+                        {f"<strong>⚠️ You're close to your limit! </strong> Upgrade to get unlimited usage." if usage_limit and daily_usage >= 8 else ""}
+                        {f"<strong>🚫 Limit exceeded! </strong> Subscribe to continue using tools." if usage_limit and daily_usage >= usage_limit else ""}
+                    </p>
+                    \'\'\' if usage_limit else f\'\'\'<p style="margin: 0; font-size: 14px; opacity: 0.9;">✨ Unlimited usage ({"Active Trial" if trial_status["is_trial"] else "Paid Subscription"})</p>\'\'\'}
+                </div>
+            </div>
+        </div>
+        ''' if user_tier == 'free' or (user_tier == 'trial' and daily_usage > 0) else ''}
 
         <!-- Tabs -->
         <div style="display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0;">
