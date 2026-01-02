@@ -457,11 +457,11 @@ async def handle_jsonrpc_request(
                     subscription_filtered_tools = []
                     for tool in tools:
                         category = get_tool_category(tool['name'])
-                        # Allow tools with no category OR tools in subscribed categories
-                        if category is None or category in active_subscriptions:
+                        # ONLY allow tools that match subscribed categories (no uncategorized tools)
+                        if category is not None and category in active_subscriptions:
                             subscription_filtered_tools.append(tool)
                     tools = subscription_filtered_tools
-                    logger.info(f"Filtered to subscribed categories: {active_subscriptions}")
+                    logger.info(f"Filtered to subscribed categories: {active_subscriptions}, showing {len(tools)} tools")
                 elif active_subscriptions == []:
                     # User has no active subscriptions - show no tools
                     tools = []
