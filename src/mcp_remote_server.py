@@ -4557,6 +4557,7 @@ async def dashboard(
     # Get current API keys
     user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
+    teams_enabled = user.get('teams_enabled', False)
 
     # Get trial status and usage info
     trial_status = server.database.check_trial_status(ctx.user_id)
@@ -4874,7 +4875,7 @@ async def dashboard(
         <!-- Tabs -->
         <div style="display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0;">
             <button class="tab active" data-tab="subscriptions" style="padding: 12px 24px; background: none; border: none; color: #667eea; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid #667eea; transition: all 0.2s;">💰 Subscriptions</button>
-            <button class="tab" data-tab="teams" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">👥 Teams</button>
+            {f'<button class="tab" data-tab="teams" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">👥 Teams</button>' if teams_enabled else ''}
             <button class="tab" data-tab="api-keys" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">🔑 API Keys</button>
             <button class="tab" data-tab="setup" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">⚙️ Setup</button>
         </div>
@@ -4977,7 +4978,7 @@ async def dashboard(
             </div>
         </div>
 
-        <!-- Tab Content: Teams -->
+        {f'''<!-- Tab Content: Teams -->
         <div class="tab-content" id="teams" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">👥 Teams</h2>
@@ -5015,7 +5016,7 @@ async def dashboard(
                     </div>
                 </div>
             </div>
-        </div>
+        </div>''' if teams_enabled else ''}
 
         <!-- Tab Content: API Keys -->
         <div class="tab-content" id="api-keys" style="display: none;">
@@ -7640,6 +7641,23 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             </div>
 
             <div class="card">
+                <h2><span>👥</span> Team Access</h2>
+                <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 16px;">Allow this user to create teams and share subscriptions with team members</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 2px solid hsl(var(--border)); border-radius: 8px; background: {'hsl(var(--success) / 0.05)' if user_data.get('teams_enabled', False) else 'white'};">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Teams Feature</div>
+                        <div style="font-size: 13px; color: hsl(var(--muted-foreground));">{'Enabled - User can create and manage teams' if user_data.get('teams_enabled', False) else 'Disabled - User cannot access teams'}</div>
+                    </div>
+                    <button
+                        onclick="toggleTeamAccess('{user_id}', {str(user_data.get('teams_enabled', False)).lower()})"
+                        style="padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: {'hsl(var(--destructive))' if user_data.get('teams_enabled', False) else 'hsl(var(--success))'}; color: white;">
+                        {'✗ Disable' if user_data.get('teams_enabled', False) else '✓ Enable'}
+                    </button>
+                </div>
+                <div id="team-access-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
+            </div>
+
+            <div class="card">
                 <h2><span>ℹ️</span> Account Info</h2>
                 <div class="info-row">
                     <span class="info-label">User ID</span>
@@ -7953,6 +7971,50 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 alert(`✗ Error: ${{error.message}}`);
                 button.disabled = false;
                 button.textContent = '🔐 Generate & Email Password';
+            }}
+        }}
+
+        async function toggleTeamAccess(userId, currentlyEnabled) {{
+            const action = currentlyEnabled ? 'disable' : 'enable';
+            const confirmMessage = currentlyEnabled
+                ? 'Disable team access for this user? They will lose ability to create and manage teams.'
+                : 'Enable team access for this user? They will be able to create teams and share subscriptions.';
+
+            if (!confirm(confirmMessage)) {{
+                return;
+            }}
+
+            const messageDiv = document.getElementById('team-access-message');
+
+            try {{
+                const response = await fetch(`/admin/user/${{userId}}/toggle-teams?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ enabled: !currentlyEnabled }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    messageDiv.textContent = `✓ Team access ${{action}}d successfully!`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--success) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--success))';
+
+                    setTimeout(() => {{
+                        window.location.reload();
+                    }}, 1000);
+                }} else {{
+                    messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--destructive))';
+                }}
+            }} catch (error) {{
+                messageDiv.textContent = `✗ Error: ${{error.message}}`;
+                messageDiv.style.display = 'block';
+                messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                messageDiv.style.color = 'hsl(var(--destructive))';
             }}
         }}
     </script>
@@ -8580,6 +8642,51 @@ async def admin_generate_password(
         raise
     except Exception as e:
         logger.error(f"Error generating password: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal server error: {str(e)}")
+
+
+@app.post("/admin/user/{user_id}/toggle-teams")
+async def admin_toggle_team_access(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Admin endpoint to toggle team access for a user.
+    Allows/prevents user from creating and managing teams.
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Parse request body
+        body = await request.json()
+        enabled = body.get('enabled', False)
+
+        # Update user's teams_enabled field
+        server.database.supabase.table('users').update({
+            'teams_enabled': enabled
+        }).eq('user_id', user_id).execute()
+
+        logger.info(f"Admin {'enabled' if enabled else 'disabled'} team access for user {user_id}")
+
+        return JSONResponse({
+            "status": "success",
+            "teams_enabled": enabled,
+            "message": f"Team access {'enabled' if enabled else 'disabled'} successfully"
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error toggling team access: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"Internal server error: {str(e)}")
