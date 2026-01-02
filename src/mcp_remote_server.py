@@ -2307,27 +2307,32 @@ async def stripe_webhook(request: Request):
         subscription_id = session.get('subscription')
         customer_id = session.get('customer')
         user_id = session['metadata'].get('user_id')
-        category = session['metadata'].get('tool_category')
+        tool_categories = session['metadata'].get('tool_categories')  # Comma-separated string
 
-        if not all([subscription_id, customer_id, user_id, category]):
+        if not all([subscription_id, customer_id, user_id, tool_categories]):
             logger.error(f"Missing required fields in checkout.session.completed: {session}")
             return JSONResponse({"status": "error", "message": "Missing required fields"})
 
         # Retrieve the subscription to get period info
         subscription = stripe.Subscription.retrieve(subscription_id)
 
-        # Create subscription in database
-        server.database.create_subscription(
-            user_id=user_id,
-            tool_category=category,
-            stripe_customer_id=customer_id,
-            stripe_subscription_id=subscription_id,
-            status='active',
-            current_period_start=datetime.fromtimestamp(subscription.current_period_start),
-            current_period_end=datetime.fromtimestamp(subscription.current_period_end)
-        )
+        # Parse comma-separated categories and create subscription for each
+        categories = [cat.strip() for cat in tool_categories.split(',')]
 
-        logger.info(f"Created subscription for user {user_id}, category {category}")
+        for category in categories:
+            # Create subscription in database for each category
+            server.database.create_subscription(
+                user_id=user_id,
+                tool_category=category,
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=subscription_id,
+                status='active',
+                current_period_start=datetime.fromtimestamp(subscription.current_period_start),
+                current_period_end=datetime.fromtimestamp(subscription.current_period_end)
+            )
+            logger.info(f"Created subscription for user {user_id}, category {category}")
+
+        logger.info(f"Successfully processed checkout for {len(categories)} categories: {', '.join(categories)}")
 
     elif event_type == 'customer.subscription.updated':
         # Subscription updated (renewed, changed, etc.)
