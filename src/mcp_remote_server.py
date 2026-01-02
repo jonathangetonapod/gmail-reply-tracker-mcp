@@ -5401,39 +5401,58 @@ async def admin_toggle_subscription(
                     "message": f"User already has an active {category} subscription"
                 })
 
+            # Initialize Stripe
+            stripe.api_key = server.config.stripe_secret_key
+
             # Get or create Stripe customer
             stripe_customer_id = server.database.get_stripe_customer_id(user_id)
 
             if not stripe_customer_id:
                 # Create Stripe customer
-                stripe.api_key = server.config.stripe_secret_key
                 customer = stripe.Customer.create(
                     email=user_data['email'],
                     metadata={'user_id': user_id}
                 )
                 stripe_customer_id = customer.id
-                # Note: stripe_customer_id will be saved with the subscription record below
+                logger.info(f"Created Stripe customer {stripe_customer_id} for user {user_data['email']}")
 
-            # Create subscription manually (bypass Stripe for admin-added)
-            import secrets
-            fake_subscription_id = f"admin_{secrets.token_urlsafe(16)}"
+            # Get Stripe price ID for this category
+            try:
+                price_id = server.config.get_stripe_price_id(category)
+            except ValueError as e:
+                raise HTTPException(400, f"No Stripe price configured for {category}: {str(e)}")
 
+            # Create real Stripe subscription (will charge the user)
+            stripe_subscription = stripe.Subscription.create(
+                customer=stripe_customer_id,
+                items=[{'price': price_id}],
+                metadata={
+                    'user_id': user_id,
+                    'tool_category': category,
+                    'added_by': 'admin'
+                }
+            )
+
+            # Create subscription in database
+            # Note: Stripe webhook will also update this, but we create it immediately for admin visibility
             server.database.create_subscription(
                 user_id=user_id,
                 tool_category=category,
                 stripe_customer_id=stripe_customer_id,
-                stripe_subscription_id=fake_subscription_id,
-                status='active',
-                current_period_start=datetime.now(),
-                current_period_end=datetime.now() + timedelta(days=365)  # 1 year for admin-added
+                stripe_subscription_id=stripe_subscription.id,
+                status=stripe_subscription.status,  # Usually 'active' or 'incomplete'
+                current_period_start=datetime.fromtimestamp(stripe_subscription.current_period_start),
+                current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end)
             )
 
-            logger.info(f"Admin added {category} subscription for user {user_id}")
+            logger.info(f"Admin created Stripe subscription {stripe_subscription.id} for user {user_id}, category {category}")
 
             return JSONResponse({
                 "status": "success",
-                "message": f"Added {category} subscription",
-                "subscription_id": fake_subscription_id
+                "message": f"Added {category} subscription (Stripe ID: {stripe_subscription.id})",
+                "subscription_id": stripe_subscription.id,
+                "stripe_status": stripe_subscription.status,
+                "note": "User will be billed according to the subscription plan"
             })
 
         elif action == 'remove':
@@ -5449,19 +5468,48 @@ async def admin_toggle_subscription(
                 }, status_code=404)
 
             subscription = existing.data[0]
+            stripe_subscription_id = subscription.get('stripe_subscription_id')
 
-            # Update status to cancelled
-            server.database.supabase.table('subscriptions').update({
-                'status': 'cancelled',
-                'cancelled_at': datetime.now().isoformat()
-            }).eq('id', subscription['id']).execute()
+            # Initialize Stripe
+            stripe.api_key = server.config.stripe_secret_key
 
-            logger.info(f"Admin removed {category} subscription for user {user_id}")
+            # Cancel in Stripe if it's a real Stripe subscription
+            if stripe_subscription_id and not stripe_subscription_id.startswith('admin_'):
+                try:
+                    # Cancel the Stripe subscription immediately
+                    cancelled_subscription = stripe.Subscription.cancel(stripe_subscription_id)
+                    logger.info(f"Cancelled Stripe subscription {stripe_subscription_id} for user {user_id}")
 
-            return JSONResponse({
-                "status": "success",
-                "message": f"Removed {category} subscription"
-            })
+                    # Note: Stripe webhook will update database, but we update immediately for admin visibility
+                    server.database.supabase.table('subscriptions').update({
+                        'status': 'cancelled',
+                        'cancelled_at': datetime.now().isoformat()
+                    }).eq('id', subscription['id']).execute()
+
+                    return JSONResponse({
+                        "status": "success",
+                        "message": f"Cancelled {category} subscription in Stripe and database",
+                        "stripe_subscription_id": stripe_subscription_id,
+                        "note": "User will not be billed further"
+                    })
+
+                except stripe.error.StripeError as e:
+                    logger.error(f"Failed to cancel Stripe subscription {stripe_subscription_id}: {e}")
+                    raise HTTPException(500, f"Failed to cancel in Stripe: {str(e)}")
+            else:
+                # No Stripe subscription (admin-granted or old data) - just update database
+                server.database.supabase.table('subscriptions').update({
+                    'status': 'cancelled',
+                    'cancelled_at': datetime.now().isoformat()
+                }).eq('id', subscription['id']).execute()
+
+                logger.info(f"Admin removed {category} subscription (no Stripe cancellation needed) for user {user_id}")
+
+                return JSONResponse({
+                    "status": "success",
+                    "message": f"Removed {category} subscription from database",
+                    "note": "No Stripe subscription to cancel"
+                })
 
     except HTTPException:
         raise
