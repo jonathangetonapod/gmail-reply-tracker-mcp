@@ -8772,25 +8772,34 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             'bison': {'emoji': '🦬', 'name': 'Bison', 'tools': 4}
         }
 
+        # Get detailed subscription info for management (needed before tool_status calculation)
+        all_subscriptions = server.database.get_user_subscriptions(user_id)
+        active_categories = [sub['tool_category'] for sub in all_subscriptions if sub['status'] == 'active']
+
+        # Calculate based on active subscriptions, not preferences
         if enabled_categories is None:
-            total_tools = 84
-            tool_status = "All tools enabled"
+            # Show all categories but indicate which have active subscriptions
+            total_tools = sum(tool_counts.get(cat, 0) for cat in active_categories)
+            if len(active_categories) == 7:
+                tool_status = "All 7 categories active"
+            elif len(active_categories) == 0:
+                tool_status = "No active subscriptions"
+            else:
+                tool_status = f"{len(active_categories)}/7 categories active"
         elif len(enabled_categories) == 0:
             total_tools = 0
-            tool_status = "No tools enabled"
+            tool_status = "No tools enabled (filtered by user preference)"
         else:
-            total_tools = sum(tool_counts.get(cat, 0) for cat in enabled_categories)
-            tool_status = f"{len(enabled_categories)}/7 categories enabled"
+            # Count tools from enabled categories that also have active subscriptions
+            active_enabled = [cat for cat in enabled_categories if cat in active_categories]
+            total_tools = sum(tool_counts.get(cat, 0) for cat in active_enabled)
+            tool_status = f"{len(active_enabled)}/{len(enabled_categories)} enabled categories active"
 
         # Get usage stats
         usage_stats = server.database.get_user_usage_stats(user_id, days=30)
 
         # Get subscription info
         subscription_info = server.database.get_user_subscription_summary(user_id)
-
-        # Get detailed subscription info for management
-        all_subscriptions = server.database.get_user_subscriptions(user_id)
-        active_categories = [sub['tool_category'] for sub in all_subscriptions if sub['status'] == 'active']
 
         # Get recent activity
         recent_logs = server.database.supabase.table('usage_logs').select('*').eq('user_id', user_id).order('timestamp', desc=True).limit(20).execute()
@@ -8846,18 +8855,14 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             else:
                 api_keys_badges += f'<span class="badge badge-muted">{key.title()}</span> '
 
-        # Build tool categories badges
+        # Build tool categories badges based on active subscriptions
         tool_categories_html = ""
         all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
-        if enabled_categories is None:
-            for cat in all_categories:
-                tool_categories_html += f'<span class="badge badge-success">{cat.title()} ({tool_counts[cat]})</span> '
-        else:
-            for cat in all_categories:
-                if cat in enabled_categories:
-                    tool_categories_html += f'<span class="badge badge-success">✓ {cat.title()} ({tool_counts[cat]})</span> '
-                else:
-                    tool_categories_html += f'<span class="badge badge-muted">{cat.title()}</span> '
+        for cat in all_categories:
+            if cat in active_categories:
+                tool_categories_html += f'<span class="badge badge-success">✓ {cat.title()} ({tool_counts[cat]})</span> '
+            else:
+                tool_categories_html += f'<span class="badge badge-muted">{cat.title()}</span> '
 
         # Build recent activity timeline
         activity_timeline = ""
@@ -9341,13 +9346,14 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             </div>
 
             <div class="card">
-                <h2><span>🛠️</span> Tool Preferences</h2>
+                <h2><span>🛠️</span> Active Tool Categories</h2>
+                <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 16px;">Categories with active subscriptions (personal or team)</p>
                 <div class="stat-row">
                     <span class="stat-label">Status</span>
                     <span class="stat-value">{tool_status}</span>
                 </div>
                 <div class="stat-row">
-                    <span class="stat-label">Total Tools</span>
+                    <span class="stat-label">Available Tools</span>
                     <span class="stat-value">{total_tools} / 84</span>
                 </div>
                 <div style="margin-top: 16px;">
