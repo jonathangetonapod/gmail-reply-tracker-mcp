@@ -4155,20 +4155,31 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
                 sub_badge = '<span class="badge badge-muted">🆓 Free</span>'
 
             users_html += f"""
-            <tr class="user-row" onclick="window.location.href='/admin/user/{user['user_id']}'">
-                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-weight: 500;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div class="user-avatar">{user['email'][0].upper()}</div>
-                        <div>{user['email']}</div>
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px; cursor: pointer; transition: all 0.2s;" onclick="window.location.href='/admin/user/{user['user_id']}'" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
+                <div style="display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 20px;">
+                    <!-- User Info -->
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 16px;">{user['email'][0].upper()}</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 15px; color: #1a202c; margin-bottom: 4px;">{user['email']}</div>
+                            <div style="font-size: 13px; color: #718096;">Last active: {last_active}</div>
+                        </div>
                     </div>
-                </td>
-                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{sub_badge}</td>
-                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{api_keys_badge}</td>
-                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px; color: hsl(var(--muted-foreground));">{last_active}</td>
-                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: right;">
-                    <button class="action-btn" onclick="event.stopPropagation(); window.location.href='/admin/user/{user['user_id']}'">View</button>
-                </td>
-            </tr>
+
+                    <!-- Subscription Badge -->
+                    <div style="text-align: center;">
+                        {sub_badge}
+                    </div>
+
+                    <!-- API Keys Badge -->
+                    <div style="text-align: center;">
+                        {api_keys_badge}
+                    </div>
+
+                    <!-- Action Button -->
+                    <button class="action-btn" onclick="event.stopPropagation(); window.location.href='/admin/user/{user['user_id']}'" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 14px;">View Details →</button>
+                </div>
+            </div>
             """
 
         # Format recent activity
@@ -4550,20 +4561,9 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
 
         <div class="section">
             <h2><span>👥</span> All Users</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th style="text-align: center;">Subscription</th>
-                        <th style="text-align: center;">API Keys</th>
-                        <th>Last Active</th>
-                        <th style="text-align: right;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users_html if users_html else '<tr><td colspan="5" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No users yet</td></tr>'}
-                </tbody>
-            </table>
+            <div>
+                {users_html if users_html else '<div style="background: white; padding: 40px; border-radius: 8px; text-align: center; color: hsl(var(--muted-foreground));">No users yet</div>'}
+            </div>
         </div>
 
         <div class="section">
@@ -5120,6 +5120,9 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 <a href="/dashboard?session_token={user_data['session_token']}" class="action-btn" target="_blank">
                     View Client Dashboard
                 </a>
+                <button onclick="generatePassword()" class="action-btn" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); cursor: pointer;">
+                    🔐 Generate & Email Password
+                </button>
             </div>
         </div>
 
@@ -5277,6 +5280,38 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 messageDiv.style.color = 'hsl(var(--destructive))';
             }}
         }}
+
+        async function generatePassword() {{
+            if (!confirm('Generate a new password for this user and email it to them?')) {{
+                return;
+            }}
+
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = '⏳ Generating...';
+
+            try {{
+                const response = await fetch(`/admin/user/{user_id}/generate-password?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                    method: 'POST'
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    alert(`✓ Success!\\n\\nPassword generated and emailed to {user_data['email']}\\n\\nPassword: ${{result.password}}\\n\\n(Save this - the user will also receive it via email)`);
+                    button.textContent = '✓ Password Sent!';
+                    button.style.background = 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)';
+                }} else {{
+                    alert(`✗ Error: ${{result.detail || result.message}}`);
+                    button.disabled = false;
+                    button.textContent = '🔐 Generate & Email Password';
+                }}
+            }} catch (error) {{
+                alert(`✗ Error: ${{error.message}}`);
+                button.disabled = false;
+                button.textContent = '🔐 Generate & Email Password';
+            }}
+        }}
     </script>
 </body>
 </html>
@@ -5424,6 +5459,134 @@ async def admin_toggle_subscription(
         raise
     except Exception as e:
         logger.error(f"Error toggling subscription: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal server error: {str(e)}")
+
+
+@app.post("/admin/user/{user_id}/generate-password")
+async def admin_generate_password(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Admin endpoint to generate a new password for a user and email it to them.
+
+    Returns the generated password so admin can save it.
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        import secrets
+        import string
+        import bcrypt
+
+        # Get user data
+        result = server.database.supabase.table('users').select('*').eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(404, "User not found")
+
+        user_data = result.data[0]
+        user_email = user_data['email']
+
+        # Generate secure random password (12 characters: letters, numbers, symbols)
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        password = ''.join(secrets.choice(alphabet) for _ in range(12))
+
+        # Hash password with bcrypt
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+
+        # Update user's password in database
+        server.database.supabase.table('users').update({
+            'password_hash': password_hash.decode('utf-8')
+        }).eq('user_id', user_id).execute()
+
+        logger.info(f"Admin generated new password for user {user_email}")
+
+        # Send email with credentials
+        try:
+            import resend
+            resend.api_key = os.getenv("RESEND_API_KEY")
+
+            # Send email
+            email_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">🔐 Your Account Credentials</h1>
+    </div>
+
+    <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px;">
+        <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
+
+        <p style="font-size: 16px; margin-bottom: 20px;">Your account credentials for the AI Email Assistant have been set up:</p>
+
+        <div style="background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">EMAIL</p>
+            <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">{user_email}</p>
+
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">PASSWORD</p>
+            <p style="margin: 0; font-size: 18px; font-family: 'Courier New', monospace; background: #f3f4f6; padding: 12px; border-radius: 6px; font-weight: 600; letter-spacing: 1px;">{password}</p>
+        </div>
+
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <p style="margin: 0; color: #92400e; font-size: 14px;">
+                <strong>⚠️ Important:</strong> Please save this password securely. For security reasons, we cannot recover it if lost.
+            </p>
+        </div>
+
+        <p style="font-size: 16px; margin-bottom: 15px;">You can now log in at:</p>
+        <p style="text-align: center; margin: 20px 0;">
+            <a href="https://{request.url.hostname}/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Log In to Your Account</a>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+        <p style="font-size: 14px; color: #6b7280; margin: 0;">
+            If you didn't request this, please contact support immediately.
+        </p>
+    </div>
+</body>
+</html>
+            """
+
+            resend.Emails.send({
+                "from": "AI Email Assistant <noreply@leadgenjay.com>",
+                "to": [user_email],
+                "subject": "Your Account Credentials - AI Email Assistant",
+                "html": email_html
+            })
+
+            logger.info(f"Password email sent successfully to {user_email}")
+            email_status = "sent"
+
+        except Exception as e:
+            logger.error(f"Failed to send password email to {user_email}: {e}")
+            email_status = "failed"
+
+        return JSONResponse({
+            "status": "success",
+            "password": password,
+            "email_sent": email_status == "sent",
+            "message": f"Password generated and {'emailed to' if email_status == 'sent' else 'could not be emailed to'} {user_email}"
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating password: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"Internal server error: {str(e)}")
