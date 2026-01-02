@@ -5019,20 +5019,29 @@ async def stripe_webhook(request: Request):
     stripe.api_key = server.config.stripe_secret_key
     webhook_secret = server.config.stripe_webhook_secret
 
+    # SECURITY: Webhook signature verification is REQUIRED
+    # Never accept unsigned webhooks - this prevents attackers from:
+    # - Creating fake subscriptions
+    # - Bypassing payment
+    # - Manipulating user access
     if not webhook_secret:
-        logger.warning("Stripe webhook secret not configured - skipping signature verification")
-        event = json.loads(payload)
-    else:
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, webhook_secret
-            )
-        except ValueError:
-            logger.error("Invalid webhook payload")
-            raise HTTPException(400, "Invalid payload")
-        except stripe.error.SignatureVerificationError:
-            logger.error("Invalid webhook signature")
-            raise HTTPException(400, "Invalid signature")
+        logger.error("SECURITY: Stripe webhook secret not configured - rejecting webhook")
+        raise HTTPException(500, "Webhook signature verification not configured")
+
+    if not sig_header:
+        logger.error("SECURITY: Missing stripe-signature header")
+        raise HTTPException(400, "Missing signature header")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError as e:
+        logger.error(f"SECURITY: Invalid webhook payload: {e}")
+        raise HTTPException(400, "Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"SECURITY: Invalid webhook signature: {e}")
+        raise HTTPException(400, "Invalid signature")
 
     # Handle the event
     event_type = event['type']
