@@ -3134,7 +3134,6 @@ async def root():
     </script>
 </body>
 </html>
-    """)</html>
     """)
 
 
