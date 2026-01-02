@@ -455,6 +455,11 @@ async def handle_jsonrpc_request(
                 if active_subscriptions is not None and len(active_subscriptions) > 0:
                     # User has some subscriptions - only show subscribed categories
                     subscription_filtered_tools = []
+                    # DEBUG: Log first 10 tool categorizations
+                    for i, tool in enumerate(tools[:10]):
+                        cat = get_tool_category(tool['name'])
+                        logger.info(f"DEBUG tool {i}: '{tool['name']}' -> category='{cat}'")
+
                     for tool in tools:
                         category = get_tool_category(tool['name'])
                         # ONLY allow tools that match subscribed categories (no uncategorized tools)
