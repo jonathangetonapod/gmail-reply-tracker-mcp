@@ -993,7 +993,7 @@ async def root():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Most Powerful MCP Server for Claude Desktop | 84 Tools Across Gmail, Calendar, Docs & More</title>
+    <title>The Most Powerful MCP Server for Claude Desktop | 85 Tools Across Gmail, Calendar, Docs & More</title>
     <meta name="description" content="Transform Claude Desktop into your complete workspace. 84 enterprise-grade tools with multi-tenant security, per-user OAuth, and instant setup. Free 3-day trial.">
     <style>
         * {
@@ -1760,7 +1760,7 @@ async def root():
         <div class="hero-content">
             <div class="hero-badge">🚀 The Most Advanced MCP Server for Claude Desktop</div>
             <h1>Turn Claude into Your <span class="highlight">Complete Workspace</span></h1>
-            <p class="subtitle">The only MCP server with enterprise-grade security, multi-tenant architecture, and 84 production-ready tools across Gmail, Calendar, Docs, Sheets, Fathom, Instantly, and Bison.</p>
+            <p class="subtitle">The only MCP server with enterprise-grade security, multi-tenant architecture, and 85 production-ready tools across Gmail, Calendar, Docs, Sheets, Fathom, Instantly, and Bison.</p>
 
             <div class="hero-stats">
                 <div class="stat">
@@ -1883,7 +1883,7 @@ async def root():
     <!-- Tool Categories Section -->
     <div class="container">
         <div class="section-header">
-            <h2>All 84 Tools, Organized by Category</h2>
+            <h2>All 85 Tools, Organized by Category</h2>
             <p>Pick and choose the categories you need. Only pay for what you use.</p>
         </div>
 
@@ -1960,7 +1960,7 @@ async def root():
             <div class="category-card">
                 <div class="category-icon">🎙️</div>
                 <h3>Fathom Meetings</h3>
-                <div class="tool-count">10 tools included</div>
+                <div class="tool-count">11 tools included</div>
                 <ul class="tool-list">
                     <li>Access meeting recordings</li>
                     <li>Read AI-generated transcripts</li>
@@ -2049,7 +2049,7 @@ async def root():
                 <div class="plan-price">$0</div>
                 <div class="plan-period">First 3 days</div>
                 <ul class="plan-features">
-                    <li>All 84 tools unlocked</li>
+                    <li>All 85 tools unlocked</li>
                     <li>All 7 categories included</li>
                     <li>No credit card required</li>
                     <li>Full access to test everything</li>
@@ -2075,7 +2075,7 @@ async def root():
                 <div class="plan-price">$35</div>
                 <div class="plan-period">per month</div>
                 <ul class="plan-features">
-                    <li>All 84 tools included</li>
+                    <li>All 85 tools included</li>
                     <li>All 7 categories unlocked</li>
                     <li>Best value for power users</li>
                     <li>Everything you need</li>
@@ -3856,7 +3856,7 @@ async def signup_form(request: Request, error: Optional[str] = Query(None)):
 <body>
     <div class="container">
         <h1>✨ Create Your Account</h1>
-        <p class="subtitle">Start your 3-day free trial with all 84 tools unlocked</p>
+        <p class="subtitle">Start your 3-day free trial with all 85 tools unlocked</p>
 
         {f'<div class="error-msg">❌ {error}</div>' if error else ''}
 
@@ -4658,7 +4658,7 @@ async def dashboard(
             enabled_categories_str[cat] = 'checked' if cat in enabled_categories else ''
 
     # Calculate tool count
-    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
+    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 11, 'instantly': 10, 'bison': 4}
     if enabled_categories is None:
         total_tools = 84
     else:
@@ -4670,7 +4670,7 @@ async def dashboard(
         'calendar': {'emoji': '📅', 'name': 'Calendar Tools', 'tools': 15, 'desc': 'Create events, check availability'},
         'docs': {'emoji': '📄', 'name': 'Google Docs Tools', 'tools': 8, 'desc': 'Create, read, update documents'},
         'sheets': {'emoji': '📊', 'name': 'Google Sheets Tools', 'tools': 12, 'desc': 'Read, write, manage spreadsheets'},
-        'fathom': {'emoji': '🎥', 'name': 'Fathom Tools', 'tools': 10, 'desc': 'Meeting recordings & analytics', 'note': '💡 Requires Fathom API key'},
+        'fathom': {'emoji': '🎥', 'name': 'Fathom Tools', 'tools': 11, 'desc': 'Meeting recordings & analytics', 'note': '💡 Requires Fathom API key'},
         'instantly': {'emoji': '📨', 'name': 'Instantly Tools', 'tools': 10, 'desc': 'Email campaigns & lead management (Instantly.ai)', 'note': '💡 Requires Instantly API key'},
         'bison': {'emoji': '🦬', 'name': 'Bison Tools', 'tools': 4, 'desc': 'Email campaigns & lead management (EmailBison)', 'note': '💡 Requires Bison API key'}
     }
@@ -4869,7 +4869,7 @@ async def dashboard(
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
             <div style="font-size: 32px; margin-bottom: 10px;">🎉</div>
             <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome{f", {first_name}" if first_name else ""}! Your 3-day trial starts now!</h2>
-            <p style="margin: 0; font-size: 16px; opacity: 0.95;">All 84 tools are unlocked! Explore Gmail, Calendar, Docs, Sheets, Fathom, Instantly & more—completely free for 3 days.</p>
+            <p style="margin: 0; font-size: 16px; opacity: 0.95;">All 85 tools are unlocked! Explore Gmail, Calendar, Docs, Sheets, Fathom, Instantly & more—completely free for 3 days.</p>
             <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">💡 After your trial, free users get 10 tool calls per day. Subscribe for unlimited access!</p>
         </div>
         ''' if is_new_user == 'True' else (f'''
@@ -4900,7 +4900,7 @@ async def dashboard(
                         You have <strong>{trial_status["days_remaining"]} days and {trial_status["hours_remaining"] % 24} hours</strong> remaining in your trial.
                     </p>
                     <p style="margin: 0; font-size: 14px; opacity: 0.9;">
-                        All 84 tools are unlocked! Subscribe before your trial ends to keep unlimited access.
+                        All 85 tools are unlocked! Subscribe before your trial ends to keep unlimited access.
                     </p>
                 </div>
             </div>
@@ -5630,7 +5630,7 @@ async def update_tool_categories_endpoint(
     server.database.update_tool_categories(ctx.user_id, categories if categories else [])
 
     # Calculate tool count
-    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
+    tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 11, 'instantly': 10, 'bison': 4}
     total_tools = sum(tool_counts[cat] for cat in categories) if categories else 0
 
     logger.info(f"Updated tool categories for user {ctx.email}: {categories} ({total_tools} tools)")
@@ -8759,7 +8759,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 pass
 
         # Calculate tool count
-        tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
+        tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 11, 'instantly': 10, 'bison': 4}
 
         # Define category info for display
         category_info = {
@@ -8767,7 +8767,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             'calendar': {'emoji': '📅', 'name': 'Calendar', 'tools': 15},
             'docs': {'emoji': '📄', 'name': 'Docs', 'tools': 8},
             'sheets': {'emoji': '📊', 'name': 'Sheets', 'tools': 12},
-            'fathom': {'emoji': '📈', 'name': 'Fathom', 'tools': 10},
+            'fathom': {'emoji': '📈', 'name': 'Fathom', 'tools': 11},
             'instantly': {'emoji': '📨', 'name': 'Instantly', 'tools': 10},
             'bison': {'emoji': '🦬', 'name': 'Bison', 'tools': 4}
         }
@@ -9354,7 +9354,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 </div>
                 <div class="stat-row">
                     <span class="stat-label">Available Tools</span>
-                    <span class="stat-value">{total_tools} / 84</span>
+                    <span class="stat-value">{total_tools} / 85</span>
                 </div>
                 <div style="margin-top: 16px;">
                     {tool_categories_html}
