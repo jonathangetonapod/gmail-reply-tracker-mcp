@@ -2959,6 +2959,7 @@ class WebServer:
             # Handle MCP request
             from mcp_handler import MCPHandler
             import time
+            import traceback
             handler = MCPHandler()
 
             # Track timing for analytics
@@ -2985,17 +2986,24 @@ class WebServer:
             try:
                 method = request_data.get('method', 'unknown')
                 tool_name = 'unknown'
+                request_params = None
 
-                # Extract tool name from tools/call requests
+                # Extract tool name and params from tools/call requests
                 if method == 'tools/call':
                     params = request_data.get('params', {})
                     tool_name = params.get('name', 'unknown')
+                    request_params = params.get('arguments', {})
 
                 # Check if request was successful
                 success = 'result' in response
                 error_message = None
+                error_type = None
+                stack_trace_str = None
+
                 if not success and 'error' in response:
                     error_message = response['error'].get('message', 'Unknown error')
+                    # Extract error type if available in the error response
+                    error_type = response['error'].get('code', 'UnknownError')
 
                 # Log to database
                 self.database.log_usage(
@@ -3004,7 +3012,10 @@ class WebServer:
                     method=method,
                     success=success,
                     error_message=error_message,
-                    response_time_ms=response_time_ms
+                    response_time_ms=response_time_ms,
+                    request_params=request_params,
+                    response_data=response if success else None,
+                    error_type=str(error_type) if error_type else None
                 )
             except Exception as e:
                 # Don't fail the request if logging fails

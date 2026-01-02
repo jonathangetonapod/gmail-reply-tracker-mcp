@@ -635,6 +635,7 @@ async def handle_jsonrpc_request(
 
             # Track execution time for analytics
             import time
+            import traceback
             start_time = time.time()
 
             try:
@@ -707,7 +708,9 @@ async def handle_jsonrpc_request(
                                 tool_name=tool_name,
                                 method="tools/call",
                                 success=True,
-                                response_time_ms=elapsed_ms
+                                response_time_ms=elapsed_ms,
+                                request_params=arguments,
+                                response_data=response
                             )
                         except Exception as e:
                             logger.warning(f"Failed to log usage: {e}")
@@ -742,7 +745,10 @@ async def handle_jsonrpc_request(
                             method="tools/call",
                             success=False,
                             error_message=str(e),
-                            response_time_ms=elapsed_ms
+                            response_time_ms=elapsed_ms,
+                            request_params=arguments,
+                            error_type=type(e).__name__,
+                            stack_trace=traceback.format_exc()
                         )
                     except Exception as log_err:
                         logger.warning(f"Failed to log error usage: {log_err}")

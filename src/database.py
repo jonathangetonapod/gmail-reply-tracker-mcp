@@ -532,7 +532,11 @@ class Database:
         method: str,
         success: bool,
         error_message: Optional[str] = None,
-        response_time_ms: Optional[int] = None
+        response_time_ms: Optional[int] = None,
+        request_params: Optional[dict] = None,
+        response_data: Optional[dict] = None,
+        error_type: Optional[str] = None,
+        stack_trace: Optional[str] = None
     ):
         """
         Log a tool usage event for analytics.
@@ -544,15 +548,31 @@ class Database:
             success: Whether the call succeeded
             error_message: Error message if failed
             response_time_ms: Response time in milliseconds
+            request_params: Request parameters passed to the tool
+            response_data: Response data returned by the tool
+            error_type: Type/class of error if failed
+            stack_trace: Full stack trace if failed
         """
-        self.supabase.table('usage_logs').insert({
+        log_entry = {
             'user_id': user_id,
             'tool_name': tool_name,
             'method': method,
             'success': success,
             'error_message': error_message,
             'response_time_ms': response_time_ms
-        }).execute()
+        }
+
+        # Add optional fields if provided
+        if request_params is not None:
+            log_entry['request_params'] = request_params
+        if response_data is not None:
+            log_entry['response_data'] = response_data
+        if error_type is not None:
+            log_entry['error_type'] = error_type
+        if stack_trace is not None:
+            log_entry['stack_trace'] = stack_trace
+
+        self.supabase.table('usage_logs').insert(log_entry).execute()
 
     def get_user_usage_stats(
         self,
