@@ -5535,6 +5535,155 @@ async def get_user_teams_endpoint(
     }
 
 
+@app.post("/teams/{team_id}/invite")
+async def invite_team_member_endpoint(
+    team_id: str,
+    request: Request,
+    session_token: Optional[str] = Query(None)
+):
+    """Invite a new member to a team."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Parse request body
+    body = await request.json()
+    email = body.get('email', '').strip().lower()
+
+    if not email:
+        raise HTTPException(400, "Email is required")
+
+    # Basic email validation
+    if '@' not in email or '.' not in email.split('@')[1]:
+        raise HTTPException(400, "Invalid email format")
+
+    # Check if user is team owner or admin
+    teams = server.database.get_user_teams(ctx.user_id)
+    user_team = next((t for t in teams if t['team_id'] == team_id), None)
+
+    if not user_team:
+        raise HTTPException(404, "Team not found or you're not a member")
+
+    if user_team['role'] not in ['owner', 'admin']:
+        raise HTTPException(403, "Only team owners and admins can invite members")
+
+    # Check if user is already a member
+    members = server.database.get_team_members(team_id)
+    if any(m['email'].lower() == email for m in members):
+        raise HTTPException(400, "User is already a team member")
+
+    # Create invitation
+    invitation = server.database.invite_team_member(
+        team_id=team_id,
+        email=email,
+        invited_by_user_id=ctx.user_id
+    )
+
+    logger.info(f"Team invitation created: {invitation['invitation_id']} for {email} to team {team_id}")
+
+    # TODO: Send invitation email
+    # For now, just return the invitation link
+
+    return {
+        "success": True,
+        "invitation": invitation,
+        "invitation_link": f"{request.url.scheme}://{request.url.hostname}/invite/{invitation['invitation_id']}"
+    }
+
+
+@app.get("/invitations/{invitation_id}")
+async def get_invitation_endpoint(
+    invitation_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Get invitation details."""
+    # Note: This endpoint doesn't require authentication
+    # Anyone with the invitation ID can view it
+
+    invitation = server.database.get_team_invitation(invitation_id)
+
+    if not invitation:
+        raise HTTPException(404, "Invitation not found")
+
+    if invitation['status'] != 'pending':
+        raise HTTPException(400, f"Invitation is {invitation['status']}")
+
+    # Check if expired
+    from datetime import datetime
+    expires_at = datetime.fromisoformat(invitation['expires_at'].replace('Z', '+00:00'))
+    if datetime.now(expires_at.tzinfo) > expires_at:
+        # Mark as expired
+        server.database.supabase.table('team_invitations').update({
+            'status': 'expired'
+        }).eq('invitation_id', invitation_id).execute()
+
+        raise HTTPException(400, "Invitation has expired")
+
+    return {
+        "success": True,
+        "invitation": invitation
+    }
+
+
+@app.post("/invitations/{invitation_id}/accept")
+async def accept_invitation_endpoint(
+    invitation_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Accept a team invitation."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token - please log in first")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Get invitation
+    invitation = server.database.get_team_invitation(invitation_id)
+
+    if not invitation:
+        raise HTTPException(404, "Invitation not found")
+
+    if invitation['status'] != 'pending':
+        raise HTTPException(400, f"Invitation is {invitation['status']}")
+
+    # Check if expired
+    from datetime import datetime
+    expires_at = datetime.fromisoformat(invitation['expires_at'].replace('Z', '+00:00'))
+    if datetime.now(expires_at.tzinfo) > expires_at:
+        raise HTTPException(400, "Invitation has expired")
+
+    # Get user email
+    user = server.database.get_user_by_session(session_token)
+    if not user:
+        raise HTTPException(401, "User not found")
+
+    # Verify email matches invitation
+    if user['email'].lower() != invitation['email'].lower():
+        raise HTTPException(403, f"This invitation is for {invitation['email']}, but you're logged in as {user['email']}")
+
+    # Accept invitation
+    success = server.database.accept_team_invitation(invitation_id, ctx.user_id)
+
+    if not success:
+        raise HTTPException(500, "Failed to accept invitation")
+
+    logger.info(f"User {user['email']} accepted invitation {invitation_id} to team {invitation['team_id']}")
+
+    return {
+        "success": True,
+        "message": "You've joined the team!",
+        "team_id": invitation['team_id']
+    }
+
+
 # ===========================================================================
 # SUBSCRIPTION & BILLING ENDPOINTS
 # ===========================================================================
