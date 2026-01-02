@@ -760,35 +760,193 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    """Root endpoint with server information."""
-    try:
-        tools = await server.mcp.list_tools()
-        tool_count = len(tools)
-        tool_names = sorted([t.name for t in tools])
-    except Exception:
-        tool_count = 0
-        tool_names = []
+    """Landing page - Product-focused marketing."""
+    return HTMLResponse("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Email Assistant for Claude - Supercharge Your Productivity</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    return JSONResponse({
-        "server": "LeadGenJay MCP Remote Server",
-        "status": "online",
-        "version": "1.0.0",
-        "protocol_version": "2024-11-05",
-        "tools_count": tool_count,
-        "tools_preview": tool_names[:20],  # First 20 tools
-        "sessions_active": len(sessions),
-        "transports": [
-            "Modern: POST /mcp (Streamable HTTP)",
-            "Legacy: GET /mcp (SSE) + POST /messages"
-        ],
-        "endpoints": {
-            "health": "GET /health",
-            "modern_transport": "POST /mcp",
-            "legacy_sse_stream": "GET /mcp",
-            "legacy_messages": "POST /messages"
-        },
-        "documentation": "https://github.com/jonathangetonapod/gmail-reply-tracker-mcp"
-    })
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+        }
+
+        .hero-content {
+            max-width: 800px;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 40px;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 20px 50px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 80px;
+            text-align: left;
+        }
+
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .feature h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .feature p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .pricing {
+            margin-top: 60px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .pricing h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .pricing-details {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            margin-bottom: 10px;
+        }
+
+        .pricing-note {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .subtitle {
+                font-size: 1.2rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="hero-content">
+            <h1>AI Email Assistant for Claude</h1>
+            <p class="subtitle">Manage Gmail, Calendar, Docs & Sheets directly from Claude Desktop. No switching tabs. No context loss.</p>
+
+            <a href="/setup/start" class="cta-button">Get Started Free →</a>
+
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">📧</div>
+                    <h3>Smart Email Management</h3>
+                    <p>Search, read, send, and organize emails with AI. Never miss an important message.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">📅</div>
+                    <h3>Calendar Automation</h3>
+                    <p>Schedule meetings, check availability, and manage your calendar without leaving Claude.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">📄</div>
+                    <h3>Document Creation</h3>
+                    <p>Create and edit Google Docs & Sheets. Perfect for reports, proposals, and data analysis.</p>
+                </div>
+            </div>
+
+            <div class="pricing">
+                <h2>Simple, Pay-As-You-Go Pricing</h2>
+                <div class="pricing-details">
+                    <strong>$5/month per category</strong><br>
+                    Subscribe only to what you need:<br>
+                    • Gmail Tools (25 tools)<br>
+                    • Calendar Tools (15 tools)<br>
+                    • Google Docs Tools (8 tools)<br>
+                    • Google Sheets Tools (12 tools)<br>
+                    • Fathom Meeting Tools (10 tools)<br>
+                    • Email Campaign Tools (14 tools)
+                </div>
+                <p class="pricing-note">Cancel anytime. No contracts. No surprises.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    """)
 
 
 # ===========================================================================
@@ -1251,204 +1409,11 @@ async def setup_callback(
         server_url = f"https://{request.url.hostname}"
         session_token = user_data['session_token']
 
-        # Show success page with session token
-        success_html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Setup Complete</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            min-height: 100vh;
-            padding: 40px 20px;
-        }}
-        .card {{
-            max-width: 700px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 40px;
-        }}
-        h1 {{
-            color: #4caf50;
-            margin-bottom: 20px;
-            font-size: 28px;
-        }}
-        .success-icon {{
-            font-size: 48px;
-            margin-bottom: 20px;
-            text-align: center;
-        }}
-        p {{
-            color: #666;
-            margin-bottom: 20px;
-            line-height: 1.6;
-        }}
-        .token-box {{
-            background: #f5f5f5;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 20px;
-            margin: 30px 0;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 14px;
-            word-break: break-all;
-            position: relative;
-        }}
-        .token-label {{
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
-            font-size: 12px;
-            text-transform: uppercase;
-        }}
-        .token-value {{
-            background: white;
-            padding: 12px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-            margin-top: 8px;
-        }}
-        .copy-button {{
-            background: #2196f3;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            font-size: 14px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-        }}
-        .copy-button:hover {{
-            background: #1976d2;
-        }}
-        .instructions {{
-            background: #e3f2fd;
-            padding: 20px;
-            border-radius: 6px;
-            border-left: 4px solid #2196f3;
-            margin: 20px 0;
-        }}
-        .instructions h2 {{
-            color: #1976d2;
-            font-size: 18px;
-            margin-bottom: 15px;
-        }}
-        .instructions ol {{
-            margin-left: 20px;
-            color: #555;
-        }}
-        .instructions li {{
-            margin-bottom: 10px;
-            line-height: 1.6;
-        }}
-        .config-box {{
-            background: #263238;
-            color: #aed581;
-            padding: 20px;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 13px;
-            overflow-x: auto;
-            margin: 20px 0;
-        }}
-        .highlight {{
-            background: #fff9c4;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: 600;
-        }}
-    </style>
-    <script>
-        function copyToken() {{
-            const tokenValue = document.getElementById('token-value').textContent;
-            navigator.clipboard.writeText(tokenValue).then(() => {{
-                const button = document.getElementById('copy-button');
-                button.textContent = '✓ Copied!';
-                button.style.background = '#4caf50';
-                setTimeout(() => {{
-                    button.textContent = '📋 Copy Token';
-                    button.style.background = '#2196f3';
-                }}, 2000);
-            }});
-        }}
-
-        function copyURL() {{
-            const urlText = document.getElementById('mcp-url').textContent;
-            navigator.clipboard.writeText(urlText).then(() => {{
-                const button = event.target;
-                button.textContent = '✓ Copied!';
-                button.style.background = '#4caf50';
-                setTimeout(() => {{
-                    button.textContent = '📋 Copy URL';
-                    button.style.background = '#2196f3';
-                }}, 2000);
-            }});
-        }}
-    </script>
-</head>
-<body>
-    <div class="card">
-        <div class="success-icon">✅</div>
-        <h1>🎉 Setup Complete!</h1>
-        <p>Your Google account ({email}) has been successfully authorized.</p>
-
-        <div class="token-box">
-            <div class="token-label">Your Session Token</div>
-            <div class="token-value" id="token-value">{session_token}</div>
-            <button class="copy-button" id="copy-button" onclick="copyToken()">📋 Copy Token</button>
-        </div>
-
-        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 6px;">
-            <h3 style="color: #856404; margin-bottom: 10px;">⚙️ Manage Your API Keys</h3>
-            <p style="color: #856404; margin-bottom: 15px;">Add Fathom, Instantly, and other API keys to unlock additional tools:</p>
-            <a href="/dashboard?session_token={session_token}" style="display: inline-block; background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: 600;">Go to Dashboard →</a>
-        </div>
-
-        <div class="instructions">
-            <h2>🔧 Add to Claude Desktop (via GUI)</h2>
-            <ol>
-                <li>Open <strong>Claude Desktop</strong></li>
-                <li>Go to <strong>Settings</strong> ⚙️ → <strong>Developer</strong> tab</li>
-                <li>Under "Custom Connectors", click <strong>Add Connector</strong> or <strong>+</strong></li>
-                <li>Fill in the form:</li>
-            </ol>
-
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #ddd;">
-                <div style="margin-bottom: 15px;">
-                    <strong style="color: #333; display: block; margin-bottom: 5px;">Name:</strong>
-                    <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">gmail-mcp</div>
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <strong style="color: #333; display: block; margin-bottom: 5px;">Remote MCP Server URL:</strong>
-                    <div style="background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; word-break: break-all;" id="mcp-url">{server_url}/mcp?session_token={session_token}</div>
-                    <button class="copy-button" onclick="copyURL()" style="margin-top: 8px;">📋 Copy URL</button>
-                </div>
-                <div style="color: #666; font-size: 14px; margin-top: 10px;">
-                    ℹ️ Leave OAuth Client ID and OAuth Client Secret fields <strong>empty</strong>
-                </div>
-            </div>
-
-            <ol start="5">
-                <li>Click <strong>Save</strong> or <strong>Add</strong></li>
-                <li><strong>Restart Claude Desktop</strong></li>
-                <li>Start using your 84 Gmail & Calendar tools!</li>
-            </ol>
-        </div>
-
-        <p style="text-align: center; margin-top: 30px; color: #999; font-size: 14px;">
-            🔒 Your token is stored securely and encrypted in the database.
-        </p>
-    </div>
-</body>
-</html>
-        """
-        return HTMLResponse(content=success_html)
+        # Redirect to dashboard where user can subscribe
+        return RedirectResponse(
+            url=f"/dashboard?session_token={session_token}&welcome=true",
+            status_code=303
+        )
 
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")
