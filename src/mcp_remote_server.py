@@ -5279,10 +5279,10 @@ async def dashboard(
 
             // Update tip text
             if (selectedType.value === 'personal') {{
-                tip.textContent = 'These subscriptions will be just for you. Other users won\'t have access.';
+                tip.textContent = "These subscriptions will be just for you. Other users won't have access.";
             }} else {{
                 const teamLabel = selectedType.closest('label').querySelector('div > div').textContent;
-                tip.innerHTML = `<strong>Subscribing for entire team!</strong> All members will instantly get access to these tools.`;
+                tip.innerHTML = "<strong>Subscribing for entire team!</strong> All members will instantly get access to these tools.";
             }}
         }}
 
