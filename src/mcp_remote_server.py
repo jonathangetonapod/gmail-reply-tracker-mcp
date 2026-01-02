@@ -5884,7 +5884,7 @@ async def team_settings_page(
                             <div class="member-role">{{m['role'].title()}} • Joined {{m['joined_at'][:10]}}</div>
                         </div>
                     </div>
-                    {f'<button onclick="removeMember(\\'{m["user_id"]}\\', \\'{m["email"]}\\')" class="btn btn-danger">Remove</button>' if is_admin and m['user_id'] != ctx.user_id else ''}
+                    {'<button onclick="removeMember(&apos;' + m["user_id"] + '&apos;, &apos;' + m["email"] + '&apos;)" class="btn btn-danger">Remove</button>' if is_admin and m['user_id'] != ctx.user_id else ''}
                 </div>
                 ''' for m in members])}
             </div>

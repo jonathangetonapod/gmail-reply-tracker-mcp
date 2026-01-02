@@ -769,6 +769,7 @@ class Database:
     def get_active_subscriptions(self, user_id: str) -> list[str]:
         """
         Get list of active tool categories for a user.
+        Includes BOTH personal subscriptions AND team subscriptions.
 
         Only returns categories with status='active' (payment received).
         'incomplete' subscriptions remain locked until invoice is paid.
@@ -777,13 +778,31 @@ class Database:
             user_id: User ID
 
         Returns:
-            List of category names with active subscriptions
+            List of category names with active subscriptions (deduplicated)
         """
-        result = self.supabase.table('subscriptions').select('tool_category').eq(
-            'user_id', user_id
-        ).eq('status', 'active').execute()
+        categories = set()
 
-        return [sub['tool_category'] for sub in result.data]
+        # 1. Get personal subscriptions
+        personal_result = self.supabase.table('subscriptions').select('tool_category').eq(
+            'user_id', user_id
+        ).eq('status', 'active').is_('team_id', 'null').execute()
+
+        for sub in personal_result.data:
+            categories.add(sub['tool_category'])
+
+        # 2. Get user's teams
+        user_teams = self.get_user_teams(user_id)
+
+        # 3. Get team subscriptions for each team
+        for team in user_teams:
+            team_result = self.supabase.table('subscriptions').select('tool_category').eq(
+                'team_id', team['team_id']
+            ).eq('status', 'active').eq('is_team_subscription', True).execute()
+
+            for sub in team_result.data:
+                categories.add(sub['tool_category'])
+
+        return list(categories)
 
     def has_active_subscription(self, user_id: str, tool_category: str) -> bool:
         """
