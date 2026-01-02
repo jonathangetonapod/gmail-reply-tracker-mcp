@@ -347,6 +347,7 @@ class Database:
             "api_keys": api_keys,  # Dict with all API keys
             "fathom_key": api_keys.get('fathom'),  # Backwards compatibility
             "enabled_tool_categories": enabled_tool_categories,  # List of enabled categories or None for all
+            "teams_enabled": user.get('teams_enabled', False),  # Team access control
             "session_token": user['session_token'],
             "session_expiry": user['session_expiry'],
             "created_at": user['created_at'],
