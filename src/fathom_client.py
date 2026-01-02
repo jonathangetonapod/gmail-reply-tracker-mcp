@@ -189,7 +189,9 @@ class FathomClient:
         self,
         limit: int = 50,
         cursor: Optional[str] = None,
-        calendar_invitees_domains_type: str = "all"
+        calendar_invitees_domains_type: str = "all",
+        created_after: Optional[str] = None,
+        created_before: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         List meetings with pagination support.
@@ -201,6 +203,10 @@ class FathomClient:
                 - "all": All meetings
                 - "internal_only": Only meetings with internal attendees
                 - "one_or_more_external": Meetings with at least one external attendee
+            created_after: Filter to meetings created after this timestamp (ISO 8601 format)
+                Example: "2025-01-01T00:00:00Z"
+            created_before: Filter to meetings created before this timestamp (ISO 8601 format)
+                Example: "2025-12-31T23:59:59Z"
 
         Returns:
             Dictionary with 'items' (list of meetings), 'limit', and 'next_cursor'
@@ -215,6 +221,12 @@ class FathomClient:
 
         if cursor:
             params['cursor'] = cursor
+
+        if created_after:
+            params['created_after'] = created_after
+
+        if created_before:
+            params['created_before'] = created_before
 
         response = self._execute_with_retry('GET', 'meetings', params=params)
 
@@ -269,7 +281,9 @@ class FathomClient:
         self,
         search_term: str,
         limit: int = 50,
-        calendar_invitees_domains_type: str = "all"
+        calendar_invitees_domains_type: str = "all",
+        created_after: Optional[str] = None,
+        created_before: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Search meetings by title.
@@ -278,6 +292,8 @@ class FathomClient:
             search_term: Search term to match in meeting titles
             limit: Maximum number of meetings to search through
             calendar_invitees_domains_type: Filter by domain type
+            created_after: Filter to meetings created after this timestamp (ISO 8601 format)
+            created_before: Filter to meetings created before this timestamp (ISO 8601 format)
 
         Returns:
             List of meetings matching the search term
@@ -287,7 +303,9 @@ class FathomClient:
         """
         meetings = self.list_meetings(
             limit=limit,
-            calendar_invitees_domains_type=calendar_invitees_domains_type
+            calendar_invitees_domains_type=calendar_invitees_domains_type,
+            created_after=created_after,
+            created_before=created_before
         )
 
         items = meetings.get('items', [])
@@ -305,7 +323,9 @@ class FathomClient:
     def search_meetings_by_attendee(
         self,
         email: str,
-        limit: int = 50
+        limit: int = 50,
+        created_after: Optional[str] = None,
+        created_before: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Find meetings with a specific attendee.
@@ -313,6 +333,8 @@ class FathomClient:
         Args:
             email: Email address to search for
             limit: Maximum number of meetings to search through
+            created_after: Filter to meetings created after this timestamp (ISO 8601 format)
+            created_before: Filter to meetings created before this timestamp (ISO 8601 format)
 
         Returns:
             List of meetings with the specified attendee
@@ -320,7 +342,11 @@ class FathomClient:
         Raises:
             requests.HTTPError: If API request fails
         """
-        meetings = self.list_meetings(limit=limit)
+        meetings = self.list_meetings(
+            limit=limit,
+            created_after=created_after,
+            created_before=created_before
+        )
         items = meetings.get('items', [])
         email_lower = email.lower()
 
@@ -338,7 +364,9 @@ class FathomClient:
     def get_all_meetings(
         self,
         max_meetings: int = 200,
-        calendar_invitees_domains_type: str = "all"
+        calendar_invitees_domains_type: str = "all",
+        created_after: Optional[str] = None,
+        created_before: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Fetch all meetings with pagination handling.
@@ -346,6 +374,8 @@ class FathomClient:
         Args:
             max_meetings: Maximum total meetings to fetch
             calendar_invitees_domains_type: Filter by domain type
+            created_after: Filter to meetings created after this timestamp
+            created_before: Filter to meetings created before this timestamp
 
         Returns:
             List of all meetings
@@ -363,7 +393,9 @@ class FathomClient:
             response = self.list_meetings(
                 limit=limit,
                 cursor=cursor,
-                calendar_invitees_domains_type=calendar_invitees_domains_type
+                calendar_invitees_domains_type=calendar_invitees_domains_type,
+                created_after=created_after,
+                created_before=created_before
             )
 
             items = response.get('items', [])

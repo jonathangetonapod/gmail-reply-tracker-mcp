@@ -3764,7 +3764,9 @@ async def create_email_draft(
 @mcp.tool()
 async def list_fathom_meetings(
     limit: int = 20,
-    calendar_invitees_domains_type: str = "all"
+    calendar_invitees_domains_type: str = "all",
+    created_after: str = None,
+    created_before: str = None
 ) -> str:
     """
     List recent Fathom meeting recordings.
@@ -3778,6 +3780,11 @@ async def list_fathom_meetings(
             - "all": All meetings
             - "internal_only": Only meetings with internal attendees
             - "one_or_more_external": Meetings with at least one external attendee
+        created_after: Filter to meetings created after this timestamp (ISO 8601 format).
+            Example: "2024-11-01T00:00:00Z" to get meetings from November onwards.
+            Useful for accessing historical meetings beyond the default 30-day window.
+        created_before: Filter to meetings created before this timestamp (ISO 8601 format).
+            Example: "2024-12-31T23:59:59Z" to get meetings before end of December.
 
     Returns:
         JSON string with list of meetings
@@ -3795,7 +3802,9 @@ async def list_fathom_meetings(
 
         response = fathom_client.list_meetings(
             limit=limit,
-            calendar_invitees_domains_type=calendar_invitees_domains_type
+            calendar_invitees_domains_type=calendar_invitees_domains_type,
+            created_after=created_after,
+            created_before=created_before
         )
 
         meetings = response.get('items', [])
@@ -3947,7 +3956,9 @@ async def get_fathom_summary(recording_id: int) -> str:
 @mcp.tool()
 async def search_fathom_meetings_by_title(
     search_term: str,
-    limit: int = 50
+    limit: int = 50,
+    created_after: str = None,
+    created_before: str = None
 ) -> str:
     """
     Search Fathom meetings by title or meeting name.
@@ -3958,6 +3969,10 @@ async def search_fathom_meetings_by_title(
     Args:
         search_term: Search term to match in meeting titles
         limit: Maximum number of meetings to search through (default: 50)
+        created_after: Filter to meetings created after this timestamp (ISO 8601 format).
+            Example: "2024-11-01T00:00:00Z" to search meetings from November onwards.
+        created_before: Filter to meetings created before this timestamp (ISO 8601 format).
+            Example: "2024-12-31T23:59:59Z" to search meetings before end of December.
 
     Returns:
         JSON string with matching meetings
@@ -3973,7 +3988,12 @@ async def search_fathom_meetings_by_title(
 
         logger.info("Searching for meetings with title containing '%s'...", search_term)
 
-        meetings = fathom_client.search_meetings_by_title(search_term, limit)
+        meetings = fathom_client.search_meetings_by_title(
+            search_term,
+            limit,
+            created_after=created_after,
+            created_before=created_before
+        )
 
         # Format meeting information
         meeting_list = []
@@ -4009,7 +4029,9 @@ async def search_fathom_meetings_by_title(
 @mcp.tool()
 async def search_fathom_meetings_by_attendee(
     email: str,
-    limit: int = 50
+    limit: int = 50,
+    created_after: str = None,
+    created_before: str = None
 ) -> str:
     """
     Find Fathom meetings with a specific attendee.
@@ -4020,6 +4042,10 @@ async def search_fathom_meetings_by_attendee(
     Args:
         email: Email address of the attendee to search for
         limit: Maximum number of meetings to search through (default: 50)
+        created_after: Filter to meetings created after this timestamp (ISO 8601 format).
+            Example: "2024-11-01T00:00:00Z" to search meetings from November onwards.
+        created_before: Filter to meetings created before this timestamp (ISO 8601 format).
+            Example: "2024-12-31T23:59:59Z" to search meetings before end of December.
 
     Returns:
         JSON string with meetings including the specified attendee
@@ -4035,7 +4061,12 @@ async def search_fathom_meetings_by_attendee(
 
         logger.info("Searching for meetings with attendee '%s'...", email)
 
-        meetings = fathom_client.search_meetings_by_attendee(email, limit)
+        meetings = fathom_client.search_meetings_by_attendee(
+            email,
+            limit,
+            created_after=created_after,
+            created_before=created_before
+        )
 
         # Format meeting information
         meeting_list = []
