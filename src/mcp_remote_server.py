@@ -1916,8 +1916,8 @@ async def dashboard(
                         <span>{category_info[cat]["name"]}</span>
                         <span style="background: #e8f5e9; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${5}/mo</span>
                         {
-                            f'<span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 4px;">⚠️ Cancels {subscription_details[cat]["cancel_at"][:10] if subscription_details[cat].get("cancel_at") else "soon"}</span>'
-                            if subscription_details.get(cat, {}).get('cancel_at_period_end')
+                            f'<span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 4px;">⚠️ Cancels {subscription_details[cat]["cancel_at"][:10]}</span>'
+                            if subscription_details.get(cat, {}).get('cancel_at')
                             else ''
                         }
                     </div>'''
