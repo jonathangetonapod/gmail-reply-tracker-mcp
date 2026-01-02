@@ -1178,3 +1178,340 @@ class Database:
             'daily_limit': FREE_TIER_DAILY_LIMIT,
             'message': f'Free tier limit exceeded ({daily_usage}/{FREE_TIER_DAILY_LIMIT} calls today). Upgrade to continue.'
         }
+
+    # =========================================================================
+    # TEAM MANAGEMENT METHODS
+    # =========================================================================
+
+    def create_team(self, team_name: str, owner_user_id: str, billing_email: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a new team with the specified owner.
+
+        Args:
+            team_name: Name of the team
+            owner_user_id: User ID of the team owner
+            billing_email: Optional billing email (defaults to owner's email)
+
+        Returns:
+            Dict with team_id, team_name, owner_user_id
+        """
+        # Generate team ID
+        team_id = f"team_{secrets.token_urlsafe(16)}"
+
+        # Get owner's email for billing if not provided
+        if not billing_email:
+            owner = self.supabase.table('users').select('email').eq('user_id', owner_user_id).execute()
+            if owner.data:
+                billing_email = owner.data[0]['email']
+
+        # Create team
+        result = self.supabase.table('teams').insert({
+            'team_id': team_id,
+            'team_name': team_name,
+            'owner_user_id': owner_user_id,
+            'billing_email': billing_email
+        }).execute()
+
+        # Add owner as team member
+        self.supabase.table('team_members').insert({
+            'team_id': team_id,
+            'user_id': owner_user_id,
+            'role': 'owner'
+        }).execute()
+
+        logger.info(f"Created team: {team_name} (ID: {team_id}) for owner: {owner_user_id}")
+
+        return {
+            'team_id': team_id,
+            'team_name': team_name,
+            'owner_user_id': owner_user_id,
+            'billing_email': billing_email
+        }
+
+    def get_user_teams(self, user_id: str) -> list[Dict[str, Any]]:
+        """
+        Get all teams a user is a member of.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of team dicts with role information
+        """
+        result = self.supabase.table('team_members').select(
+            'team_id, role, joined_at, teams(team_name, owner_user_id, created_at)'
+        ).eq('user_id', user_id).execute()
+
+        teams = []
+        for row in result.data:
+            team_data = row.get('teams', {})
+            teams.append({
+                'team_id': row['team_id'],
+                'team_name': team_data.get('team_name'),
+                'role': row['role'],
+                'is_owner': row['role'] == 'owner',
+                'joined_at': row['joined_at'],
+                'created_at': team_data.get('created_at')
+            })
+
+        return teams
+
+    def get_team_members(self, team_id: str) -> list[Dict[str, Any]]:
+        """
+        Get all members of a team.
+
+        Args:
+            team_id: Team ID
+
+        Returns:
+            List of member dicts with user information
+        """
+        result = self.supabase.table('team_members').select(
+            'user_id, role, joined_at, users(email)'
+        ).eq('team_id', team_id).execute()
+
+        members = []
+        for row in result.data:
+            user_data = row.get('users', {})
+            members.append({
+                'user_id': row['user_id'],
+                'email': user_data.get('email'),
+                'role': row['role'],
+                'joined_at': row['joined_at']
+            })
+
+        return members
+
+    def invite_team_member(self, team_id: str, email: str, invited_by_user_id: str) -> Dict[str, Any]:
+        """
+        Create an invitation for someone to join a team.
+
+        Args:
+            team_id: Team ID
+            email: Email address to invite
+            invited_by_user_id: User ID of person sending invitation
+
+        Returns:
+            Dict with invitation_id and details
+        """
+        # Generate invitation ID
+        invitation_id = f"inv_{secrets.token_urlsafe(20)}"
+
+        # Create invitation
+        result = self.supabase.table('team_invitations').insert({
+            'invitation_id': invitation_id,
+            'team_id': team_id,
+            'email': email.lower().strip(),
+            'invited_by_user_id': invited_by_user_id,
+            'status': 'pending'
+        }).execute()
+
+        if result.data:
+            logger.info(f"Created team invitation for {email} to team {team_id}")
+            return result.data[0]
+
+        return {}
+
+    def get_team_invitation(self, invitation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get details of a team invitation.
+
+        Args:
+            invitation_id: Invitation ID
+
+        Returns:
+            Invitation dict or None if not found/expired
+        """
+        result = self.supabase.table('team_invitations').select(
+            '*, teams(team_name, owner_user_id)'
+        ).eq('invitation_id', invitation_id).execute()
+
+        if not result.data:
+            return None
+
+        invitation = result.data[0]
+
+        # Check if expired
+        expires_at = datetime.fromisoformat(invitation['expires_at'].replace('Z', '+00:00'))
+        if datetime.now(expires_at.tzinfo) > expires_at:
+            # Mark as expired
+            self.supabase.table('team_invitations').update({
+                'status': 'expired'
+            }).eq('invitation_id', invitation_id).execute()
+            return None
+
+        # Check if already accepted
+        if invitation['status'] != 'pending':
+            return None
+
+        team_data = invitation.get('teams', {})
+        return {
+            'invitation_id': invitation['invitation_id'],
+            'team_id': invitation['team_id'],
+            'team_name': team_data.get('team_name'),
+            'email': invitation['email'],
+            'invited_by_user_id': invitation['invited_by_user_id'],
+            'expires_at': invitation['expires_at'],
+            'created_at': invitation['created_at']
+        }
+
+    def accept_team_invitation(self, invitation_id: str, user_id: str) -> bool:
+        """
+        Accept a team invitation and add user to team.
+
+        Args:
+            invitation_id: Invitation ID
+            user_id: User ID accepting invitation
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Get invitation
+        invitation = self.get_team_invitation(invitation_id)
+        if not invitation:
+            logger.warning(f"Invalid or expired invitation: {invitation_id}")
+            return False
+
+        team_id = invitation['team_id']
+
+        # Check if user already in team
+        existing = self.supabase.table('team_members').select('team_id').eq(
+            'team_id', team_id
+        ).eq('user_id', user_id).execute()
+
+        if existing.data:
+            logger.warning(f"User {user_id} already in team {team_id}")
+            return False
+
+        # Add user to team
+        self.supabase.table('team_members').insert({
+            'team_id': team_id,
+            'user_id': user_id,
+            'role': 'member'
+        }).execute()
+
+        # Mark invitation as accepted
+        self.supabase.table('team_invitations').update({
+            'status': 'accepted',
+            'accepted_at': datetime.now().isoformat()
+        }).eq('invitation_id', invitation_id).execute()
+
+        logger.info(f"User {user_id} accepted invitation and joined team {team_id}")
+        return True
+
+    def remove_team_member(self, team_id: str, user_id: str, removed_by_user_id: str) -> bool:
+        """
+        Remove a member from a team.
+
+        Args:
+            team_id: Team ID
+            user_id: User ID to remove
+            removed_by_user_id: User ID performing the removal (must be owner/admin)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Check if remover has permission (owner or admin)
+        remover = self.supabase.table('team_members').select('role').eq(
+            'team_id', team_id
+        ).eq('user_id', removed_by_user_id).execute()
+
+        if not remover.data or remover.data[0]['role'] not in ['owner', 'admin']:
+            logger.warning(f"User {removed_by_user_id} lacks permission to remove members from team {team_id}")
+            return False
+
+        # Cannot remove the owner
+        member = self.supabase.table('team_members').select('role').eq(
+            'team_id', team_id
+        ).eq('user_id', user_id).execute()
+
+        if member.data and member.data[0]['role'] == 'owner':
+            logger.warning(f"Cannot remove owner from team {team_id}")
+            return False
+
+        # Remove member
+        self.supabase.table('team_members').delete().eq(
+            'team_id', team_id
+        ).eq('user_id', user_id).execute()
+
+        logger.info(f"Removed user {user_id} from team {team_id} by {removed_by_user_id}")
+        return True
+
+    def get_team_subscriptions(self, team_id: str) -> list[str]:
+        """
+        Get all active tool categories subscribed by a team.
+
+        Args:
+            team_id: Team ID
+
+        Returns:
+            List of tool category names
+        """
+        result = self.supabase.table('subscriptions').select('tool_category').eq(
+            'team_id', team_id
+        ).eq('status', 'active').eq('is_team_subscription', True).execute()
+
+        return [row['tool_category'] for row in result.data]
+
+    def get_user_all_subscriptions(self, user_id: str) -> list[str]:
+        """
+        Get all tool categories a user has access to (personal + team subscriptions).
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of tool category names (deduplicated)
+        """
+        categories = set()
+
+        # Get personal subscriptions
+        personal = self.get_active_subscriptions(user_id)
+        categories.update(personal)
+
+        # Get team subscriptions
+        teams = self.get_user_teams(user_id)
+        for team in teams:
+            team_subs = self.get_team_subscriptions(team['team_id'])
+            categories.update(team_subs)
+
+        return list(categories)
+
+    def create_team_subscription(
+        self,
+        team_id: str,
+        tool_category: str,
+        stripe_customer_id: Optional[str] = None,
+        stripe_subscription_id: Optional[str] = None,
+        status: str = 'incomplete',
+        current_period_start: Optional[datetime] = None,
+        current_period_end: Optional[datetime] = None
+    ) -> bool:
+        """
+        Create a team subscription for a tool category.
+
+        Args:
+            team_id: Team ID
+            tool_category: Tool category name
+            stripe_customer_id: Stripe customer ID
+            stripe_subscription_id: Stripe subscription ID
+            status: Subscription status
+            current_period_start: Start of billing period
+            current_period_end: End of billing period
+
+        Returns:
+            True if successful
+        """
+        self.supabase.table('subscriptions').insert({
+            'team_id': team_id,
+            'tool_category': tool_category,
+            'stripe_customer_id': stripe_customer_id,
+            'stripe_subscription_id': stripe_subscription_id,
+            'status': status,
+            'is_team_subscription': True,
+            'current_period_start': current_period_start.isoformat() if current_period_start else None,
+            'current_period_end': current_period_end.isoformat() if current_period_end else None
+        }).execute()
+
+        logger.info(f"Created team subscription: {tool_category} for team {team_id}")
+        return True
