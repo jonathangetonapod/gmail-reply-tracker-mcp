@@ -3038,12 +3038,6 @@ async def dashboard(
     </nav>
 
     <div class="container">
-        <!-- Page Header -->
-        <div style="background: white; padding: 25px 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
-            <h1 style="font-size: 2rem; color: #1a202c; margin-bottom: 8px;">Welcome back!</h1>
-            <p style="color: #718096; font-size: 1.1rem; margin: 0;">Manage your subscriptions and connect to Claude Desktop</p>
-        </div>
-
         <!-- Welcome/Success Banners -->
         {f'''
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
