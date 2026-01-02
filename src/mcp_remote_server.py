@@ -87,6 +87,134 @@ sessions: Dict[str, MCPSession] = {}
 oauth_states: Dict[str, Dict[str, Any]] = {}
 
 
+# ===========================================================================
+# RATE LIMITING (Security: Prevent brute force attacks)
+# ===========================================================================
+
+@dataclass
+class RateLimitBucket:
+    """Sliding window rate limiter bucket."""
+    attempts: list[datetime] = field(default_factory=list)
+
+    def is_allowed(self, max_attempts: int, window_seconds: int) -> bool:
+        """
+        Check if request is allowed under rate limit.
+
+        Uses sliding window: only counts attempts within the time window.
+
+        Args:
+            max_attempts: Maximum attempts allowed in window
+            window_seconds: Time window in seconds
+
+        Returns:
+            True if request is allowed, False if rate limited
+        """
+        now = datetime.now()
+        cutoff = now - timedelta(seconds=window_seconds)
+
+        # Remove attempts outside the window
+        self.attempts = [attempt for attempt in self.attempts if attempt > cutoff]
+
+        # Check if under limit
+        if len(self.attempts) < max_attempts:
+            self.attempts.append(now)
+            return True
+
+        return False
+
+    def get_retry_after(self, window_seconds: int) -> int:
+        """Get seconds until oldest attempt expires (for Retry-After header)."""
+        if not self.attempts:
+            return 0
+        oldest = min(self.attempts)
+        retry_after = (oldest + timedelta(seconds=window_seconds) - datetime.now()).total_seconds()
+        return max(0, int(retry_after))
+
+
+class RateLimiter:
+    """In-memory rate limiter for authentication endpoints."""
+
+    def __init__(self):
+        self.buckets: Dict[str, RateLimitBucket] = {}
+        self.cleanup_task: Optional[asyncio.Task] = None
+
+    def check_rate_limit(
+        self,
+        identifier: str,
+        max_attempts: int,
+        window_seconds: int
+    ) -> tuple[bool, int]:
+        """
+        Check if request is allowed under rate limit.
+
+        Args:
+            identifier: IP address or user identifier
+            max_attempts: Maximum attempts allowed
+            window_seconds: Time window in seconds
+
+        Returns:
+            (allowed, retry_after): Boolean if allowed, seconds until retry if blocked
+        """
+        if identifier not in self.buckets:
+            self.buckets[identifier] = RateLimitBucket()
+
+        bucket = self.buckets[identifier]
+        allowed = bucket.is_allowed(max_attempts, window_seconds)
+        retry_after = 0 if allowed else bucket.get_retry_after(window_seconds)
+
+        return allowed, retry_after
+
+    async def cleanup_old_buckets(self):
+        """Background task to cleanup rate limit buckets with no recent attempts."""
+        while True:
+            try:
+                await asyncio.sleep(300)  # Every 5 minutes
+                now = datetime.now()
+                cutoff = now - timedelta(hours=1)
+
+                # Remove buckets with no attempts in last hour
+                stale_identifiers = [
+                    identifier for identifier, bucket in self.buckets.items()
+                    if not bucket.attempts or max(bucket.attempts) < cutoff
+                ]
+
+                for identifier in stale_identifiers:
+                    del self.buckets[identifier]
+
+                if stale_identifiers:
+                    logger.info(f"Cleaned up {len(stale_identifiers)} stale rate limit buckets")
+
+            except Exception as e:
+                logger.error(f"Error in rate limiter cleanup task: {e}")
+
+
+# Global rate limiter instance
+rate_limiter = RateLimiter()
+
+
+def get_client_ip(request: Request) -> str:
+    """
+    Extract client IP address from request.
+
+    Handles proxies (X-Forwarded-For, X-Real-IP) and direct connections.
+    """
+    # Check proxy headers first (for Railway, Cloudflare, etc.)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # X-Forwarded-For can be comma-separated list, take first (client IP)
+        return forwarded_for.split(",")[0].strip()
+
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+
+    # Fallback to direct connection IP
+    if request.client:
+        return request.client.host
+
+    return "unknown"
+
+
 async def cleanup_stale_sessions():
     """
     Background task to cleanup inactive sessions.
@@ -775,17 +903,20 @@ async def lifespan(app: FastAPI):
     tool_count = len(tools)
     logger.info(f"✓ {tool_count} tools registered and ready")
 
-    # Start session cleanup task
-    cleanup_task = asyncio.create_task(cleanup_stale_sessions())
-    logger.info("✓ Session cleanup task started")
+    # Start background cleanup tasks
+    session_cleanup_task = asyncio.create_task(cleanup_stale_sessions())
+    rate_limiter_cleanup_task = asyncio.create_task(rate_limiter.cleanup_old_buckets())
+    logger.info("✓ Background cleanup tasks started")
     logger.info("=" * 60)
 
     yield
 
     # Cleanup on shutdown
     logger.info("Shutting down Remote MCP Server...")
-    cleanup_task.cancel()
+    session_cleanup_task.cancel()
+    rate_limiter_cleanup_task.cancel()
     sessions.clear()
+    rate_limiter.buckets.clear()
     logger.info("✓ Cleanup complete")
 
 
@@ -2921,6 +3052,22 @@ async def mcp_messages_legacy(
 async def setup_start(request: Request):
     """Initiate Google OAuth flow for multi-tenant setup."""
     try:
+        # Rate limiting: Prevent OAuth flow abuse
+        # Allow 20 OAuth start attempts per IP per 5 minutes
+        client_ip = get_client_ip(request)
+        allowed, retry_after = rate_limiter.check_rate_limit(
+            identifier=f"oauth_start:{client_ip}",
+            max_attempts=20,
+            window_seconds=300  # 5 minutes
+        )
+
+        if not allowed:
+            logger.warning(f"Rate limit exceeded for OAuth start from IP {client_ip}")
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many OAuth attempts. Please try again in {retry_after} seconds."
+            )
+
         # Get OAuth credentials from environment
         client_id = os.getenv("GOOGLE_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -3702,6 +3849,22 @@ async def login_form(request: Request, error: Optional[str] = Query(None)):
 async def login_submit(request: Request):
     """Handle email/password login submission."""
     try:
+        # Rate limiting: Prevent brute force attacks
+        # Allow 5 login attempts per IP address per 15 minutes
+        client_ip = get_client_ip(request)
+        allowed, retry_after = rate_limiter.check_rate_limit(
+            identifier=f"login:{client_ip}",
+            max_attempts=5,
+            window_seconds=900  # 15 minutes
+        )
+
+        if not allowed:
+            logger.warning(f"Rate limit exceeded for login from IP {client_ip}")
+            return RedirectResponse(
+                url=f"/login?error=Too many login attempts. Please try again in {retry_after // 60} minutes.",
+                status_code=303
+            )
+
         # Parse form data
         form_data = await request.form()
         email = form_data.get('email', '').strip()
@@ -3752,6 +3915,22 @@ async def setup_callback(
 ):
     """Handle OAuth callback from Google."""
     try:
+        # Rate limiting: Prevent OAuth callback abuse
+        # Allow 10 callback attempts per IP per 5 minutes
+        client_ip = get_client_ip(request)
+        allowed, retry_after = rate_limiter.check_rate_limit(
+            identifier=f"oauth_callback:{client_ip}",
+            max_attempts=10,
+            window_seconds=300  # 5 minutes
+        )
+
+        if not allowed:
+            logger.warning(f"Rate limit exceeded for OAuth callback from IP {client_ip}")
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many OAuth callback attempts. Please try again in {retry_after} seconds."
+            )
+
         # Check for OAuth errors
         if error:
             logger.error(f"OAuth error: {error}")
