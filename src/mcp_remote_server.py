@@ -5387,14 +5387,12 @@ async def dashboard(
 
         // View team function (placeholder)
         function viewTeam(teamId) {{
-            showToast('Team details page coming soon!', 'error');
-            // TODO: Navigate to team details page
+            window.location.href = `/team/${{teamId}}?session_token={{session_token}}`;
         }}
 
-        // Manage team function (placeholder)
+        // Manage team function (navigate to team settings)
         function manageTeam(teamId) {{
-            showToast('Team management page coming soon!', 'error');
-            // TODO: Navigate to team management page
+            window.location.href = `/team/${{teamId}}?session_token={{session_token}}`;
         }}
 
         // Load teams when Teams tab is opened
@@ -5569,6 +5567,542 @@ async def get_user_teams_endpoint(
         "success": True,
         "teams": teams
     }
+
+
+@app.get("/team/{team_id}", response_class=HTMLResponse)
+async def team_settings_page(
+    request: Request,
+    team_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Team settings and management page."""
+    if not session_token:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Required</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px;">
+    <h1>🔒 Login Required</h1>
+    <p>Please log in to view team settings.</p>
+</body>
+</html>
+        """, status_code=401)
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invalid Session</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px;">
+    <h1>❌ Invalid Session</h1>
+    <p>Your session has expired. Please log in again.</p>
+</body>
+</html>
+        """, status_code=401)
+
+    # Get team details
+    team_result = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
+    if not team_result.data:
+        raise HTTPException(404, "Team not found")
+
+    team = team_result.data[0]
+
+    # Check if user is a member of this team
+    members = server.database.get_team_members(team_id)
+    user_member = next((m for m in members if m['user_id'] == ctx.user_id), None)
+
+    if not user_member:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Access Denied</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px;">
+    <h1>🚫 Access Denied</h1>
+    <p>You are not a member of this team.</p>
+</body>
+</html>
+        """, status_code=403)
+
+    # Get owner details
+    owner_result = server.database.supabase.table('users').select('email').eq('user_id', team['owner_user_id']).execute()
+    owner_email = owner_result.data[0]['email'] if owner_result.data else "Unknown"
+
+    # Check if current user is owner or admin
+    is_owner = ctx.user_id == team['owner_user_id']
+    is_admin = user_member['role'] in ['owner', 'admin']
+
+    # Get pending invitations
+    invitations = []
+    if is_admin:
+        inv_result = server.database.supabase.table('team_invitations').select('*').eq('team_id', team_id).eq('status', 'pending').execute()
+        invitations = inv_result.data if inv_result.data else []
+
+    # Get team subscriptions
+    subs_result = server.database.supabase.table('subscriptions').select('*').eq('team_id', team_id).eq('is_team_subscription', True).execute()
+    team_subscriptions = subs_result.data if subs_result.data else []
+
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Settings - {{team['team_name']}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }}
+        .container {{
+            max-width: 1000px;
+            margin: 0 auto;
+        }}
+        .header {{
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .header h1 {{
+            font-size: 32px;
+            color: #1a202c;
+            margin-bottom: 10px;
+        }}
+        .header .meta {{
+            color: #6b7280;
+            font-size: 14px;
+        }}
+        .badge {{
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }}
+        .badge-owner {{
+            background: #fef3c7;
+            color: #92400e;
+        }}
+        .badge-admin {{
+            background: #dbeafe;
+            color: #1e40af;
+        }}
+        .badge-member {{
+            background: #e0e7ff;
+            color: #3730a3;
+        }}
+        .section {{
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .section h2 {{
+            font-size: 20px;
+            color: #1a202c;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .member-list, .invitation-list, .subscription-list {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+        .member-item, .invitation-item, .subscription-item {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }}
+        .member-item:hover {{
+            border-color: #667eea;
+        }}
+        .member-info {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .member-avatar {{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }}
+        .member-details {{
+            display: flex;
+            flex-direction: column;
+        }}
+        .member-email {{
+            font-weight: 600;
+            color: #1a202c;
+        }}
+        .member-role {{
+            font-size: 13px;
+            color: #6b7280;
+        }}
+        .btn {{
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+        .btn-primary {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }}
+        .btn-primary:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }}
+        .btn-danger {{
+            background: #fee;
+            color: #c00;
+            border: 1px solid #f88;
+        }}
+        .btn-danger:hover {{
+            background: #fdd;
+        }}
+        .invite-form {{
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }}
+        .invite-form input {{
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+        }}
+        .invite-form input:focus {{
+            outline: none;
+            border-color: #667eea;
+        }}
+        .alert {{
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }}
+        .alert-success {{
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }}
+        .alert-error {{
+            background: #fee;
+            color: #c00;
+            border: 1px solid #f88;
+        }}
+        .back-link {{
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .back-link:hover {{
+            text-decoration: underline;
+        }}
+        .empty-state {{
+            text-align: center;
+            padding: 40px 20px;
+            color: #9ca3af;
+        }}
+        .empty-state-icon {{
+            font-size: 48px;
+            margin-bottom: 10px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard?session_token={session_token}" class="back-link">← Back to Dashboard</a>
+
+        <div class="header">
+            <h1>👥 {{team['team_name']}}</h1>
+            <div class="meta">
+                <strong>Owner:</strong> {{owner_email}}
+                <span class="badge {'badge-owner' if is_owner else 'badge-' + user_member['role']}}">
+                    {{'OWNER' if is_owner else user_member['role'].upper()}}
+                </span>
+                <br>
+                <strong>Members:</strong> {{len(members)}}
+            </div>
+        </div>
+
+        <div id="success-message" class="alert alert-success"></div>
+        <div id="error-message" class="alert alert-error"></div>
+
+        <!-- Team Members -->
+        <div class="section">
+            <h2>
+                <span>👤</span>
+                Team Members
+            </h2>
+            <div class="member-list">
+                {''.join([f'''
+                <div class="member-item">
+                    <div class="member-info">
+                        <div class="member-avatar">{{m['email'][0].upper()}}</div>
+                        <div class="member-details">
+                            <div class="member-email">{{m['email']}}</div>
+                            <div class="member-role">{{m['role'].title()}} • Joined {{m['joined_at'][:10]}}</div>
+                        </div>
+                    </div>
+                    {f'<button onclick="removeMember(\\'{m["user_id"]}\\', \\'{m["email"]}\\')" class="btn btn-danger">Remove</button>' if is_admin and m['user_id'] != ctx.user_id else ''}
+                </div>
+                ''' for m in members])}
+            </div>
+        </div>
+
+        <!-- Invite New Member -->
+        {'<div class="section"><h2><span>✉️</span> Invite New Member</h2><form class="invite-form" onsubmit="inviteMember(event)"><input type="email" id="invite-email" placeholder="Enter email address" required><button type="submit" class="btn btn-primary">Send Invitation</button></form></div>' if is_admin else ''}
+
+        <!-- Pending Invitations -->
+        {'<div class="section"><h2><span>⏳</span> Pending Invitations</h2>' + ('<div class="invitation-list">' + ''.join([f'<div class="invitation-item"><div class="member-info"><div class="member-avatar">{inv["email"][0].upper()}</div><div class="member-details"><div class="member-email">{inv["email"]}</div><div class="member-role">Invited {inv["created_at"][:10]} • Expires {inv["expires_at"][:10]}</div></div></div><button onclick="cancelInvitation(\\'{inv["invitation_id"]}\\', \\'{inv["email"]}\\')" class="btn btn-danger">Cancel</button></div>' for inv in invitations]) + '</div>' if invitations else '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No pending invitations</p></div>') + '</div>' if is_admin else ''}
+
+        <!-- Team Subscriptions -->
+        <div class="section">
+            <h2>
+                <span>💎</span>
+                Team Subscriptions
+            </h2>
+            {'<div class="subscription-list">' + ''.join([f'<div class="subscription-item"><div class="member-info"><div class="member-details"><div class="member-email">{sub["tool_category"].title()}</div><div class="member-role">Status: {sub["status"].title()} • {sub.get("price_amount", 0) / 100:.2f}/mo</div></div></div></div>' for sub in team_subscriptions]) + '</div>' if team_subscriptions else '<div class="empty-state"><div class="empty-state-icon">📦</div><p>No active subscriptions</p><p style="margin-top: 8px; font-size: 13px;">Subscribe to tools to share access with your team</p></div>'}
+        </div>
+    </div>
+
+    <script>
+        async function inviteMember(event) {{
+            event.preventDefault();
+            const email = document.getElementById('invite-email').value;
+            const sessionToken = '{session_token}';
+
+            try {{
+                const response = await fetch('/teams/{team_id}/invite?session_token=' + sessionToken, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ email }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    document.getElementById('success-message').textContent = '✓ Invitation sent to ' + email;
+                    document.getElementById('success-message').style.display = 'block';
+                    document.getElementById('error-message').style.display = 'none';
+                    document.getElementById('invite-email').value = '';
+                    setTimeout(() => window.location.reload(), 1500);
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    document.getElementById('success-message').style.display = 'none';
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('success-message').style.display = 'none';
+            }}
+        }}
+
+        async function removeMember(userId, email) {{
+            if (!confirm('Remove ' + email + ' from the team?')) {{
+                return;
+            }}
+
+            const sessionToken = '{session_token}';
+
+            try {{
+                const response = await fetch('/teams/{team_id}/members/' + userId + '?session_token=' + sessionToken, {{
+                    method: 'DELETE'
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    document.getElementById('success-message').textContent = '✓ Member removed successfully';
+                    document.getElementById('success-message').style.display = 'block';
+                    document.getElementById('error-message').style.display = 'none';
+                    setTimeout(() => window.location.reload(), 1000);
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    document.getElementById('success-message').style.display = 'none';
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('success-message').style.display = 'none';
+            }}
+        }}
+
+        async function cancelInvitation(invitationId, email) {{
+            if (!confirm('Cancel invitation for ' + email + '?')) {{
+                return;
+            }}
+
+            const sessionToken = '{session_token}';
+
+            try {{
+                const response = await fetch('/invitations/' + invitationId + '?session_token=' + sessionToken, {{
+                    method: 'DELETE'
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    document.getElementById('success-message').textContent = '✓ Invitation cancelled';
+                    document.getElementById('success-message').style.display = 'block';
+                    document.getElementById('error-message').style.display = 'none';
+                    setTimeout(() => window.location.reload(), 1000);
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    document.getElementById('success-message').style.display = 'none';
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('success-message').style.display = 'none';
+            }}
+        }}
+    </script>
+</body>
+</html>
+    """)
+
+
+@app.delete("/teams/{team_id}/members/{user_id}")
+async def remove_team_member_endpoint(
+    team_id: str,
+    user_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Remove a member from a team (owner/admin only)."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Get team details
+    team_result = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
+    if not team_result.data:
+        raise HTTPException(404, "Team not found")
+
+    team = team_result.data[0]
+
+    # Check if requester is owner or admin
+    members = server.database.get_team_members(team_id)
+    requester_member = next((m for m in members if m['user_id'] == ctx.user_id), None)
+
+    if not requester_member:
+        raise HTTPException(403, "You are not a member of this team")
+
+    if requester_member['role'] not in ['owner', 'admin']:
+        raise HTTPException(403, "Only team owners and admins can remove members")
+
+    # Prevent removing the owner
+    if user_id == team['owner_user_id']:
+        raise HTTPException(403, "Cannot remove the team owner")
+
+    # Prevent removing yourself (use a different endpoint for leaving)
+    if user_id == ctx.user_id:
+        raise HTTPException(400, "Use the leave team endpoint to remove yourself")
+
+    # Remove the member
+    try:
+        server.database.supabase.table('team_members').delete().eq('team_id', team_id).eq('user_id', user_id).execute()
+        logger.info(f"User {ctx.user_id} removed user {user_id} from team {team_id}")
+
+        return {
+            "success": True,
+            "message": "Member removed successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error removing team member: {e}")
+        raise HTTPException(500, "Failed to remove member")
+
+
+@app.delete("/invitations/{invitation_id}")
+async def cancel_invitation_endpoint(
+    invitation_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Cancel a pending team invitation (owner/admin only)."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Get invitation details
+    invitation = server.database.get_team_invitation(invitation_id)
+    if not invitation:
+        raise HTTPException(404, "Invitation not found")
+
+    # Check if user is owner or admin of the team
+    members = server.database.get_team_members(invitation['team_id'])
+    user_member = next((m for m in members if m['user_id'] == ctx.user_id), None)
+
+    if not user_member:
+        raise HTTPException(403, "You are not a member of this team")
+
+    if user_member['role'] not in ['owner', 'admin']:
+        raise HTTPException(403, "Only team owners and admins can cancel invitations")
+
+    # Cancel the invitation
+    try:
+        server.database.supabase.table('team_invitations').delete().eq('invitation_id', invitation_id).execute()
+        logger.info(f"User {ctx.user_id} cancelled invitation {invitation_id}")
+
+        return {
+            "success": True,
+            "message": "Invitation cancelled successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error cancelling invitation: {e}")
+        raise HTTPException(500, "Failed to cancel invitation")
 
 
 @app.post("/teams/{team_id}/invite")
