@@ -4507,7 +4507,8 @@ async def dashboard(
     welcome: Optional[str] = Query(None),
     subscription_success: Optional[str] = Query(None),
     is_new_user: Optional[str] = Query(None),
-    first_name: Optional[str] = Query(None)
+    first_name: Optional[str] = Query(None),
+    admin_password: Optional[str] = Query(None)
 ):
     """Admin dashboard for managing API keys and subscriptions."""
     if not session_token:
@@ -4591,6 +4592,11 @@ async def dashboard(
     user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
     teams_enabled = user.get('teams_enabled', False)
+
+    # Check if admin
+    correct_admin_password = os.getenv("ADMIN_PASSWORD")
+    cookie_admin_password = request.cookies.get("admin_session")
+    is_admin = (admin_password == correct_admin_password) or (cookie_admin_password == correct_admin_password)
 
     # Get trial status and usage info
     trial_status = server.database.check_trial_status(ctx.user_id)
@@ -4901,6 +4907,85 @@ async def dashboard(
         </div>
         ''' if trial_status['is_trial'] else ''}
 
+        <!-- Admin Controls -->
+        {f'''
+        <div id="admin-panel" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); border: 2px solid #fca5a5;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                <div style="font-size: 36px;">🔐</div>
+                <div>
+                    <h2 style="color: white; margin: 0; font-size: 20px; font-weight: 700;">Admin Mode Active</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Viewing dashboard for: <strong>{ctx.email}</strong></p>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 8px; backdrop-filter: blur(10px);">
+                <h3 style="color: white; margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Grant Free Subscriptions</h3>
+
+                <!-- Personal Subscriptions -->
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px; opacity: 0.95;">👤 Personal Subscriptions:</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+                        {"".join([
+                            f'''<button
+                                onclick="adminGrantPersonal('{cat}')"
+                                style="background: {"rgba(255,255,255,0.2)" if cat in active_subscriptions else "rgba(255,255,255,0.95)"};
+                                       color: {"rgba(255,255,255,0.6)" if cat in active_subscriptions else "#1a202c"};
+                                       border: none;
+                                       padding: 10px 12px;
+                                       border-radius: 6px;
+                                       font-size: 13px;
+                                       font-weight: 600;
+                                       cursor: {"not-allowed" if cat in active_subscriptions else "pointer"};
+                                       transition: all 0.2s;
+                                       text-align: left;
+                                       {"pointer-events: none;" if cat in active_subscriptions else ""}"
+                                {f'disabled' if cat in active_subscriptions else ''}>
+                                {"✓" if cat in active_subscriptions else "+"} {category_info[cat]["emoji"]} {category_info[cat]["name"]}
+                            </button>'''
+                            for cat in all_categories
+                        ])}
+                    </div>
+                </div>
+
+                <!-- Team Subscriptions -->
+                {f"""
+                <div>
+                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px; opacity: 0.95;">👥 Team Subscriptions:</div>
+                    {"".join([
+                        f'''<div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 12px;">
+                            <div style="font-weight: 600; margin-bottom: 10px; font-size: 15px;">{team['team_name']}</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+                                {"".join([
+                                    f"""<button
+                                        onclick="adminGrantTeam('{team['team_id']}', '{cat}')"
+                                        style="background: {"rgba(255,255,255,0.2)" if cat in team_subscriptions_map.get(team['team_id'], []) else "rgba(255,255,255,0.95)"};
+                                               color: {"rgba(255,255,255,0.6)" if cat in team_subscriptions_map.get(team['team_id'], []) else "#1a202c"};
+                                               border: none;
+                                               padding: 10px 12px;
+                                               border-radius: 6px;
+                                               font-size: 13px;
+                                               font-weight: 600;
+                                               cursor: {"not-allowed" if cat in team_subscriptions_map.get(team['team_id'], []) else "pointer"};
+                                               transition: all 0.2s;
+                                               text-align: left;
+                                               {"pointer-events: none;" if cat in team_subscriptions_map.get(team['team_id'], []) else ""}"
+                                        {f'disabled' if cat in team_subscriptions_map.get(team['team_id'], []) else ''}>
+                                        {"✓" if cat in team_subscriptions_map.get(team['team_id'], []) else "+"} {category_info[cat]["emoji"]} {category_info[cat]["name"]}
+                                    </button>"""
+                                    for cat in all_categories
+                                ])}
+                            </div>
+                        </div>'''
+                        for team in user_teams
+                    ])}
+                </div>
+                """ if user_teams else ""}
+            </div>
+
+            <div id="admin-toast" style="display: none; position: fixed; top: 20px; right: 20px; background: white; color: #1a202c; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: 600;"></div>
+        </div>
+        ''' if is_admin else ''}
+
         <!-- Usage Counter -->
         <div style="background: {"linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" if usage_limit and daily_usage >= 8 else "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
             <div style="display: flex; align-items: center; gap: 20px;">
@@ -5200,6 +5285,67 @@ async def dashboard(
                 toast.style.animation = 'toastSlideOut 0.4s ease-out';
                 setTimeout(() => document.body.removeChild(toast), 400);
             }}, 4000);
+        }}
+
+        // Admin grant functions
+        async function adminGrantPersonal(category) {{
+            const adminToast = document.getElementById('admin-toast');
+            adminToast.textContent = 'Granting ' + category + '...';
+            adminToast.style.display = 'block';
+            adminToast.style.background = '#fbbf24';
+
+            try {{
+                const response = await fetch('/admin/grant-personal?session_token={session_token}&admin_password=' + new URLSearchParams(window.location.search).get('admin_password'), {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{category: category}})
+                }});
+
+                if (response.ok) {{
+                    adminToast.textContent = '✓ Granted ' + category + ' successfully!';
+                    adminToast.style.background = '#10b981';
+                    setTimeout(() => location.reload(), 1500);
+                }} else {{
+                    const error = await response.json();
+                    adminToast.textContent = '✗ Error: ' + error.detail;
+                    adminToast.style.background = '#ef4444';
+                }}
+            }} catch (e) {{
+                adminToast.textContent = '✗ Network error';
+                adminToast.style.background = '#ef4444';
+            }}
+
+            setTimeout(() => adminToast.style.display = 'none', 3000);
+        }}
+
+        async function adminGrantTeam(teamId, category) {{
+            const adminToast = document.getElementById('admin-toast');
+            adminToast.textContent = 'Granting ' + category + ' to team...';
+            adminToast.style.display = 'block';
+            adminToast.style.background = '#fbbf24';
+
+            try {{
+                const response = await fetch('/admin/grant-team?session_token={session_token}&admin_password=' + new URLSearchParams(window.location.search).get('admin_password'), {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{team_id: teamId, category: category}})
+                }});
+
+                if (response.ok) {{
+                    adminToast.textContent = '✓ Granted ' + category + ' to team successfully!';
+                    adminToast.style.background = '#10b981';
+                    setTimeout(() => location.reload(), 1500);
+                }} else {{
+                    const error = await response.json();
+                    adminToast.textContent = '✗ Error: ' + error.detail;
+                    adminToast.style.background = '#ef4444';
+                }}
+            }} catch (e) {{
+                adminToast.textContent = '✗ Network error';
+                adminToast.style.background = '#ef4444';
+            }}
+
+            setTimeout(() => adminToast.style.display = 'none', 3000);
         }}
 
         // Shopping Cart Logic
@@ -10685,6 +10831,127 @@ async def admin_teams_page(request: Request, admin_password: Optional[str] = Que
 </body>
 </html>
     """)
+
+
+@app.post("/admin/grant-personal")
+async def admin_grant_personal_subscription(
+    request: Request,
+    session_token: str = Query(...),
+    admin_password: Optional[str] = Query(None)
+):
+    """Admin endpoint to grant free personal subscription from dashboard."""
+    # Check admin password
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    # Parse request body
+    body = await request.json()
+    category = body.get('category')
+
+    if not category:
+        raise HTTPException(400, "No category provided")
+
+    # Get user from session token
+    user = server.database.get_user_by_session(session_token)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    # Check if subscription already exists
+    existing = server.database.supabase.table('subscriptions').select('subscription_id').eq(
+        'user_id', user['user_id']
+    ).eq('tool_category', category).eq('is_team_subscription', False).execute()
+
+    if existing.data:
+        raise HTTPException(400, f"User already has {category} subscription")
+
+    # Create free personal subscription (no Stripe)
+    subscription_id = f"admin_grant_{secrets.token_urlsafe(16)}"
+
+    server.database.supabase.table('subscriptions').insert({
+        'subscription_id': subscription_id,
+        'user_id': user['user_id'],
+        'team_id': None,
+        'is_team_subscription': False,
+        'tool_category': category,
+        'status': 'active',  # Immediately active
+        'price_amount': 0,  # Free admin grant
+        'stripe_customer_id': None,
+        'stripe_subscription_id': None,
+        'created_at': datetime.now().isoformat()
+    }).execute()
+
+    logger.info(f"Admin granted {category} to user {user['email']} (free)")
+
+    return {
+        "success": True,
+        "message": f"Granted {category} successfully"
+    }
+
+
+@app.post("/admin/grant-team")
+async def admin_grant_team_subscription_single(
+    request: Request,
+    session_token: str = Query(...),
+    admin_password: Optional[str] = Query(None)
+):
+    """Admin endpoint to grant free team subscription from dashboard."""
+    # Check admin password
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    # Parse request body
+    body = await request.json()
+    team_id = body.get('team_id')
+    category = body.get('category')
+
+    if not team_id or not category:
+        raise HTTPException(400, "Missing team_id or category")
+
+    # Verify team exists
+    team_result = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
+    if not team_result.data:
+        raise HTTPException(404, "Team not found")
+
+    team = team_result.data[0]
+
+    # Check if subscription already exists
+    existing = server.database.supabase.table('subscriptions').select('subscription_id').eq(
+        'team_id', team_id
+    ).eq('tool_category', category).eq('is_team_subscription', True).execute()
+
+    if existing.data:
+        raise HTTPException(400, f"Team already has {category} subscription")
+
+    # Create free subscription (no Stripe)
+    subscription_id = f"admin_grant_{secrets.token_urlsafe(16)}"
+
+    server.database.supabase.table('subscriptions').insert({
+        'subscription_id': subscription_id,
+        'user_id': team['owner_user_id'],  # Owner as billing contact
+        'team_id': team_id,
+        'is_team_subscription': True,
+        'tool_category': category,
+        'status': 'active',  # Immediately active
+        'price_amount': 0,  # Free admin grant
+        'stripe_customer_id': None,
+        'stripe_subscription_id': None,
+        'created_at': datetime.now().isoformat()
+    }).execute()
+
+    logger.info(f"Admin granted {category} to team {team_id} (free)")
+
+    return {
+        "success": True,
+        "message": f"Granted {category} to team successfully"
+    }
 
 
 @app.post("/admin/teams/{{team_id}}/grant-subscription")
