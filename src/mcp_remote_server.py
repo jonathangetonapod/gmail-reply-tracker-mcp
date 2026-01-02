@@ -10854,19 +10854,14 @@ async def admin_grant_personal_subscription(
         raise HTTPException(400, f"User already has {category} subscription")
 
     # Create free personal subscription (no Stripe)
-    subscription_id = f"admin_grant_{secrets.token_urlsafe(16)}"
-
     server.database.supabase.table('subscriptions').insert({
-        'subscription_id': subscription_id,
         'user_id': user['user_id'],
         'team_id': None,
         'is_team_subscription': False,
         'tool_category': category,
         'status': 'active',  # Immediately active
-        'price_amount': 0,  # Free admin grant
         'stripe_customer_id': None,
-        'stripe_subscription_id': None,
-        'created_at': datetime.now().isoformat()
+        'stripe_subscription_id': None
     }).execute()
 
     logger.info(f"Admin granted {category} to user {user['email']} (free)")
@@ -10916,19 +10911,14 @@ async def admin_grant_team_subscription_single(
         raise HTTPException(400, f"Team already has {category} subscription")
 
     # Create free subscription (no Stripe)
-    subscription_id = f"admin_grant_{secrets.token_urlsafe(16)}"
-
     server.database.supabase.table('subscriptions').insert({
-        'subscription_id': subscription_id,
         'user_id': team['owner_user_id'],  # Owner as billing contact
         'team_id': team_id,
         'is_team_subscription': True,
         'tool_category': category,
         'status': 'active',  # Immediately active
-        'price_amount': 0,  # Free admin grant
         'stripe_customer_id': None,
-        'stripe_subscription_id': None,
-        'created_at': datetime.now().isoformat()
+        'stripe_subscription_id': None
     }).execute()
 
     logger.info(f"Admin granted {category} to team {team_id} (free)")
@@ -10981,19 +10971,14 @@ async def admin_grant_team_subscription(
             continue
 
         # Create free subscription (no Stripe)
-        subscription_id = f"admin_grant_{secrets.token_urlsafe(16)}"
-
         server.database.supabase.table('subscriptions').insert({
-            'subscription_id': subscription_id,
             'user_id': team['owner_user_id'],  # Owner as billing contact
             'team_id': team_id,
             'is_team_subscription': True,
             'tool_category': category,
             'status': 'active',  # Immediately active
-            'price_amount': 0,  # Free admin grant
             'stripe_customer_id': None,
-            'stripe_subscription_id': None,
-            'created_at': datetime.now().isoformat()
+            'stripe_subscription_id': None
         }).execute()
 
         granted_count += 1
