@@ -2334,23 +2334,17 @@ async def stripe_webhook(request: Request):
 
     elif event_type == 'customer.subscription.updated':
         # Subscription updated (renewed, changed, etc.)
-        subscription = data
-        subscription_id = subscription['id']
-        status = subscription['status']
+        subscription_id = data['id']
+        status = data['status']
 
-        # Debug: Log the subscription object to see what Stripe is sending
-        logger.info(f"DEBUG: Subscription data keys: {subscription.keys()}")
-        logger.info(f"DEBUG: cancel_at_period_end = {subscription.get('cancel_at_period_end')}")
-        logger.info(f"DEBUG: cancel_at = {subscription.get('cancel_at')}")
-        logger.info(f"DEBUG: billing_cycle_anchor = {subscription.get('billing_cycle_anchor')}")
-        logger.info(f"DEBUG: Has 'current_period_start'? {('current_period_start' in subscription)}")
-        logger.info(f"DEBUG: Has 'current_period_end'? {('current_period_end' in subscription)}")
-
-        # Check if period data is nested in 'plan' or 'items'
-        if subscription.get('plan'):
-            logger.info(f"DEBUG: plan keys = {subscription['plan'].keys() if isinstance(subscription['plan'], dict) else type(subscription['plan'])}")
-        if subscription.get('items'):
-            logger.info(f"DEBUG: items type = {type(subscription['items'])}")
+        # Webhook data is incomplete - fetch full subscription from Stripe API
+        stripe.api_key = server.config.stripe_secret_key
+        try:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            logger.info(f"Retrieved full subscription {subscription_id} from Stripe API")
+        except Exception as e:
+            logger.error(f"Failed to retrieve subscription {subscription_id}: {e}")
+            return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
         # Map Stripe status to our status
         status_map = {
@@ -2364,17 +2358,22 @@ async def stripe_webhook(request: Request):
             'paused': 'cancelled'
         }
 
-        our_status = status_map.get(status, 'cancelled')
+        our_status = status_map.get(subscription['status'], 'cancelled')
 
-        # Safely extract period dates with bracket notation
+        # Extract period dates (should be present in full API response)
         try:
             current_period_start = datetime.fromtimestamp(subscription['current_period_start'])
             current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
         except (KeyError, TypeError) as e:
             logger.warning(f"Could not extract period dates from subscription {subscription_id}: {e}")
-            # Use current time as fallback
-            current_period_start = datetime.now()
-            current_period_end = datetime.now() + timedelta(days=30)
+            # Use billing cycle anchor as fallback
+            billing_cycle_anchor = subscription.get('billing_cycle_anchor')
+            if billing_cycle_anchor:
+                current_period_start = datetime.fromtimestamp(billing_cycle_anchor)
+                current_period_end = current_period_start + timedelta(days=30)
+            else:
+                current_period_start = datetime.now()
+                current_period_end = datetime.now() + timedelta(days=30)
 
         # Extract cancellation info (if scheduled to cancel at period end)
         cancel_at_period_end = subscription.get('cancel_at_period_end', False)
@@ -2393,6 +2392,8 @@ async def stripe_webhook(request: Request):
 
         if cancel_at_period_end:
             logger.info(f"Updated subscription {subscription_id} to status {our_status} (cancels on {cancel_at})")
+        elif cancel_at:
+            logger.info(f"Updated subscription {subscription_id} to status {our_status} (scheduled cancel at {cancel_at})")
         else:
             logger.info(f"Updated subscription {subscription_id} to status {our_status}")
 
