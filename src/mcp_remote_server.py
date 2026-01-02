@@ -1629,6 +1629,14 @@ async def dashboard(session_token: Optional[str] = Query(None)):
     else:
         total_tools = sum(tool_counts[cat] for cat in enabled_categories)
 
+    # Pre-compute subscription badges for each category (avoids complex nested f-string)
+    subscription_badges = {}
+    for category in all_categories:
+        if category in active_subscriptions:
+            subscription_badges[category] = '<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>'
+        else:
+            subscription_badges[category] = f'<a href="/subscribe?category={category}&session_token={session_token}" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'
+
     # Render dashboard HTML
     return HTMLResponse(f"""
 <!DOCTYPE html>
@@ -1873,7 +1881,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="gmail" {enabled_categories_str.get('gmail', 'checked')}>
                             <span>📧 <strong>Gmail Tools</strong> (25 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'gmail' in active_subscriptions else '<a href="/subscribe?category=gmail&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['gmail']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Search, send, manage emails</div>
                     </div>
@@ -1884,7 +1892,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="calendar" {enabled_categories_str.get('calendar', 'checked')}>
                             <span>📅 <strong>Calendar Tools</strong> (15 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'calendar' in active_subscriptions else '<a href="/subscribe?category=calendar&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['calendar']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Create events, check availability</div>
                     </div>
@@ -1895,7 +1903,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="docs" {enabled_categories_str.get('docs', 'checked')}>
                             <span>📄 <strong>Google Docs Tools</strong> (8 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'docs' in active_subscriptions else '<a href="/subscribe?category=docs&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['docs']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Create, read, update documents</div>
                     </div>
@@ -1906,7 +1914,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="sheets" {enabled_categories_str.get('sheets', 'checked')}>
                             <span>📊 <strong>Google Sheets Tools</strong> (12 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'sheets' in active_subscriptions else '<a href="/subscribe?category=sheets&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['sheets']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Read, write, manage spreadsheets</div>
                     </div>
@@ -1917,7 +1925,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="fathom" {enabled_categories_str.get('fathom', 'checked')}>
                             <span>🎥 <strong>Fathom Tools</strong> (10 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'fathom' in active_subscriptions else '<a href="/subscribe?category=fathom&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['fathom']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Meeting recordings & analytics</div>
                         <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Fathom API key</div>
@@ -1929,7 +1937,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="instantly" {enabled_categories_str.get('instantly', 'checked')}>
                             <span>📨 <strong>Instantly Tools</strong> (10 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'instantly' in active_subscriptions else '<a href="/subscribe?category=instantly&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['instantly']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (Instantly.ai)</div>
                         <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Instantly API key</div>
@@ -1941,7 +1949,7 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" name="bison" {enabled_categories_str.get('bison', 'checked')}>
                             <span>🦬 <strong>Bison Tools</strong> (4 tools)</span>
-                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'bison' in active_subscriptions else '<a href="/subscribe?category=bison&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                            {subscription_badges['bison']}
                         </div>
                         <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (EmailBison)</div>
                         <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Bison API key</div>
