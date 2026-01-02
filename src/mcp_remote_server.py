@@ -6008,16 +6008,24 @@ async def admin_toggle_subscription(
         user_data = result.data[0]
 
         if action == 'add':
-            # Check if already subscribed
+            # Check for ANY existing subscription (active or cancelled)
             existing = server.database.supabase.table('subscriptions').select('*').eq(
                 'user_id', user_id
-            ).eq('tool_category', category).eq('status', 'active').execute()
+            ).eq('tool_category', category).execute()
 
             if existing.data:
-                return JSONResponse({
-                    "status": "already_exists",
-                    "message": f"User already has an active {category} subscription"
-                })
+                subscription = existing.data[0]
+                if subscription['status'] == 'active':
+                    return JSONResponse({
+                        "status": "already_exists",
+                        "message": f"User already has an active {category} subscription"
+                    })
+                else:
+                    # Delete cancelled subscription to allow recreating
+                    server.database.supabase.table('subscriptions').delete().eq(
+                        'id', subscription['id']
+                    ).execute()
+                    logger.info(f"Deleted cancelled {category} subscription for user {user_id} to allow recreation")
 
             # FREE SUBSCRIPTION - No billing, just database access
             if is_free:
