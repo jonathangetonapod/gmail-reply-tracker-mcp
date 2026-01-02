@@ -10439,6 +10439,322 @@ async def delete_session(session_id: str):
 
 
 # ===========================================================================
+# ADMIN TEAMS MANAGEMENT
+# ===========================================================================
+
+@app.get("/admin/teams", response_class=HTMLResponse)
+async def admin_teams_page(request: Request, admin_password: Optional[str] = Query(None)):
+    """Admin page to manage all teams and grant free subscriptions."""
+    # Check admin password
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    # Get all teams
+    teams_result = server.database.supabase.table('teams').select('*').execute()
+    all_teams = teams_result.data if teams_result.data else []
+
+    # Get subscriptions for each team
+    team_data = []
+    for team in all_teams:
+        members = server.database.get_team_members(team['team_id'])
+        subs = server.database.supabase.table('subscriptions').select('tool_category, status').eq(
+            'team_id', team['team_id']
+        ).eq('is_team_subscription', True).execute()
+
+        active_categories = [s['tool_category'] for s in subs.data if s['status'] == 'active']
+
+        team_data.append({
+            'team_id': team['team_id'],
+            'team_name': team['team_name'],
+            'owner_user_id': team['owner_user_id'],
+            'member_count': len(members),
+            'active_subscriptions': active_categories
+        })
+
+    all_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
+
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - Teams Management</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            margin: 0;
+        }}
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }}
+        .team-card {{
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .team-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }}
+        .team-name {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a202c;
+        }}
+        .team-meta {{
+            color: #6b7280;
+            font-size: 14px;
+        }}
+        .current-subs {{
+            margin-bottom: 20px;
+        }}
+        .sub-badge {{
+            display: inline-block;
+            background: #d1fae5;
+            color: #065f46;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }}
+        .grant-section {{
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+        }}
+        .checkbox-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }}
+        .checkbox-label {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }}
+        .checkbox-label input {{
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }}
+        .btn {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+        .btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }}
+        .toast {{
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+        }}
+        .toast.error {{
+            background: #ef4444;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0 0 10px 0;">🎛️ Teams Management</h1>
+            <p style="margin: 0; opacity: 0.9;">Grant free team subscriptions to any team</p>
+            <a href="/admin" style="color: white; opacity: 0.8; text-decoration: none; margin-top: 10px; display: inline-block;">← Back to Admin Dashboard</a>
+        </div>
+
+        <div id="toast" class="toast"></div>
+
+        {chr(10).join([f'''
+        <div class="team-card">
+            <div class="team-header">
+                <div>
+                    <div class="team-name">👥 {team['team_name']}</div>
+                    <div class="team-meta">{team['member_count']} members • Team ID: {team['team_id'][:20]}...</div>
+                </div>
+            </div>
+
+            <div class="current-subs">
+                <strong style="display: block; margin-bottom: 10px; color: #374151;">Current Subscriptions:</strong>
+                {('<div>' + ''.join([f'<span class="sub-badge">✓ {cat.title()}</span>' for cat in team['active_subscriptions']]) + '</div>') if team['active_subscriptions'] else '<div style="color: #9ca3af;">No active subscriptions</div>'}
+            </div>
+
+            <div class="grant-section">
+                <strong style="display: block; margin-bottom: 12px; color: #374151;">Grant Free Subscriptions:</strong>
+                <form id="grant-form-{team['team_id']}" onsubmit="grantSubscriptions(event, '{team['team_id']}')">
+                    <div class="checkbox-grid">
+                        {''.join([f'<label class="checkbox-label"><input type="checkbox" name="category" value="{cat}" {"disabled" if cat in team["active_subscriptions"] else ""}><span style="color: {"#9ca3af" if cat in team["active_subscriptions"] else "#374151"};">{cat.title()}</span></label>' for cat in all_categories])}
+                    </div>
+                    <button type="submit" class="btn">Grant Selected Categories</button>
+                </form>
+            </div>
+        </div>
+        ''' for team in team_data]) if team_data else '<div class="team-card" style="text-align: center; padding: 60px; color: #9ca3af;"><div style="font-size: 48px; margin-bottom: 15px;">📦</div><div>No teams found</div></div>'}
+    </div>
+
+    <script>
+        function showToast(message, type = 'success') {{
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast' + (type === 'error' ? ' error' : '');
+            toast.style.display = 'block';
+            setTimeout(() => {{
+                toast.style.display = 'none';
+            }}, 3000);
+        }}
+
+        async function grantSubscriptions(event, teamId) {{
+            event.preventDefault();
+
+            const form = event.target;
+            const checkboxes = form.querySelectorAll('input[name="category"]:checked');
+            const categories = Array.from(checkboxes).map(cb => cb.value);
+
+            if (categories.length === 0) {{
+                showToast('Please select at least one category', 'error');
+                return;
+            }}
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Granting...';
+            submitBtn.disabled = true;
+
+            try {{
+                const response = await fetch(`/admin/teams/${{teamId}}/grant-subscription`, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ categories: categories }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    showToast(`✓ Granted ${{categories.length}} categories to team`);
+                    setTimeout(() => window.location.reload(), 1500);
+                }} else {{
+                    showToast(result.detail || 'Failed to grant subscriptions', 'error');
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }}
+            }} catch (error) {{
+                showToast('Network error. Please try again.', 'error');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }}
+        }}
+    </script>
+</body>
+</html>
+    """)
+
+
+@app.post("/admin/teams/{{team_id}}/grant-subscription")
+async def admin_grant_team_subscription(
+    request: Request,
+    team_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """Admin endpoint to grant free team subscriptions without payment."""
+    # Check admin password
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    # Parse request body
+    body = await request.json()
+    categories = body.get('categories', [])
+
+    if not categories:
+        raise HTTPException(400, "No categories provided")
+
+    # Verify team exists
+    team_result = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
+    if not team_result.data:
+        raise HTTPException(404, "Team not found")
+
+    team = team_result.data[0]
+
+    # Create free subscriptions for each category
+    granted_count = 0
+    for category in categories:
+        # Check if subscription already exists
+        existing = server.database.supabase.table('subscriptions').select('subscription_id').eq(
+            'team_id', team_id
+        ).eq('tool_category', category).eq('is_team_subscription', True).execute()
+
+        if existing.data:
+            logger.info(f"Subscription for {category} already exists for team {team_id}")
+            continue
+
+        # Create free subscription (no Stripe)
+        subscription_id = f"admin_grant_{secrets.token_urlsafe(16)}"
+
+        server.database.supabase.table('subscriptions').insert({
+            'subscription_id': subscription_id,
+            'user_id': team['owner_user_id'],  # Owner as billing contact
+            'team_id': team_id,
+            'is_team_subscription': True,
+            'tool_category': category,
+            'status': 'active',  # Immediately active
+            'price_amount': 0,  # Free admin grant
+            'stripe_customer_id': None,
+            'stripe_subscription_id': None,
+            'created_at': datetime.now().isoformat()
+        }).execute()
+
+        granted_count += 1
+        logger.info(f"Admin granted {category} to team {team_id} (free)")
+
+    return {
+        "success": True,
+        "message": f"Granted {granted_count} categories to team",
+        "granted_count": granted_count
+    }
+
+
+# ===========================================================================
 # MAIN ENTRY POINT
 # ===========================================================================
 
