@@ -6233,120 +6233,121 @@ async def add_team_member(
     - email: Email address of the user to add
     - role: Role to assign (member or admin)
     """
-    if not session_token:
-        raise HTTPException(401, "Missing session token")
-
-    # Validate session token
     try:
-        ctx = await get_request_context(None, session_token)
-    except HTTPException:
-        raise HTTPException(401, "Invalid or expired session token")
+        if not session_token:
+            raise HTTPException(401, "Missing session token")
 
-    # Parse request body
-    body = await request.json()
-    email = body.get('email', '').strip().lower()
-    role = body.get('role', 'member').strip().lower()
-
-    if not email:
-        raise HTTPException(400, "Email is required")
-
-    # Validate email
-    if '@' not in email or '.' not in email.split('@')[1]:
-        raise HTTPException(400, "Invalid email format")
-
-    # Validate role
-    if role not in ['member', 'admin']:
-        raise HTTPException(400, "Role must be 'member' or 'admin'")
-
-    # Check if user is team owner or admin
-    teams = server.database.get_user_teams(ctx.user_id)
-    user_team = next((t for t in teams if t['team_id'] == team_id), None)
-
-    if not user_team:
-        raise HTTPException(404, "Team not found or you're not a member")
-
-    if user_team['role'] not in ['owner', 'admin']:
-        raise HTTPException(403, "Only team owners and admins can add members")
-
-    # Get team info
-    team = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
-    if not team.data:
-        raise HTTPException(404, "Team not found")
-
-    team_name = team.data[0]['team_name']
-
-    # Check if user already exists
-    existing_user = server.database.supabase.table('users').select('*').eq('email', email).execute()
-
-    if existing_user.data:
-        # User exists - just add to team
-        existing_user_id = existing_user.data[0]['user_id']
-
-        # Check if already a team member
-        members = server.database.get_team_members(team_id)
-        if any(m['user_id'] == existing_user_id for m in members):
-            raise HTTPException(400, "User is already a team member")
-
-        # Add to team
-        server.database.add_team_member(team_id, existing_user_id, role)
-
-        logger.info(f"Added existing user {email} to team {team_id} as {role}")
-
-        return {
-            "success": True,
-            "message": f"Added {email} to team",
-            "user_existed": True,
-            "role": role
-        }
-
-    else:
-        # User doesn't exist - create new account
-        import bcrypt
-        import string
-
-        # Generate user ID
-        user_id = secrets.token_urlsafe(16)
-
-        # Generate secure random password
-        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-        password = ''.join(secrets.choice(alphabet) for _ in range(12))
-
-        # Hash password
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
-
-        # Create user account
+        # Validate session token
         try:
-            server.database.supabase.table('users').insert({
-                'user_id': user_id,
-                'email': email,
-                'password_hash': password_hash.decode('utf-8'),
-                'created_at': datetime.now().isoformat(),
-                'teams_enabled': True  # Enable teams by default for team members
-            }).execute()
+            ctx = await get_request_context(None, session_token)
+        except HTTPException:
+            raise HTTPException(401, "Invalid or expired session token")
 
-            logger.info(f"Created new user account for {email}")
+        # Parse request body
+        body = await request.json()
+        email = body.get('email', '').strip().lower()
+        role = body.get('role', 'member').strip().lower()
 
-        except Exception as e:
-            logger.error(f"Failed to create user account for {email}: {e}")
-            raise HTTPException(500, "Failed to create user account")
+        if not email:
+            raise HTTPException(400, "Email is required")
 
-        # Add to team
-        try:
-            server.database.add_team_member(team_id, user_id, role)
-            logger.info(f"Added new user {email} to team {team_id} as {role}")
-        except Exception as e:
-            # Rollback - delete the user account
-            server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
-            logger.error(f"Failed to add user to team, rolled back account creation: {e}")
-            raise HTTPException(500, "Failed to add user to team")
+        # Validate email
+        if '@' not in email or '.' not in email.split('@')[1]:
+            raise HTTPException(400, "Invalid email format")
 
-        # Send welcome email with credentials
-        email_sent = False
-        try:
-            import resend
-            resend.api_key = os.getenv("RESEND_API_KEY")
+        # Validate role
+        if role not in ['member', 'admin']:
+            raise HTTPException(400, "Role must be 'member' or 'admin'")
 
-            email_html = f"""
+        # Check if user is team owner or admin
+        teams = server.database.get_user_teams(ctx.user_id)
+        user_team = next((t for t in teams if t['team_id'] == team_id), None)
+
+        if not user_team:
+            raise HTTPException(404, "Team not found or you're not a member")
+
+        if user_team['role'] not in ['owner', 'admin']:
+            raise HTTPException(403, "Only team owners and admins can add members")
+
+        # Get team info
+        team = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
+        if not team.data:
+            raise HTTPException(404, "Team not found")
+
+        team_name = team.data[0]['team_name']
+
+        # Check if user already exists
+        existing_user = server.database.supabase.table('users').select('*').eq('email', email).execute()
+
+        if existing_user.data:
+            # User exists - just add to team
+            existing_user_id = existing_user.data[0]['user_id']
+
+            # Check if already a team member
+            members = server.database.get_team_members(team_id)
+            if any(m['user_id'] == existing_user_id for m in members):
+                raise HTTPException(400, "User is already a team member")
+
+            # Add to team
+            server.database.add_team_member(team_id, existing_user_id, role)
+
+            logger.info(f"Added existing user {email} to team {team_id} as {role}")
+
+            return {
+                "success": True,
+                "message": f"Added {email} to team",
+                "user_existed": True,
+                "role": role
+            }
+
+        else:
+            # User doesn't exist - create new account
+            import bcrypt
+            import string
+
+            # Generate user ID
+            user_id = secrets.token_urlsafe(16)
+
+            # Generate secure random password
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            password = ''.join(secrets.choice(alphabet) for _ in range(12))
+
+            # Hash password
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+
+            # Create user account
+            try:
+                server.database.supabase.table('users').insert({
+                    'user_id': user_id,
+                    'email': email,
+                    'password_hash': password_hash.decode('utf-8'),
+                    'created_at': datetime.now().isoformat(),
+                    'teams_enabled': True  # Enable teams by default for team members
+                }).execute()
+
+                logger.info(f"Created new user account for {email}")
+
+            except Exception as e:
+                logger.error(f"Failed to create user account for {email}: {e}")
+                raise HTTPException(500, "Failed to create user account")
+
+            # Add to team
+            try:
+                server.database.add_team_member(team_id, user_id, role)
+                logger.info(f"Added new user {email} to team {team_id} as {role}")
+            except Exception as e:
+                # Rollback - delete the user account
+                server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
+                logger.error(f"Failed to add user to team, rolled back account creation: {e}")
+                raise HTTPException(500, "Failed to add user to team")
+
+            # Send welcome email with credentials
+            email_sent = False
+            try:
+                import resend
+                resend.api_key = os.getenv("RESEND_API_KEY")
+
+                email_html = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -6398,29 +6399,35 @@ async def add_team_member(
     </div>
 </body>
 </html>
-            """
+                """
 
-            resend.Emails.send({
-                "from": "AI Email Assistant <noreply@leadgenjay.com>",
-                "to": [email],
-                "subject": f"Welcome to {team_name} - Your Account Credentials",
-                "html": email_html
-            })
+                resend.Emails.send({
+                    "from": "AI Email Assistant <noreply@leadgenjay.com>",
+                    "to": [email],
+                    "subject": f"Welcome to {team_name} - Your Account Credentials",
+                    "html": email_html
+                })
 
-            logger.info(f"Welcome email sent to {email}")
-            email_sent = True
+                logger.info(f"Welcome email sent to {email}")
+                email_sent = True
 
-        except Exception as e:
-            logger.error(f"Failed to send welcome email to {email}: {e}")
+            except Exception as e:
+                logger.error(f"Failed to send welcome email to {email}: {e}")
 
-        return {
-            "success": True,
-            "message": f"Created account and added {email} to team",
-            "user_existed": False,
-            "role": role,
-            "password": password,
-            "email_sent": email_sent
-        }
+            return {
+                "success": True,
+                "message": f"Created account and added {email} to team",
+                "user_existed": False,
+                "role": role,
+                "password": password,
+                "email_sent": email_sent
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to add team member: {e}")
+        raise HTTPException(500, f"Failed to add team member: {str(e)}")
 
 
 @app.get("/invitations/{invitation_id}")
