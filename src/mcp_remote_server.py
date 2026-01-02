@@ -5475,6 +5475,14 @@ async def create_team_endpoint(
     except HTTPException:
         raise HTTPException(401, "Invalid or expired session token")
 
+    # Check if user has team access enabled
+    user = server.database.get_user_by_session(session_token)
+    if not user:
+        raise HTTPException(401, "User not found")
+
+    if not user.get('teams_enabled', False):
+        raise HTTPException(403, "Team access is not enabled for your account. Please contact support.")
+
     # Parse request body
     body = await request.json()
     team_name = body.get('team_name', '').strip()
@@ -5488,12 +5496,7 @@ async def create_team_endpoint(
     if len(team_name) > 50:
         raise HTTPException(400, "Team name must be 50 characters or less")
 
-    # Get user email for billing
-    user = server.database.get_user_by_session(session_token)
-    if not user:
-        raise HTTPException(401, "User not found")
-
-    # Create team in database
+    # Create team in database (user already fetched above for teams_enabled check)
     team = server.database.create_team(
         team_name=team_name,
         owner_user_id=ctx.user_id,
