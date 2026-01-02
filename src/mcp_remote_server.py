@@ -1593,6 +1593,17 @@ async def root():
                 <button class="modal-close" onclick="closeModal()">×</button>
                 <h2 id="modalTitle"></h2>
                 <p id="modalSubtitle"></p>
+                <div style="margin-top: 20px;">
+                    <label for="roleSelector" style="font-size: 0.9rem; font-weight: 600; color: hsl(var(--foreground)); margin-bottom: 8px; display: block;">
+                        👤 I am a:
+                    </label>
+                    <select id="roleSelector" onchange="updateExamplesForRole()" style="width: 100%; padding: 10px 12px; border: 2px solid hsl(var(--border)); border-radius: 8px; font-size: 0.95rem; background: white; cursor: pointer; font-weight: 500;">
+                        <option value="founder">🚀 Founder / CEO</option>
+                        <option value="sales">💼 Sales</option>
+                        <option value="marketing">📣 Marketing</option>
+                        <option value="ops">⚙️ Operations</option>
+                    </select>
+                </div>
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Content will be dynamically inserted -->
@@ -1605,287 +1616,399 @@ async def root():
             gmail: {
                 title: '📧 Gmail Possibilities',
                 subtitle: 'Real examples of what you can do with Gmail tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"Show me my unread emails"',
-                            '"Find all emails from john@example.com"',
-                            '"Mark all emails from newsletters as read"',
-                            '"Archive emails older than 30 days"'
+                            '"Find all investor emails from the past month and summarize key questions they\\\'ve asked"',
+                            '"Search for emails about partnerships and create a status doc with next steps for each"',
+                            '"Identify all customer feedback emails and extract common themes for product roadmap"',
+                            '"Find unanswered emails from VIPs (investors, advisors, key customers) and draft responses"',
+                            '"Create labels for Board, Investors, Customers, Team to auto-organize my inbox"',
+                            '"Search all emails mentioning \\\'fundraising\\\' or \\\'capital\\\' and compile a timeline"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Find all emails about the \\\'Project Alpha\\\' and summarize the key decisions"',
-                            '"Search for emails with PDF attachments from last week and list them"',
-                            '"Find all emails I haven\\\'t replied to yet and help me draft responses"',
-                            '"Create a label called \\\'Urgent\\\' and move all emails with \\\'ASAP\\\' in the subject"'
+                            '"Show me all emails from prospects who haven\\\'t replied in 7+ days"',
+                            '"Find all emails with \\\'pricing\\\' or \\\'quote\\\' and extract the deal amounts"',
+                            '"Search for emails from hot leads (multiple replies) and prioritize my follow-ups"',
+                            '"Identify customers who mentioned competitors and summarize their concerns"',
+                            '"Find all emails where prospects asked about features - create a summary for product team"',
+                            '"Draft personalized follow-up emails for all prospects who opened my last email but didn\\\'t reply"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Analyze my inbox and identify recurring senders, then create labels for each category"',
-                            '"Find all emails about invoices, extract amounts and dates, and create a spreadsheet"',
-                            '"Search for action items in emails from this week and schedule calendar reminders"',
-                            '"Identify all unanswered customer emails and draft personalized responses based on context"'
+                            '"Find all partnership inquiry emails and create a tracking spreadsheet"',
+                            '"Search for customer testimonials and success stories in emails to feature in content"',
+                            '"Identify all press/media requests and draft a response template"',
+                            '"Find emails from event organizers and create a calendar of speaking opportunities"',
+                            '"Search for customer questions about our product and turn them into blog post ideas"',
+                            '"Extract all emails mentioning competitors and analyze their positioning"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Find all vendor invoices in my inbox and extract dates, amounts, and due dates to a sheet"',
+                            '"Search for emails about system issues and create a bug tracking document"',
+                            '"Identify all onboarding-related emails and extract questions for an updated FAQ"',
+                            '"Find emails from team requesting tools/software and create a budget summary"',
+                            '"Search for contract-related emails and create an expiration date tracker"',
+                            '"Organize all recurring meeting emails by creating auto-labels and archiving old threads"'
                         ]
                     }
-                ]
+                }
             },
             calendar: {
                 title: '📅 Calendar Possibilities',
                 subtitle: 'Real examples of what you can do with Calendar tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"What\\\'s on my calendar today?"',
-                            '"Schedule a meeting tomorrow at 2pm called \\\'Team Sync\\\'"',
-                            '"Cancel my 3pm meeting"',
-                            '"Show me all events this week"'
+                            '"Analyze my calendar and show me how much time I spend in meetings vs focus time"',
+                            '"Find a 2-hour block every week for strategic planning when I have no conflicts"',
+                            '"Show me all 1-on-1s with direct reports that I haven\\\'t had in 30+ days"',
+                            '"Schedule monthly board prep time the week before each board meeting"',
+                            '"Identify which recurring meetings I could delegate or eliminate to free up 5 hours/week"',
+                            '"Create a weekly investor update routine - block Friday afternoons for investor check-ins"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Find a 1-hour slot this week when both john@example.com and I are free"',
-                            '"Move all my Thursday meetings to Friday"',
-                            '"Set up a recurring weekly meeting every Monday at 10am with the team"',
-                            '"Show me how many hours of meetings I have this week vs next week"'
+                            '"Show me all prospect meetings this week and create prep docs with email context"',
+                            '"Find open slots for customer demos and create a booking link"',
+                            '"Analyze how many discovery calls vs closing calls I had this month"',
+                            '"Schedule follow-up calls with all prospects I met 2 weeks ago"',
+                            '"Block time for prospecting every morning from 9-11am for the next month"',
+                            '"Find all customer meetings and extract key discussion points to update the CRM"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Analyze my calendar and suggest which meetings I should decline to free up focus time"',
-                            '"Find all 1-on-1s I haven\\\'t had in 30+ days and suggest rescheduling them"',
-                            '"Create a meeting prep document for each meeting I have tomorrow with context from emails"',
-                            '"Block 2 hours every morning next week for deep work, avoiding any conflicts"'
+                            '"Schedule content planning sessions every Monday at 10am for Q1"',
+                            '"Find a recurring time slot when the whole marketing team is available for weekly syncs"',
+                            '"Block campaign launch prep time the week before each scheduled launch date"',
+                            '"Show me how much time I\\\'m spending in meetings vs actual content creation work"',
+                            '"Schedule quarterly content calendar planning sessions with stakeholders"',
+                            '"Create campaign review meetings 3 days after each major launch"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Block monthly recurring time for system maintenance and updates"',
+                            '"Schedule quarterly business reviews with all vendors"',
+                            '"Find time slots to schedule onboarding sessions for new hires next month"',
+                            '"Analyze meeting patterns - which recurring meetings are underattended or could be async"',
+                            '"Create monthly all-hands planning time 2 weeks before each meeting"',
+                            '"Schedule regular 1-on-1s with each department head to gather process improvement ideas"'
                         ]
                     }
-                ]
+                }
             },
             docs: {
                 title: '📄 Google Docs Possibilities',
                 subtitle: 'Real examples of what you can do with Docs tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"Create a new document called \\\'Meeting Notes\\\'"',
-                            '"Read the content from my \\\'Project Plan\\\' doc"',
-                            '"Add a heading \\\'Next Steps\\\' to my current doc"',
-                            '"Share my \\\'Q4 Goals\\\' doc with sarah@example.com"'
+                            '"Create a board meeting deck from my project update docs and key metrics"',
+                            '"Extract all product roadmap decisions from meeting notes and create a master roadmap doc"',
+                            '"Build an investor update template with sections for metrics, milestones, asks, and challenges"',
+                            '"Compile all team feedback from 1-on-1 notes into a culture assessment document"',
+                            '"Create a company strategy doc by pulling key points from planning meeting notes"',
+                            '"Draft a hiring plan document based on all the \\\'team needs\\\' mentions in my project docs"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Create a project proposal template with sections for goals, timeline, and budget"',
-                            '"Find all my docs containing \\\'budget\\\' and extract the key numbers"',
-                            '"Convert my \\\'Sales Report\\\' doc to PDF and save it"',
-                            '"Create a table in my doc with columns for Task, Owner, and Deadline"'
+                            '"Create a sales battlecard from competitor intel in my various note docs"',
+                            '"Build a proposal template with pricing, case studies, and ROI calculations"',
+                            '"Extract all customer objections from call notes and create an objection handling guide"',
+                            '"Compile customer success stories from account notes into case study drafts"',
+                            '"Create a prospect research template for pre-meeting prep"',
+                            '"Build a new customer onboarding checklist based on all my handoff notes"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Create a meeting summary doc from yesterday\\\'s calendar events with action items from emails"',
-                            '"Find all my project docs, extract status updates, and create a consolidated dashboard"',
-                            '"Generate a weekly report by pulling data from my Sheets and formatting it nicely"',
-                            '"Create an onboarding guide by combining content from multiple existing docs"'
+                            '"Create a content calendar doc pulling blog ideas from brainstorming notes"',
+                            '"Build a campaign brief template with sections for goals, audience, messaging, and channels"',
+                            '"Extract key customer quotes from interview notes and organize by theme"',
+                            '"Create a brand messaging guide by consolidating positioning discussions from meeting notes"',
+                            '"Compile partner announcement drafts from partnership agreement docs"',
+                            '"Build a content style guide based on top-performing blog posts"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Create a comprehensive onboarding handbook from all department process docs"',
+                            '"Extract all action items from project retrospective docs and create a master improvement plan"',
+                            '"Build an SOP library by organizing all process documentation by department"',
+                            '"Create a vendor evaluation template based on past vendor assessment notes"',
+                            '"Compile all system documentation into a technical wiki structure"',
+                            '"Build an employee handbook by consolidating HR policies from various docs"'
                         ]
                     }
-                ]
+                }
             },
             sheets: {
                 title: '📊 Google Sheets Possibilities',
                 subtitle: 'Real examples of what you can do with Sheets tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"Create a new sheet called \\\'Expense Tracker\\\'"',
-                            '"Read the data from my \\\'Sales Report\\\' sheet"',
-                            '"Add a row with today\\\'s date, \\\'Coffee\\\', and $5"',
-                            '"Sum all values in column B"'
+                            '"Create a financial dashboard with burn rate, runway, revenue, and key metrics"',
+                            '"Build a hiring tracker with pipeline stages, comp data, and target start dates"',
+                            '"Track fundraising progress - investor list, meeting status, committed amounts"',
+                            '"Create a product roadmap tracker with features, owners, timeline, and customer requests"',
+                            '"Build an OKR tracker for company goals with progress updates and blockers"',
+                            '"Analyze team capacity - headcount by function, utilization, and growth projections"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Create a pivot table showing total sales by region"',
-                            '"Filter my data to show only rows where Status is \\\'Pending\\\'"',
-                            '"Create a line chart showing monthly revenue trends"',
-                            '"Move rows where Amount > 1000 to a new sheet called \\\'Large Purchases\\\'"'
+                            '"Create a sales pipeline tracker with deal stages, amounts, close dates, and probability"',
+                            '"Build a prospect research sheet with company info, decision makers, and outreach status"',
+                            '"Track demo-to-close conversion rates by industry, company size, and sales rep"',
+                            '"Create a commission calculator based on deal size and product mix"',
+                            '"Build a customer health score tracker with engagement metrics and renewal likelihood"',
+                            '"Analyze win/loss data - identify patterns in deals won vs lost by competitor, price, features"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Analyze my expense data and identify spending patterns, then create a budget forecast"',
-                            '"Pull data from multiple sheets, combine them, and create a consolidated dashboard"',
-                            '"Find duplicate entries in my customer list and merge them intelligently"',
-                            '"Build a automated expense report that categorizes transactions and calculates totals by category"'
+                            '"Create a content calendar tracking blog posts, social, email campaigns by month"',
+                            '"Build a campaign performance tracker with spend, impressions, clicks, conversions, ROI"',
+                            '"Track lead sources and conversion rates from first touch to closed deal"',
+                            '"Create a social media content schedule with post copy, images, platforms, and timing"',
+                            '"Build an event planning tracker with dates, budget, expected attendance, and actual results"',
+                            '"Analyze which content topics and formats drive the most engagement and conversions"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Create a vendor management tracker with contracts, renewals, spend, and contacts"',
+                            '"Build an employee directory with departments, roles, start dates, and manager hierarchy"',
+                            '"Track software subscriptions - tools, costs, owners, renewal dates, and seat counts"',
+                            '"Create a bug/issue tracker with severity, status, owner, and resolution time"',
+                            '"Build a budget vs actual tracker by department and expense category"',
+                            '"Analyze operational metrics - response times, ticket volume, resolution rates, satisfaction scores"'
                         ]
                     }
-                ]
+                }
             },
             fathom: {
                 title: '🎙️ Fathom Meetings Possibilities',
                 subtitle: 'Real examples of what you can do with Fathom tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"Show me my recent meeting recordings"',
-                            '"Get the transcript from yesterday\\\'s sales call"',
-                            '"What were the key points from my last meeting with John?"',
-                            '"Search for meetings where we discussed \\\'pricing\\\'"'
+                            '"Summarize all board meeting recordings from this quarter - key decisions and action items"',
+                            '"Analyze investor meeting transcripts - common questions, concerns, and requested metrics"',
+                            '"Extract product feedback from all customer meetings and organize by theme"',
+                            '"Compare what team leads said in 1-on-1s about blockers - identify systemic issues"',
+                            '"Create a hiring best practices guide from recordings of successful candidate interviews"',
+                            '"Track strategic decisions over time - what was decided in planning meetings and outcomes"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Summarize all customer feedback from this week\\\'s meetings"',
-                            '"Extract action items from my last 3 meetings and create a task list"',
-                            '"Find all meetings where we discussed the Q4 roadmap and compile the decisions"',
-                            '"Compare what was discussed in our kickoff meeting vs status update meeting"'
+                            '"Analyze all discovery call transcripts - what questions prospects ask most frequently"',
+                            '"Extract objections from lost deal calls and identify patterns"',
+                            '"Find all mentions of competitors in sales calls - what are prospects comparing us to"',
+                            '"Create a pricing discussion playbook from successful closing calls"',
+                            '"Summarize customer onboarding calls - common questions and friction points"',
+                            '"Compare champion vs economic buyer conversations - different concerns and priorities"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Analyze all sales calls from this month and identify common objections and how we handled them"',
-                            '"Create a comprehensive project status report by pulling key updates from all related meetings"',
-                            '"Find patterns in customer meetings - what topics come up most and what outcomes are successful"',
-                            '"Generate a weekly team summary: action items, decisions made, and open questions from all meetings"'
+                            '"Extract customer success stories from user interview recordings for case studies"',
+                            '"Analyze partnership discussion calls - terms, expectations, and collaboration ideas"',
+                            '"Find all mentions of our value prop in customer calls - what resonates vs what confuses"',
+                            '"Create buyer persona insights from prospect discovery calls"',
+                            '"Summarize webinar recordings - top questions asked and engagement moments"',
+                            '"Extract content ideas from customer interviews - pain points that need addressing"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Extract action items from all cross-functional meetings and assign to owners"',
+                            '"Analyze onboarding session recordings - where do new hires get confused"',
+                            '"Find all process improvement suggestions mentioned in team meetings"',
+                            '"Create a FAQ from support team meeting transcripts - common issues and resolutions"',
+                            '"Summarize vendor demos - feature comparisons and pricing discussions"',
+                            '"Track recurring meeting topics - are we discussing the same issues without resolution"'
                         ]
                     }
-                ]
+                }
             },
             instantly: {
                 title: '✉️ Instantly Campaigns Possibilities',
                 subtitle: 'Real examples of what you can do with Instantly tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"Show me all my active campaigns"',
-                            '"How many leads are in my \\\'Q1 Outreach\\\' campaign?"',
-                            '"Add john@example.com to my campaign"',
-                            '"What\\\'s the open rate for my last campaign?"'
+                            '"Analyze investor outreach campaign performance - who\\\'s engaging vs ignoring"',
+                            '"Track partnership outreach - response rates by industry and company size"',
+                            '"Monitor advisor recruitment campaign - who\\\'s interested in helping"',
+                            '"Test different positioning messages to potential customers - which resonates best"',
+                            '"Manage speaking opportunity outreach - conference responses and booking rate"',
+                            '"Track media/press outreach campaigns - who\\\'s covering our story"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Show me all leads who opened my email but didn\\\'t reply"',
-                            '"Pause all campaigns targeting the finance industry"',
-                            '"Compare performance of campaigns launched this month vs last month"',
-                            '"Find all leads with \\\'CEO\\\' in their title and add them to a new campaign"'
+                            '"Show me all leads who opened my email 3+ times but haven\\\'t replied - they\\\'re interested!"',
+                            '"Compare campaign performance by industry - which sectors have best response rates"',
+                            '"Find leads who engaged with early emails but went cold - design win-back sequence"',
+                            '"Analyze subject lines across campaigns - which get best open rates by persona"',
+                            '"Track demo request conversion - from first email to booked meeting"',
+                            '"Identify high-intent leads who clicked pricing links - prioritize for follow-up calls"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Analyze which subject lines get the best open rates and suggest improvements for my next campaign"',
-                            '"Identify leads who are engaging but not converting, and draft personalized follow-ups"',
-                            '"Create a performance dashboard showing which campaigns, industries, and titles have the best ROI"',
-                            '"Find inactive leads from old campaigns and design a re-engagement sequence with updated messaging"'
+                            '"Test different content offers - ebook vs webinar vs demo - which generates most leads"',
+                            '"Analyze campaign engagement by company size - tailor messaging for SMB vs Enterprise"',
+                            '"Track content distribution performance - who\\\'s sharing our resources"',
+                            '"Monitor event promotion campaigns - registration rates and reminder effectiveness"',
+                            '"Test messaging variations - feature-focused vs outcome-focused - which converts better"',
+                            '"Identify engaged leads not converting - re-target with different content offers"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Monitor vendor outreach campaigns - response rates and quote timelines"',
+                            '"Track recruitment campaign performance - application rates by job posting"',
+                            '"Manage software trial outreach - conversion from free trial to paid"',
+                            '"Analyze internal communication campaigns - employee engagement with policy updates"',
+                            '"Track partner onboarding campaigns - activation rates and time to launch"',
+                            '"Monitor survey distribution campaigns - response rates and completion times"'
                         ]
                     }
-                ]
+                }
             },
             bison: {
                 title: '🔍 Bison Analysis Possibilities',
                 subtitle: 'Real examples of what you can do with Bison tools',
-                sections: [
-                    {
-                        title: 'Basic Tasks',
-                        difficulty: 'basic',
+                byRole: {
+                    founder: {
+                        title: 'For Founders & CEOs',
                         prompts: [
-                            '"Analyze this dataset and find basic statistics"',
-                            '"Show me trends in my sales data"',
-                            '"Identify outliers in this spreadsheet"',
-                            '"Compare performance between two time periods"'
+                            '"Analyze revenue trends and predict when we\\\'ll hit $1M ARR based on current growth"',
+                            '"Identify which customer segments have highest LTV and lowest CAC for targeting"',
+                            '"Model different pricing strategies and impact on revenue and conversion"',
+                            '"Analyze team productivity metrics - identify bottlenecks and optimization opportunities"',
+                            '"Predict burn rate and runway under different hiring and revenue scenarios"',
+                            '"Compare product usage data with churn - which features predict retention"'
                         ]
                     },
-                    {
-                        title: 'Intermediate Workflows',
-                        difficulty: 'intermediate',
+                    sales: {
+                        title: 'For Sales Teams',
                         prompts: [
-                            '"Analyze customer behavior patterns and segment them into groups"',
-                            '"Find correlations between marketing spend and revenue"',
-                            '"Predict next quarter\\\'s sales based on historical data"',
-                            '"Identify which factors most impact customer churn"'
+                            '"Build a lead scoring model - which characteristics predict deal closure"',
+                            '"Analyze deal velocity - identify what makes deals move faster through pipeline"',
+                            '"Predict which open opportunities are most likely to close this quarter"',
+                            '"Find patterns in lost deals - company size, industry, objections - to avoid pursuing similar"',
+                            '"Analyze sales rep performance - what activities correlate with quota attainment"',
+                            '"Model impact of price discounting on win rate and revenue"'
                         ]
                     },
-                    {
-                        title: 'Advanced Automation',
-                        difficulty: 'advanced',
+                    marketing: {
+                        title: 'For Marketing Teams',
                         prompts: [
-                            '"Build a predictive model to forecast which leads are most likely to convert"',
-                            '"Analyze multi-source data (CRM, emails, meetings) to identify deal risk factors"',
-                            '"Create a recommendation engine for personalized product suggestions based on user behavior"',
-                            '"Perform cohort analysis to understand retention patterns and identify intervention opportunities"'
+                            '"Analyze which marketing channels drive highest quality leads (best conversion and LTV)"',
+                            '"Predict campaign ROI before launch based on historical performance data"',
+                            '"Identify content topics and formats that drive most engagement and conversions"',
+                            '"Segment audience by behavior and personalize campaigns for each segment"',
+                            '"Analyze customer journey - which touchpoints most influence purchase decisions"',
+                            '"Forecast lead generation needed to hit revenue targets based on conversion funnels"'
+                        ]
+                    },
+                    ops: {
+                        title: 'For Operations Teams',
+                        prompts: [
+                            '"Analyze support ticket data - predict volume spikes and identify root causes"',
+                            '"Optimize resource allocation - which teams are over/under capacity based on workload data"',
+                            '"Predict churn risk based on product usage, support tickets, and engagement metrics"',
+                            '"Analyze process efficiency - identify bottlenecks and automation opportunities"',
+                            '"Model impact of different org structures on team productivity and satisfaction"',
+                            '"Forecast hiring needs based on growth projections and current team capacity"'
                         ]
                     }
-                ]
+                }
             }
         };
 
+        // Global variable to track current category
+        let currentCategory = null;
+
         function showPossibilities(category) {
+            currentCategory = category;
             const data = toolExamples[category];
             const modal = document.getElementById('possibilitiesModal');
             const modalTitle = document.getElementById('modalTitle');
             const modalSubtitle = document.getElementById('modalSubtitle');
-            const modalBody = document.getElementById('modalBody');
 
             // Set header content
             modalTitle.textContent = data.title;
             modalSubtitle.textContent = data.subtitle;
 
-            // Build sections HTML
-            let sectionsHTML = '';
-            data.sections.forEach(section => {
-                sectionsHTML += `
-                    <div class="prompt-section">
-                        <h3>
-                            ${section.title}
-                            <span class="difficulty-badge ${section.difficulty}">${section.difficulty}</span>
-                        </h3>
-                        <ul class="prompt-examples">
-                            ${section.prompts.map(prompt => `<li>${prompt}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-            });
+            // Reset role selector to default (founder)
+            document.getElementById('roleSelector').value = 'founder';
 
-            modalBody.innerHTML = sectionsHTML;
+            // Render examples for default role
+            updateExamplesForRole();
+
+            // Show modal
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+        }
+
+        function updateExamplesForRole() {
+            if (!currentCategory) return;
+
+            const selectedRole = document.getElementById('roleSelector').value;
+            const data = toolExamples[currentCategory];
+            const roleData = data.byRole[selectedRole];
+            const modalBody = document.getElementById('modalBody');
+
+            // Build HTML for this role
+            let html = `
+                <div class="prompt-section">
+                    <h3>${roleData.title}</h3>
+                    <ul class="prompt-examples">
+                        ${roleData.prompts.map(prompt => `<li>${prompt}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            modalBody.innerHTML = html;
         }
 
         function closeModal(event) {
@@ -1893,6 +2016,7 @@ async def root():
                 const modal = document.getElementById('possibilitiesModal');
                 modal.classList.remove('active');
                 document.body.style.overflow = '';
+                currentCategory = null;
             }
         }
 
@@ -6199,6 +6323,10 @@ async def admin_add_batch_subscriptions(
         )
 
         # Create separate database records for each category, all linked to same Stripe subscription
+        # Note: Invoice subscriptions may not have period fields until finalized
+        period_start = getattr(stripe_subscription, 'current_period_start', None)
+        period_end = getattr(stripe_subscription, 'current_period_end', None)
+
         for cat in categories_to_add:
             server.database.create_subscription(
                 user_id=user_id,
@@ -6206,8 +6334,8 @@ async def admin_add_batch_subscriptions(
                 stripe_customer_id=stripe_customer_id,
                 stripe_subscription_id=stripe_subscription.id,  # Same subscription ID for all
                 status=stripe_subscription.status,
-                current_period_start=datetime.fromtimestamp(stripe_subscription.current_period_start),
-                current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end)
+                current_period_start=datetime.fromtimestamp(period_start) if period_start else datetime.now(),
+                current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30)
             )
 
         # Get the invoice link
@@ -6385,14 +6513,18 @@ async def admin_toggle_subscription(
 
             # Create subscription in database
             # Note: Stripe webhook will also update this, but we create it immediately for admin visibility
+            # Invoice subscriptions may not have period fields until finalized
+            period_start = getattr(stripe_subscription, 'current_period_start', None)
+            period_end = getattr(stripe_subscription, 'current_period_end', None)
+
             server.database.create_subscription(
                 user_id=user_id,
                 tool_category=category,
                 stripe_customer_id=stripe_customer_id,
                 stripe_subscription_id=stripe_subscription.id,
                 status=stripe_subscription.status,  # Usually 'active' or 'incomplete'
-                current_period_start=datetime.fromtimestamp(stripe_subscription.current_period_start),
-                current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end)
+                current_period_start=datetime.fromtimestamp(period_start) if period_start else datetime.now(),
+                current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30)
             )
 
             # Get the invoice link
