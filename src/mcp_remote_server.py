@@ -417,21 +417,25 @@ async def handle_jsonrpc_request(
             def get_tool_category(tool_name):
                 """Determine which category a tool belongs to based on its name."""
                 tool_name_lower = tool_name.lower()
-                if any(x in tool_name_lower for x in ['email', 'gmail', 'label', 'draft', 'send', 'search']):
+                # Check in order of specificity to avoid conflicts
+                if 'sheet' in tool_name_lower:
+                    return 'sheets'
+                elif 'doc' in tool_name_lower:  # Must come after sheets check
+                    return 'docs'
+                elif any(x in tool_name_lower for x in ['email', 'gmail', 'label', 'draft', 'send', 'thread', 'inbox', 'unreplied']):
                     return 'gmail'
                 elif any(x in tool_name_lower for x in ['calendar', 'event', 'availability']):
                     return 'calendar'
-                elif 'sheet' in tool_name_lower:
-                    return 'sheets'
-                elif 'doc' in tool_name_lower:  # Matches google_doc, document, etc.
-                    return 'docs'
                 elif 'fathom' in tool_name_lower:
                     return 'fathom'
                 elif 'bison' in tool_name_lower:
                     return 'bison'
-                elif 'instantly' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
+                elif 'instantly' in tool_name_lower:
                     return 'instantly'
-                return None  # Unknown category, include by default
+                # For multi-platform tools, require explicit subscription to either
+                else:
+                    # Return None for uncategorized tools - they won't show
+                    return None
 
             # Filter by user's enabled tool categories (if applicable)
             if ctx:
@@ -450,11 +454,22 @@ async def handle_jsonrpc_request(
                                 filtered_tools.append(tool)
                         tools = filtered_tools
 
-                # TEMPORARILY DISABLED: Show ALL tools regardless of subscription for debugging
                 # Filter by active subscriptions (payment enforcement)
                 active_subscriptions = ctx.active_subscriptions
-                logger.info(f"User has active subscriptions: {active_subscriptions}, but showing ALL {len(tools)} tools for debugging")
-                # TODO: Re-enable subscription filtering once we figure out why docs tools are missing
+                if active_subscriptions is not None and len(active_subscriptions) > 0:
+                    # User has some subscriptions - only show subscribed categories
+                    subscription_filtered_tools = []
+                    for tool in tools:
+                        category = get_tool_category(tool['name'])
+                        # ONLY allow tools that match subscribed categories (no uncategorized tools)
+                        if category is not None and category in active_subscriptions:
+                            subscription_filtered_tools.append(tool)
+                    tools = subscription_filtered_tools
+                    logger.info(f"Filtered to subscribed categories: {active_subscriptions}, showing {len(tools)} tools")
+                elif active_subscriptions == []:
+                    # User has no active subscriptions - show no tools
+                    tools = []
+                    logger.warning(f"User {ctx.email} has no active subscriptions - blocking all tools")
 
             logger.info(f"Listed {len(tools)} tools")
             return {
