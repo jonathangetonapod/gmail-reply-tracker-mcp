@@ -4606,6 +4606,9 @@ async def dashboard(
     # Get cancelled subscriptions (for resume button)
     cancelled_subscriptions = [sub['tool_category'] for sub in all_subscriptions if sub['status'] == 'cancelled']
 
+    # Get user's teams (for team subscription option)
+    user_teams = server.database.get_user_teams(ctx.user_id) if teams_enabled else []
+
     # Determine user tier
     if trial_status['is_trial']:
         user_tier = 'trial'
@@ -4977,6 +4980,40 @@ async def dashboard(
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">Subscribe to More Tools</h2>
                 <p style="color: #718096; margin-bottom: 25px;">Select categories to add ($5/month each)</p>
 
+                <!-- Team Subscription Selector -->
+                {f'''
+                <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #667eea30;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size: 14px; font-weight: 600; color: #374151; display: block; margin-bottom: 10px;">
+                            Subscribe for:
+                        </label>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <label style="display: flex; align-items: center; padding: 12px; background: white; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="subscription-type-option">
+                                <input type="radio" name="subscription-type" value="personal" checked onchange="updateSubscriptionType()" style="width: 18px; height: 18px; margin-right: 12px; cursor: pointer;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; color: #1a202c;">👤 Personal (Just Me)</div>
+                                    <div style="font-size: 13px; color: #6b7280;">Only you will have access to these tools</div>
+                                </div>
+                            </label>
+                            {chr(10).join([f"""
+                            <label style="display: flex; align-items: center; padding: 12px; background: white; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="subscription-type-option">
+                                <input type="radio" name="subscription-type" value="{team['team_id']}" onchange="updateSubscriptionType()" style="width: 18px; height: 18px; margin-right: 12px; cursor: pointer;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; color: #1a202c;">👥 Team: {team['team_name']}</div>
+                                    <div style="font-size: 13px; color: #6b7280;">All {len(server.database.get_team_members(team['team_id']))} team members will have access</div>
+                                </div>
+                            </label>
+                            """ for team in user_teams if team['role'] in ['owner', 'admin']])}
+                        </div>
+                    </div>
+                    <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 6px;">
+                        <p style="margin: 0; font-size: 13px; color: #1e40af;">
+                            <strong>💡 Tip:</strong> <span id="subscription-tip">Personal subscriptions are just for you. Team subscriptions give all members access!</span>
+                        </p>
+                    </div>
+                </div>
+                ''' if user_teams else ''}
+
                 <div id="subscription-cart" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     {''.join([f'''
                         <label class="subscription-item" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid {"#10b981" if cat in active_subscriptions else "#e2e8f0"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions or cat in cancelled_subscriptions else "pointer"}; background: {"#f0fdf4" if cat in active_subscriptions else "white"}; opacity: {("0.6" if cat in cancelled_subscriptions else "1")}; transition: all 0.2s;">
@@ -5224,15 +5261,50 @@ async def dashboard(
             }});
         }});
 
+        // Update subscription type UI feedback
+        function updateSubscriptionType() {{
+            const selectedType = document.querySelector('input[name="subscription-type"]:checked');
+            const tip = document.getElementById('subscription-tip');
+
+            // Update border styles
+            document.querySelectorAll('.subscription-type-option').forEach(label => {{
+                if (label.contains(selectedType)) {{
+                    label.style.borderColor = '#667eea';
+                    label.style.background = '#f0f4ff';
+                }} else {{
+                    label.style.borderColor = '#e2e8f0';
+                    label.style.background = 'white';
+                }}
+            }});
+
+            // Update tip text
+            if (selectedType.value === 'personal') {{
+                tip.textContent = 'These subscriptions will be just for you. Other users won\'t have access.';
+            }} else {{
+                const teamLabel = selectedType.closest('label').querySelector('div > div').textContent;
+                tip.innerHTML = `<strong>Subscribing for entire team!</strong> All members will instantly get access to these tools.`;
+            }}
+        }}
+
         checkoutBtn.addEventListener('click', async () => {{
             if (cart.size === 0) return;
             const categories = Array.from(cart);
+            const selectedType = document.querySelector('input[name="subscription-type"]:checked');
+            const subscriptionType = selectedType ? selectedType.value : 'personal';
+
+            // Build payload
+            const payload = {{ categories: categories }};
+
+            // Add team_id if team subscription selected
+            if (subscriptionType !== 'personal') {{
+                payload.team_id = subscriptionType;
+            }}
 
             try {{
                 const response = await fetch('/subscribe?session_token={session_token}', {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{ categories: categories }})
+                    body: JSON.stringify(payload)
                 }});
 
                 const data = await response.json();
