@@ -6993,18 +6993,20 @@ async def admin_add_batch_subscriptions(
         if latest_invoice_id:
             try:
                 invoice = stripe.Invoice.retrieve(latest_invoice_id)
+                logger.info(f"Retrieved invoice {latest_invoice_id}, status: {invoice.get('status')}")
 
                 # If invoice is still a draft, finalize it to get the hosted URL
-                if invoice.status == 'draft':
+                if invoice.get('status') == 'draft':
                     logger.info(f"Finalizing draft invoice {latest_invoice_id}")
                     invoice = stripe.Invoice.finalize_invoice(latest_invoice_id)
+                    logger.info(f"Invoice finalized, new status: {invoice.get('status')}")
 
-                # Check if invoice is paid
-                invoice_paid = invoice.paid or False
-                invoice_link = invoice.hosted_invoice_url
-                logger.info(f"Invoice {latest_invoice_id} status: {invoice.status}, paid: {invoice_paid}, link: {invoice_link}")
+                # Check if invoice is paid (use dictionary-style access for safety)
+                invoice_paid = invoice.get('paid', False)
+                invoice_link = invoice.get('hosted_invoice_url')
+                logger.info(f"Invoice {latest_invoice_id} - status: {invoice.get('status')}, paid: {invoice_paid}, link: {invoice_link}")
             except Exception as e:
-                logger.warning(f"Could not retrieve/finalize invoice: {e}")
+                logger.error(f"Error retrieving/finalizing invoice {latest_invoice_id}: {e}", exc_info=True)
 
         # IMPORTANT: Invoice subscriptions are created as 'active' by Stripe even before payment
         # We check the invoice payment status to determine the real status for our database
@@ -7198,18 +7200,20 @@ async def admin_toggle_subscription(
             if latest_invoice_id:
                 try:
                     invoice = stripe.Invoice.retrieve(latest_invoice_id)
+                    logger.info(f"Retrieved invoice {latest_invoice_id}, status: {invoice.get('status')}")
 
                     # If invoice is still a draft, finalize it to get the hosted URL
-                    if invoice.status == 'draft':
+                    if invoice.get('status') == 'draft':
                         logger.info(f"Finalizing draft invoice {latest_invoice_id}")
                         invoice = stripe.Invoice.finalize_invoice(latest_invoice_id)
+                        logger.info(f"Invoice finalized, new status: {invoice.get('status')}")
 
-                    # Check if invoice is paid
-                    invoice_paid = invoice.paid or False
-                    invoice_link = invoice.hosted_invoice_url
-                    logger.info(f"Invoice {latest_invoice_id} status: {invoice.status}, paid: {invoice_paid}, link: {invoice_link}")
+                    # Check if invoice is paid (use dictionary-style access for safety)
+                    invoice_paid = invoice.get('paid', False)
+                    invoice_link = invoice.get('hosted_invoice_url')
+                    logger.info(f"Invoice {latest_invoice_id} - status: {invoice.get('status')}, paid: {invoice_paid}, link: {invoice_link}")
                 except Exception as e:
-                    logger.warning(f"Could not retrieve/finalize invoice: {e}")
+                    logger.error(f"Error retrieving/finalized invoice {latest_invoice_id}: {e}", exc_info=True)
 
             # IMPORTANT: Invoice subscriptions are created as 'active' by Stripe even before payment
             # We check the invoice payment status to determine the real status for our database
