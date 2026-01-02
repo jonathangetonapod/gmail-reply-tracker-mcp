@@ -2424,6 +2424,71 @@ async def customer_portal(session_token: Optional[str] = Query(None)):
         raise HTTPException(500, "Failed to create billing portal session")
 
 
+@app.get("/sync-subscriptions")
+async def sync_subscriptions(session_token: Optional[str] = Query(None)):
+    """
+    Manual sync: Update all user subscriptions from Stripe.
+    Use this if webhooks aren't set up yet or subscriptions are out of sync.
+    """
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    try:
+        ctx = await create_request_context(server.database, session_token, server.config)
+    except HTTPException:
+        raise HTTPException(401, "Invalid session token")
+
+    # Get user's Stripe customer ID
+    stripe_customer_id = server.database.get_stripe_customer_id(ctx.user_id)
+    if not stripe_customer_id:
+        return JSONResponse({
+            "status": "error",
+            "message": "No Stripe customer found"
+        })
+
+    # Fetch all subscriptions from Stripe
+    stripe.api_key = server.config.stripe_secret_key
+    subscriptions = stripe.Subscription.list(customer=stripe_customer_id, limit=100)
+
+    synced_count = 0
+    for sub in subscriptions.data:
+        # Map Stripe status
+        status_map = {
+            'active': 'active',
+            'canceled': 'cancelled',
+            'past_due': 'past_due',
+            'unpaid': 'unpaid',
+            'incomplete': 'unpaid',
+            'incomplete_expired': 'cancelled',
+            'trialing': 'active',
+            'paused': 'cancelled'
+        }
+        our_status = status_map.get(sub['status'], 'cancelled')
+
+        # Update in database
+        try:
+            period_start = datetime.fromtimestamp(sub['current_period_start'])
+            period_end = datetime.fromtimestamp(sub['current_period_end'])
+        except:
+            period_start = datetime.now()
+            period_end = datetime.now() + timedelta(days=30)
+
+        server.database.update_subscription_status(
+            stripe_subscription_id=sub['id'],
+            status=our_status,
+            current_period_start=period_start,
+            current_period_end=period_end
+        )
+        synced_count += 1
+        logger.info(f"Synced subscription {sub['id']} - status: {our_status}")
+
+    return JSONResponse({
+        "status": "success",
+        "synced": synced_count,
+        "message": f"Synced {synced_count} subscriptions from Stripe"
+    })
+
+
 # ===========================================================================
 # ADMIN DASHBOARD
 # ===========================================================================
