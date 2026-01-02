@@ -1623,18 +1623,24 @@ async def dashboard(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {{
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 800px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 1000px;
             margin: 50px auto;
             padding: 20px;
             background: #f5f7fa;
             min-height: 100vh;
         }}
         .container {{
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            /* No background - using individual cards instead */
+        }}
+        @media (max-width: 768px) {{
+            body {{
+                margin: 30px auto;
+                padding: 15px;
+            }}
+            nav {{
+                margin: -30px -15px 20px -15px !important;
+            }}
         }}
         h1 {{ color: #333; }}
         .user-info {{
@@ -1787,7 +1793,7 @@ async def dashboard(
 <body>
     <!-- Navigation Bar -->
     <nav style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: -50px -20px 30px -20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto;">
             <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🤖 AI Email Assistant</a>
             <div style="display: flex; gap: 20px; align-items: center;">
                 <a href="/dashboard?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.2); font-weight: 500;">Dashboard</a>
@@ -1797,11 +1803,10 @@ async def dashboard(
     </nav>
 
     <div class="container">
-        <h1>🛠️ Dashboard</h1>
-
-        <div class="user-info">
-            <strong>Logged in as:</strong> {ctx.email}<br>
-            <strong>User ID:</strong> {ctx.user_id}
+        <!-- Page Header -->
+        <div style="background: white; padding: 25px 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
+            <h1 style="font-size: 2rem; color: #1a202c; margin-bottom: 8px;">Welcome back!</h1>
+            <p style="color: #718096; font-size: 1.1rem; margin: 0;">Manage your subscriptions and connect to Claude Desktop</p>
         </div>
 
         <!-- Welcome/Success Banners -->
@@ -1810,169 +1815,183 @@ async def dashboard(
             <div style="font-size: 32px; margin-bottom: 10px;">👋</div>
             <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome to Your AI Email Assistant!</h2>
             <p style="margin: 0; font-size: 16px; opacity: 0.95;">Subscribe to tool categories below to supercharge Claude with Gmail, Calendar, Docs & Sheets.</p>
-            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">💡 After subscribing, we'll show you how to connect to Claude Desktop.</p>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">💡 After subscribing, check the Setup tab to connect to Claude Desktop.</p>
         </div>
         ''' if welcome == 'true' else ''}
-        
+
         {f'''
         <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
             <div style="font-size: 32px; margin-bottom: 10px;">🎉</div>
             <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Subscription Successful!</h2>
-            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95;">Your tools are now active! Here's how to use them in Claude Desktop:</p>
-            <ol style="margin: 0; padding-left: 20px; font-size: 14px; opacity: 0.95; line-height: 1.8;">
-                <li>Open Claude Desktop app</li>
-                <li>Go to Settings → Developer → Edit Config</li>
-                <li>Add this configuration:
-                    <pre style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; overflow-x: auto; margin: 10px 0; font-size: 12px;">{{
+            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95;">Your tools are now active! Go to the Setup tab to connect to Claude Desktop.</p>
+            <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Got it! ✓</button>
+        </div>
+        ''' if subscription_success == 'true' else ''}
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0;">
+            <button class="tab active" data-tab="subscriptions" style="padding: 12px 24px; background: none; border: none; color: #667eea; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid #667eea; transition: all 0.2s;">💰 Subscriptions</button>
+            <button class="tab" data-tab="api-keys" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">🔑 API Keys</button>
+            <button class="tab" data-tab="setup" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">⚙️ Setup</button>
+        </div>
+
+        <div id="success-message" class="success"></div>
+        <div id="error-message" class="error"></div>
+
+        <!-- Tab Content: Subscriptions -->
+        <div class="tab-content active" id="subscriptions">
+            <!-- Active Subscriptions -->
+            {f'''<div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
+                <h2 style="color: white; font-size: 1.5rem; margin-bottom: 20px;">✅ Currently Active ({len(active_subscriptions)} {("category" if len(active_subscriptions) == 1 else "categories")})</h2>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    {"".join([
+                        f'''<div style="background: white; color: #1a202c; padding: 15px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 28px;">{category_info[cat]["emoji"]}</span>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px;">{category_info[cat]["name"]}</div>
+                                    <div style="font-size: 14px; color: #6b7280;">{category_info[cat]["tools"]} tools • $5/month</div>
+                                </div>
+                            </div>
+                            {
+                                f'<span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">⚠️ Cancels {subscription_details[cat]["cancel_at"][:10]}</span>'
+                                if subscription_details.get(cat, {}).get('cancel_at')
+                                else '<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">● Active</span>'
+                            }
+                        </div>'''
+                        for cat in active_subscriptions
+                    ])}
+                </div>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <div style="font-size: 18px; font-weight: 600;">Total: ${len(active_subscriptions) * 5}/month</div>
+                </div>
+            </div>''' if active_subscriptions else '<div style="background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;"><div style="font-size: 64px; margin-bottom: 15px;">📭</div><div style="font-size: 18px; font-weight: 600; color: #1a202c; margin-bottom: 8px;">No Active Subscriptions</div><div style="font-size: 15px; color: #6b7280;">Subscribe to categories below to get started!</div></div>'}
+
+            <!-- Manage Button -->
+            <div style="text-align: center; margin-bottom: 40px;">
+                <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 12px 24px; background: #e2e8f0; color: #4a5568; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.2s; font-size: 15px;">💳 Manage Subscriptions in Stripe</a>
+            </div>
+
+            <!-- Available Subscriptions -->
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">Subscribe to More Tools</h2>
+                <p style="color: #718096; margin-bottom: 25px;">Select categories to add ($5/month each)</p>
+
+                <div id="subscription-cart" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px;">
+                    {''.join([f'''
+                        <label class="subscription-item" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid {"#10b981" if cat in active_subscriptions else "#e2e8f0"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions else "pointer"}; background: {"#f0fdf4" if cat in active_subscriptions else "white"}; transition: all 0.2s;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                <span style="font-size: 36px;">{category_info[cat]["emoji"]}</span>
+                                {f'<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Subscribed</span>' if cat in active_subscriptions else '<input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">'}
+                            </div>
+                            <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a202c;">{category_info[cat]["name"]}</h3>
+                            <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280; flex: 1;">{category_info[cat]["desc"]}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                                <span style="font-size: 13px; color: #9ca3af;">{category_info[cat]["tools"]} tools</span>
+                                <span style="font-size: 16px; font-weight: 700; color: #667eea;">$5/mo</span>
+                            </div>
+                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] and cat not in active_subscriptions else ''}
+                        </label>
+                    ''' for cat in all_categories if cat not in active_subscriptions])}
+                </div>
+
+                <!-- Cart Summary -->
+                <div id="cart-summary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                        <div>
+                            <div style="font-size: 36px; font-weight: 700;">$<span id="cart-total">0</span><span style="font-size: 18px; opacity: 0.8;">/month</span></div>
+                            <div style="opacity: 0.9; margin-top: 5px;"><span id="cart-count">0</span> categories selected</div>
+                        </div>
+                        <button id="checkout-btn" style="background: white; color: #667eea; padding: 18px 36px; border: none; border-radius: 10px; font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.15); transition: all 0.2s;">
+                            🛒 Checkout Now
+                        </button>
+                    </div>
+                    <div id="cart-items-list" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 14px; opacity: 0.9;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: API Keys -->
+        <div class="tab-content" id="api-keys" style="display: none;">
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">🔑 API Keys</h2>
+                <p style="color: #718096; margin-bottom: 30px;">Add API keys for third-party services you've subscribed to</p>
+
+                {f'''
+                <form id="api-keys-form">
+                    {'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="' + api_keys.get('fathom', '') + '" placeholder="Your Fathom API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Fathom meeting recording tools</p></div>' if 'fathom' in active_subscriptions else ''}
+                    {'<div class="form-group"><label for="instantly_key">Instantly API Key</label><input type="text" id="instantly_key" name="instantly_key" value="' + api_keys.get('instantly', '') + '" placeholder="Your Instantly.ai API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Instantly campaign management tools</p></div>' if 'instantly' in active_subscriptions else ''}
+                    {'<div class="form-group"><label for="bison_key">Bison API Key</label><input type="text" id="bison_key" name="bison_key" value="' + api_keys.get('bison', '') + '" placeholder="Your EmailBison API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for EmailBison campaign tools</p></div>' if 'bison' in active_subscriptions else ''}
+
+                    {('<button type="submit" class="btn" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">💾 Save API Keys</button>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 40px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 48px; margin-bottom: 10px;">🔒</div><p style="color: #6b7280;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>')}
+                </form>
+                ''' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 60px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 64px; margin-bottom: 15px;">🔒</div><p style="color: #6b7280; font-size: 16px;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>'}
+            </div>
+        </div>
+
+        <!-- Tab Content: Setup -->
+        <div class="tab-content" id="setup" style="display: none;">
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;">
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">⚙️ Connect to Claude Desktop</h2>
+                <p style="color: #718096; margin-bottom: 25px;">Add this configuration to Claude Desktop to use your tools</p>
+
+                <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #f59e0b;">
+                    <strong style="color: #92400e;">📝 Setup Instructions:</strong>
+                    <ol style="margin: 10px 0 0 20px; color: #92400e; line-height: 1.8;">
+                        <li>Copy the configuration below</li>
+                        <li>Open Claude Desktop → Settings → Developer → Edit Config</li>
+                        <li>Paste the configuration</li>
+                        <li>Restart Claude Desktop</li>
+                        <li>Start chatting - your tools are ready!</li>
+                    </ol>
+                </div>
+
+                <h3 style="color: #1a202c; margin-bottom: 10px;">Claude Desktop Configuration</h3>
+                <pre style="background: #1a202c; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; font-family: 'Monaco', 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 30px;">{{
   "mcpServers": {{
     "gmail-tools": {{
       "url": "https://{request.url.hostname}/mcp?session_token={session_token}"
     }}
   }}
 }}</pre>
-                </li>
-                <li>Restart Claude Desktop</li>
-                <li>Start a new chat and ask Claude to check your emails!</li>
-            </ol>
-            <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-size: 14px;">Got it! ✓</button>
-        </div>
-        ''' if subscription_success == 'true' else ''}
 
-        <div id="success-message" class="success"></div>
-        <div id="error-message" class="error"></div>
-
-        {'<div>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="display: none;">'}
-            <h2>🔑 API Keys</h2>
-            <p>Configure API keys for your subscribed services:</p>
-
-            <form id="api-keys-form">
-                {'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="' + api_keys.get('fathom', '') + '" placeholder="Your Fathom API key"></div>' if 'fathom' in active_subscriptions else ''}
-                {'<div class="form-group"><label for="instantly_key">Instantly API Key</label><input type="text" id="instantly_key" name="instantly_key" value="' + api_keys.get('instantly', '') + '" placeholder="Your Instantly.ai API key"></div>' if 'instantly' in active_subscriptions else ''}
-                {'<div class="form-group"><label for="bison_key">Bison API Key</label><input type="text" id="bison_key" name="bison_key" value="' + api_keys.get('bison', '') + '" placeholder="Your EmailBison API key"></div>' if 'bison' in active_subscriptions else ''}
-
-                <button type="submit">💾 Save API Keys</button>
-            </form>
-
-            <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
-        </div>
-
-        <!-- Subscriptions Shopping Cart Section -->
-        <h2>💰 Subscriptions & Billing</h2>
-        <p>Select tool categories to subscribe ($5/month each). Check multiple to add to cart:</p>
-
-        <div id="subscription-cart" style="display: grid; gap: 15px; margin-bottom: 30px;">
-            {''.join([f'''
-                <label class="subscription-item" style="display: flex; align-items: center; padding: 20px; border: 2px solid {"#d4edda" if cat in active_subscriptions else "#ddd"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions else "pointer"}; background: {"#f8f9fa" if cat in active_subscriptions else "white"}; transition: all 0.2s;">
-                    <input type="checkbox" name="subscribe-{cat}" value="{cat}" {"disabled" if cat in active_subscriptions else ""} class="subscription-checkbox" style="width: 20px; height: 20px; margin-right: 15px; cursor: {"not-allowed" if cat in active_subscriptions else "pointer"};">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
-                            <span style="font-size: 24px;">{category_info[cat]["emoji"]}</span>
-                            <strong style="font-size: 16px;">{category_info[cat]["name"]}</strong>
-                            <span style="font-size: 14px; color: #666;">({category_info[cat]["tools"]} tools)</span>
-                        </div>
-                        <div style="font-size: 14px; color: #666;">{category_info[cat]["desc"]}</div>
-                        {f'<div style="font-size: 12px; color: #999; margin-top: 4px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] else ''}
-                    </div>
-                    {f'<span style="background: #d4edda; color: #155724; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if cat in active_subscriptions else '<span style="color: #667eea; font-size: 16px; font-weight: 600;">$5/mo</span>'}
-                </label>
-            ''' for cat in all_categories])}
-        </div>
-
-        <!-- Cart Summary -->
-        <div id="cart-summary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
-                <div>
-                    <div style="font-size: 16px; opacity: 0.9; margin-bottom: 8px;">Cart Total</div>
-                    <div style="font-size: 36px; font-weight: 700;">$<span id="cart-total">0</span><span style="font-size: 18px; opacity: 0.8;">/month</span></div>
-                    <div style="font-size: 14px; opacity: 0.8; margin-top: 8px;"><span id="cart-count">0</span> categories selected</div>
-                </div>
-                <button id="checkout-btn" style="background: white; color: #667eea; padding: 18px 36px; border: none; border-radius: 10px; font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.15); transition: transform 0.2s;">
-                    🛒 Checkout Now
-                </button>
-            </div>
-            <div id="cart-items-list" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 14px;"></div>
-        </div>
-
-        <!-- Manage Existing Subscriptions -->
-        <div style="text-align: center; margin-bottom: 50px;">
-            <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 14px 28px; background: #6c757d; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: background 0.2s;">
-                💳 Manage Existing Subscriptions
-            </a>
-        </div>
-
-        <hr style="margin: 50px 0; border: none; border-top: 2px solid #e0e0e0;">
-
-        <h2>📊 Your Active Subscriptions</h2>
-        <p>Tools from subscribed categories appear automatically in Claude Desktop.</p>
-
-        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 18px; border-radius: 8px; margin-bottom: 25px;">
-            <div style="display: flex; align-items: start; gap: 12px;">
-                <div style="font-size: 28px;">✨</div>
-                <div>
-                    <strong style="color: #0d47a1; font-size: 16px;">How It Works</strong>
-                    <div style="color: #1565c0; margin-top: 8px; font-size: 14px; line-height: 1.6;">
-                        Subscribe to categories above → Tools appear instantly in Claude Desktop.<br>
-                        Cancel subscription → Tools disappear immediately.<br>
-                        No manual configuration needed!
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {f'''<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #81c784;">
-            <div style="font-size: 18px; font-weight: 700; color: #2e7d32; margin-bottom: 15px;">✅ Currently Active ({len(active_subscriptions)} {("category" if len(active_subscriptions) == 1 else "categories")})</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                {"".join([
-                    f'''<div style="background: white; color: #2e7d32; padding: 10px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); position: relative;">
-                        <span style="font-size: 20px;">{category_info[cat]["emoji"]}</span>
-                        <span>{category_info[cat]["name"]}</span>
-                        <span style="background: #e8f5e9; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${5}/mo</span>
-                        {
-                            f'<span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 4px;">⚠️ Cancels {subscription_details[cat]["cancel_at"][:10]}</span>'
-                            if subscription_details.get(cat, {}).get('cancel_at')
-                            else ''
-                        }
-                    </div>'''
-                    for cat in active_subscriptions
-                ])}
-            </div>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(46, 125, 50, 0.2); color: #2e7d32; font-size: 15px; font-weight: 600;">
-                Total: ${len(active_subscriptions) * 5}/month
-            </div>
-        </div>''' if active_subscriptions else '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; color: #666; margin-bottom: 30px;"><div style="font-size: 48px; margin-bottom: 10px;">📭</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">No Active Subscriptions</div><div style="font-size: 14px;">Subscribe to categories above to get started!</div></div>'}
-
-        <div class="token-section">
-            <h2>🔑 Session Token</h2>
-            <p>Use this token in Claude Desktop to connect to your MCP server:</p>
-            <code>{session_token}</code>
-            <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <div style="font-size: 14px; color: #856404; line-height: 1.6;">
-                    <strong>💡 Setup Instructions:</strong><br>
-                    1. Copy the session token above<br>
-                    2. Add to Claude Desktop MCP configuration<br>
-                    3. Restart Claude Desktop to see your tools
-                </div>
+                <h3 style="color: #1a202c; margin-bottom: 10px;">Your Session Token</h3>
+                <p style="color: #718096; font-size: 14px; margin-bottom: 10px;">Keep this token secure - it provides access to your tools</p>
+                <input type="text" value="{session_token}" readonly onclick="this.select()" style="width: 100%; padding: 12px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-family: monospace; font-size: 13px; cursor: pointer;">
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 8px;">Click to select and copy</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Toast notification function
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {{
+            tab.addEventListener('click', () => {{
+                const tabName = tab.dataset.tab;
+
+                // Update tabs
+                document.querySelectorAll('.tab').forEach(t => {{
+                    t.style.color = '#718096';
+                    t.style.borderBottomColor = 'transparent';
+                }});
+                tab.style.color = '#667eea';
+                tab.style.borderBottomColor = '#667eea';
+
+                // Update content
+                document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                document.getElementById(tabName).style.display = 'block';
+            }});
+        }});
+
+        // Toast notification
         function showToast(message, type = 'success') {{
-            // Create toast element
             const toast = document.createElement('div');
             toast.className = 'toast' + (type === 'error' ? ' error' : '');
             toast.textContent = message;
-
-            // Add to document
             document.body.appendChild(toast);
-
-            // Auto-remove after animation
             setTimeout(() => {{
                 toast.style.animation = 'toastSlideOut 0.4s ease-out';
-                setTimeout(() => {{
-                    document.body.removeChild(toast);
-                }}, 400);
+                setTimeout(() => document.body.removeChild(toast), 400);
             }}, 4000);
         }}
 
@@ -1999,17 +2018,12 @@ async def dashboard(
                 cartSummary.style.display = 'block';
                 cartTotal.textContent = cart.size * 5;
                 cartCount.textContent = cart.size;
-
-                // Update items list
-                cartItemsList.innerHTML = Array.from(cart).map(cat =>
-                    `• ${{categoryNames[cat]}} - $5/mo`
-                ).join('<br>');
+                cartItemsList.innerHTML = Array.from(cart).map(cat => `• ${{categoryNames[cat]}} - $5/mo`).join('<br>');
             }} else {{
                 cartSummary.style.display = 'none';
             }}
         }}
 
-        // Add event listeners to subscription checkboxes
         document.querySelectorAll('.subscription-checkbox').forEach(checkbox => {{
             checkbox.addEventListener('change', (e) => {{
                 const category = e.target.value;
@@ -2019,74 +2033,73 @@ async def dashboard(
                     e.target.closest('.subscription-item').style.background = '#f0f4ff';
                 }} else {{
                     cart.delete(category);
-                    e.target.closest('.subscription-item').style.borderColor = '#ddd';
+                    e.target.closest('.subscription-item').style.borderColor = '#e2e8f0';
                     e.target.closest('.subscription-item').style.background = 'white';
                 }}
                 updateCart();
             }});
         }});
 
-        // Checkout button handler
         checkoutBtn.addEventListener('click', async () => {{
             if (cart.size === 0) return;
-
             const categories = Array.from(cart);
 
-            // Redirect to subscribe endpoint with multiple categories
-            const params = new URLSearchParams({{
-                session_token: '{session_token}',
-                categories: categories.join(',')
-            }});
+            try {{
+                const response = await fetch('/subscribe?session_token={session_token}', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ categories: categories }})
+                }});
 
-            window.location.href = `/subscribe?${{params.toString()}}`;
-        }});
+                const data = await response.json();
 
-        document.getElementById('api-keys-form').addEventListener('submit', async (e) => {{
-            e.preventDefault();
-
-            const fathomKey = document.getElementById('fathom_key').value;
-            const instantlyKey = document.getElementById('instantly_key').value;
-            const bisonKey = document.getElementById('bison_key').value;
-
-            const response = await fetch('/dashboard/update-api-keys?session_token={session_token}', {{
-                method: 'POST',
-                headers: {{'Content-Type': 'application/json'}},
-                body: JSON.stringify({{
-                    fathom: fathomKey,
-                    instantly: instantlyKey,
-                    bison: bisonKey
-                }})
-            }});
-
-            const successDiv = document.getElementById('success-message');
-            const errorDiv = document.getElementById('error-message');
-
-            if (response.ok) {{
-                // Show toast notification
-                showToast('✅ API keys updated successfully! Changes apply immediately (no restart needed).');
-
-                // Also show inline message
-                successDiv.textContent = '✅ API keys updated successfully! Changes apply immediately - no restart needed.';
-                successDiv.style.display = 'block';
-                errorDiv.style.display = 'none';
-                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 4000);
-            }} else {{
-                const error = await response.json();
-                const errorMsg = '❌ Error: ' + error.detail;
-
-                // Show toast notification
-                showToast(errorMsg, 'error');
-
-                // Also show inline message
-                errorDiv.textContent = errorMsg;
-                errorDiv.style.display = 'block';
-                successDiv.style.display = 'none';
+                if (response.ok && data.checkout_url) {{
+                    window.location.href = data.checkout_url;
+                }} else {{
+                    showToast(data.error || 'Failed to create checkout session', 'error');
+                }}
+            }} catch (error) {{
+                showToast('Network error. Please try again.', 'error');
+                console.error('Checkout error:', error);
             }}
         }});
 
-        // Tool categories form handler
+        // API Keys form
+        const apiKeysForm = document.getElementById('api-keys-form');
+        if (apiKeysForm) {{
+            apiKeysForm.addEventListener('submit', async (e) => {{
+                e.preventDefault();
+
+                const formData = {{}};
+                ['fathom_key', 'instantly_key', 'bison_key'].forEach(field => {{
+                    const input = document.getElementById(field);
+                    if (input && input.value.trim()) {{
+                        const keyName = field.replace('_key', '');
+                        formData[keyName] = input.value.trim();
+                    }}
+                }});
+
+                try {{
+                    const response = await fetch('/dashboard/update-api-keys?session_token={session_token}', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify(formData)
+                    }});
+
+                    if (response.ok) {{
+                        showToast('✓ API keys saved successfully!');
+                    }} else {{
+                        const error = await response.json();
+                        showToast('Error: ' + error.detail, 'error');
+                    }}
+                }} catch (error) {{
+                    showToast('Network error. Please try again.', 'error');
+                }}
+            }});
+        }}
     </script>
 </body>
+
 </html>
     """)
 
