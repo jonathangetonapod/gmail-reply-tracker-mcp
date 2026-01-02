@@ -4615,21 +4615,6 @@ async def dashboard(
     # Get user's teams (for team subscription option)
     user_teams = server.database.get_user_teams(ctx.user_id) if teams_enabled else []
 
-    # If admin, get ALL teams in the system for management
-    all_teams_for_admin = []
-    if is_admin:
-        teams_result = server.database.supabase.table('teams').select('*').execute()
-        all_teams_for_admin = teams_result.data if teams_result.data else []
-        # For each team, get current subscriptions
-        for team in all_teams_for_admin:
-            subs = server.database.supabase.table('subscriptions').select('tool_category').eq(
-                'team_id', team['team_id']
-            ).eq('is_team_subscription', True).eq('status', 'active').execute()
-            team['active_categories'] = [s['tool_category'] for s in (subs.data if subs.data else [])]
-            # Get member count
-            members = server.database.get_team_members(team['team_id'])
-            team['member_count'] = len(members)
-
     # Get personal subscriptions only (not team subscriptions)
     personal_subs_result = server.database.supabase.table('subscriptions').select('tool_category').eq(
         'user_id', ctx.user_id
@@ -4922,85 +4907,6 @@ async def dashboard(
         </div>
         ''' if trial_status['is_trial'] else ''}
 
-        <!-- Admin Controls -->
-        {f'''
-        <div id="admin-panel" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); border: 2px solid #fca5a5;">
-            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                <div style="font-size: 36px;">🔐</div>
-                <div>
-                    <h2 style="color: white; margin: 0; font-size: 20px; font-weight: 700;">Admin Mode Active</h2>
-                    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Viewing dashboard for: <strong>{ctx.email}</strong></p>
-                </div>
-            </div>
-
-            <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 8px; backdrop-filter: blur(10px);">
-                <h3 style="color: white; margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Grant Free Subscriptions</h3>
-
-                <!-- Personal Subscriptions -->
-                <div style="margin-bottom: 20px;">
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px; opacity: 0.95;">👤 Personal Subscriptions:</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
-                        {"".join([
-                            f'''<button
-                                onclick="adminGrantPersonal('{cat}')"
-                                style="background: {"rgba(255,255,255,0.2)" if cat in active_subscriptions else "rgba(255,255,255,0.95)"};
-                                       color: {"rgba(255,255,255,0.6)" if cat in active_subscriptions else "#1a202c"};
-                                       border: none;
-                                       padding: 10px 12px;
-                                       border-radius: 6px;
-                                       font-size: 13px;
-                                       font-weight: 600;
-                                       cursor: {"not-allowed" if cat in active_subscriptions else "pointer"};
-                                       transition: all 0.2s;
-                                       text-align: left;
-                                       {"pointer-events: none;" if cat in active_subscriptions else ""}"
-                                {f'disabled' if cat in active_subscriptions else ''}>
-                                {"✓" if cat in active_subscriptions else "+"} {category_info[cat]["emoji"]} {category_info[cat]["name"]}
-                            </button>'''
-                            for cat in all_categories
-                        ])}
-                    </div>
-                </div>
-
-                <!-- Team Subscriptions -->
-                {f"""
-                <div>
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 10px; opacity: 0.95;">👥 Team Subscriptions:</div>
-                    {"".join([
-                        f'''<div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 12px;">
-                            <div style="font-weight: 600; margin-bottom: 10px; font-size: 15px;">{team['team_name']}</div>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
-                                {"".join([
-                                    f"""<button
-                                        onclick="adminGrantTeam('{team['team_id']}', '{cat}')"
-                                        style="background: {"rgba(255,255,255,0.2)" if cat in team_subscriptions_map.get(team['team_id'], []) else "rgba(255,255,255,0.95)"};
-                                               color: {"rgba(255,255,255,0.6)" if cat in team_subscriptions_map.get(team['team_id'], []) else "#1a202c"};
-                                               border: none;
-                                               padding: 10px 12px;
-                                               border-radius: 6px;
-                                               font-size: 13px;
-                                               font-weight: 600;
-                                               cursor: {"not-allowed" if cat in team_subscriptions_map.get(team['team_id'], []) else "pointer"};
-                                               transition: all 0.2s;
-                                               text-align: left;
-                                               {"pointer-events: none;" if cat in team_subscriptions_map.get(team['team_id'], []) else ""}"
-                                        {f'disabled' if cat in team_subscriptions_map.get(team['team_id'], []) else ''}>
-                                        {"✓" if cat in team_subscriptions_map.get(team['team_id'], []) else "+"} {category_info[cat]["emoji"]} {category_info[cat]["name"]}
-                                    </button>"""
-                                    for cat in all_categories
-                                ])}
-                            </div>
-                        </div>'''
-                        for team in user_teams
-                    ])}
-                </div>
-                """ if user_teams else ""}
-            </div>
-
-            <div id="admin-toast" style="display: none; position: fixed; top: 20px; right: 20px; background: white; color: #1a202c; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: 600;"></div>
-        </div>
-        ''' if is_admin else ''}
-
         <!-- Usage Counter -->
         <div style="background: {"linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" if usage_limit and daily_usage >= 8 else "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
             <div style="display: flex; align-items: center; gap: 20px;">
@@ -5088,62 +4994,6 @@ async def dashboard(
                     ])}
                 </div>
             </div>''' if cancelled_subscriptions else ''}
-
-            <!-- Admin: Manage All Teams -->
-            {f'''
-            <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4); border: 2px solid #fca5a5;">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 25px;">
-                    <div style="font-size: 42px;">🔐</div>
-                    <div>
-                        <h2 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">Admin: Manage All Teams</h2>
-                        <p style="margin: 5px 0 0 0; font-size: 15px; opacity: 0.9;">Grant free subscriptions to any team in the system</p>
-                    </div>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 20px;">
-                    {"".join([
-                        f'''<div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; backdrop-filter: blur(10px);">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                                <div>
-                                    <div style="font-size: 18px; font-weight: 700; margin-bottom: 5px;">{team['team_name']}</div>
-                                    <div style="font-size: 14px; opacity: 0.85;">{team['member_count']} members • Team ID: {team['team_id'][:16]}...</div>
-                                </div>
-                                <div style="display: flex; gap: 6px; flex-wrap: wrap; max-width: 300px;">
-                                    {"".join([
-                                        f'<span style="background: rgba(16, 185, 129, 0.9); padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">{category_info[cat]["emoji"]} {cat}</span>'
-                                        for cat in team['active_categories']
-                                    ]) if team['active_categories'] else '<span style="opacity: 0.7; font-size: 13px;">No subscriptions</span>'}
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
-                                {"".join([
-                                    f'''<button
-                                        onclick="adminGrantTeamFromAdmin('{team['team_id']}', '{cat}')"
-                                        style="background: {"rgba(255,255,255,0.2)" if cat in team['active_categories'] else "rgba(255,255,255,0.95)"};
-                                               color: {"rgba(255,255,255,0.6)" if cat in team['active_categories'] else "#1a202c"};
-                                               border: none;
-                                               padding: 10px 12px;
-                                               border-radius: 6px;
-                                               font-size: 13px;
-                                               font-weight: 600;
-                                               cursor: {"not-allowed" if cat in team['active_categories'] else "pointer"};
-                                               transition: all 0.2s;
-                                               text-align: left;
-                                               {"pointer-events: none;" if cat in team['active_categories'] else ""}"
-                                        {f'disabled' if cat in team['active_categories'] else ''}>
-                                        {"✓" if cat in team['active_categories'] else "+"} {category_info[cat]["emoji"]} {category_info[cat]["name"]}
-                                    </button>'''
-                                    for cat in all_categories
-                                ])}
-                            </div>
-                        </div>'''
-                        for team in all_teams_for_admin
-                    ])}
-                </div>
-
-                <div id="admin-teams-toast" style="display: none; position: fixed; top: 20px; right: 20px; background: white; color: #1a202c; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; font-weight: 600;"></div>
-            </div>
-            ''' if is_admin and all_teams_for_admin else ''}
 
             <!-- Available Subscriptions -->
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
@@ -5359,101 +5209,6 @@ async def dashboard(
                 toast.style.animation = 'toastSlideOut 0.4s ease-out';
                 setTimeout(() => document.body.removeChild(toast), 400);
             }}, 4000);
-        }}
-
-        // Admin grant functions
-        async function adminGrantPersonal(category) {{
-            const adminToast = document.getElementById('admin-toast');
-            adminToast.textContent = 'Granting ' + category + '...';
-            adminToast.style.display = 'block';
-            adminToast.style.background = '#fbbf24';
-
-            try {{
-                const url = '/admin/grant-personal?session_token={session_token}' + (adminPassword ? '&admin_password=' + adminPassword : '');
-                const response = await fetch(url, {{
-                    method: 'POST',
-                    headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{category: category}})
-                }});
-
-                if (response.ok) {{
-                    adminToast.textContent = '✓ Granted ' + category + ' successfully!';
-                    adminToast.style.background = '#10b981';
-                    setTimeout(() => location.reload(), 1500);
-                }} else {{
-                    const error = await response.json();
-                    adminToast.textContent = '✗ Error: ' + error.detail;
-                    adminToast.style.background = '#ef4444';
-                }}
-            }} catch (e) {{
-                adminToast.textContent = '✗ Network error: ' + e.message;
-                adminToast.style.background = '#ef4444';
-            }}
-
-            setTimeout(() => adminToast.style.display = 'none', 3000);
-        }}
-
-        async function adminGrantTeam(teamId, category) {{
-            const adminToast = document.getElementById('admin-toast');
-            adminToast.textContent = 'Granting ' + category + ' to team...';
-            adminToast.style.display = 'block';
-            adminToast.style.background = '#fbbf24';
-
-            try {{
-                const url = '/admin/grant-team?session_token={session_token}' + (adminPassword ? '&admin_password=' + adminPassword : '');
-                const response = await fetch(url, {{
-                    method: 'POST',
-                    headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{team_id: teamId, category: category}})
-                }});
-
-                if (response.ok) {{
-                    adminToast.textContent = '✓ Granted ' + category + ' to team successfully!';
-                    adminToast.style.background = '#10b981';
-                    setTimeout(() => location.reload(), 1500);
-                }} else {{
-                    const error = await response.json();
-                    adminToast.textContent = '✗ Error: ' + error.detail;
-                    adminToast.style.background = '#ef4444';
-                }}
-            }} catch (e) {{
-                adminToast.textContent = '✗ Network error: ' + e.message;
-                adminToast.style.background = '#ef4444';
-            }}
-
-            setTimeout(() => adminToast.style.display = 'none', 3000);
-        }}
-
-        // Admin grant team from admin's own dashboard (uses different toast)
-        async function adminGrantTeamFromAdmin(teamId, category) {{
-            const adminToast = document.getElementById('admin-teams-toast');
-            adminToast.textContent = 'Granting ' + category + ' to team...';
-            adminToast.style.display = 'block';
-            adminToast.style.background = '#fbbf24';
-
-            try {{
-                const url = '/admin/grant-team?session_token={session_token}' + (adminPassword ? '&admin_password=' + adminPassword : '');
-                const response = await fetch(url, {{
-                    method: 'POST',
-                    headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{team_id: teamId, category: category}})
-                }});
-
-                if (response.ok) {{
-                    adminToast.textContent = '✓ Granted ' + category + ' successfully!';
-                    adminToast.style.background = '#10b981';
-                    setTimeout(() => location.reload(), 1500);
-                }} else {{
-                    const error = await response.json();
-                    adminToast.textContent = '✗ Error: ' + error.detail;
-                    adminToast.style.background = '#ef4444';
-                }}
-            }} catch (e) {{
-                adminToast.textContent = '✗ Network error: ' + e.message;
-                adminToast.style.background = '#ef4444';
-            }}
-
-            setTimeout(() => adminToast.style.display = 'none', 3000);
         }}
 
         // Shopping Cart Logic
