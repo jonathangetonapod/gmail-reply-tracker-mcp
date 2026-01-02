@@ -5224,6 +5224,9 @@ async def dashboard(
         const personalSubscriptions = {json.dumps(personal_subscriptions)};
         const teamSubscriptionsMap = {json.dumps(team_subscriptions_map)};
 
+        console.log('Personal Subscriptions:', personalSubscriptions);
+        console.log('Team Subscriptions Map:', teamSubscriptionsMap);
+
         function updateCart() {{
             if (cart.size > 0) {{
                 cartSummary.style.display = 'block';
@@ -5302,10 +5305,12 @@ async def dashboard(
             if (selectedType.value === 'personal') {{
                 existingSubscriptions = personalSubscriptions;
                 tip.textContent = "These subscriptions will be just for you. Other users won't have access.";
+                console.log('Selected PERSONAL - Checking against:', existingSubscriptions);
             }} else {{
                 const teamId = selectedType.value;
                 existingSubscriptions = teamSubscriptionsMap[teamId] || [];
                 tip.innerHTML = "<strong>Subscribing for entire team!</strong> All members will instantly get access to these tools.";
+                console.log('Selected TEAM (' + teamId + ') - Checking against:', existingSubscriptions);
             }}
 
             // Update category items availability
