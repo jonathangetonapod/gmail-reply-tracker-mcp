@@ -6983,6 +6983,26 @@ async def admin_add_batch_subscriptions(
             }
         )
 
+        # Log the actual status Stripe returned
+        logger.info(f"Stripe returned subscription with status: {stripe_subscription.status}")
+
+        # IMPORTANT: Invoice subscriptions are created as 'active' by Stripe even before payment
+        # We need to check if the invoice has been paid to determine the real status
+        invoice_paid = False
+        latest_invoice_id = stripe_subscription.latest_invoice
+        if latest_invoice_id:
+            try:
+                invoice = stripe.Invoice.retrieve(latest_invoice_id)
+                invoice_paid = invoice.paid
+                logger.info(f"Invoice {latest_invoice_id} payment status: {'PAID' if invoice_paid else 'UNPAID'}")
+            except Exception as e:
+                logger.warning(f"Could not check invoice payment status: {e}")
+
+        # Set subscription status based on invoice payment
+        # If invoice is not paid, use 'incomplete' status to lock tools
+        db_status = 'active' if invoice_paid else 'incomplete'
+        logger.info(f"Storing subscriptions with status: {db_status} (invoice_paid={invoice_paid})")
+
         # Create separate database records for each category, all linked to same Stripe subscription
         # Note: Invoice subscriptions may not have period fields until finalized
         period_start = getattr(stripe_subscription, 'current_period_start', None)
@@ -6994,7 +7014,7 @@ async def admin_add_batch_subscriptions(
                 tool_category=cat,
                 stripe_customer_id=stripe_customer_id,
                 stripe_subscription_id=stripe_subscription.id,  # Same subscription ID for all
-                status=stripe_subscription.status,
+                status=db_status,  # Use 'incomplete' until invoice is paid
                 current_period_start=datetime.fromtimestamp(period_start) if period_start else datetime.now(),
                 current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30)
             )
@@ -7186,12 +7206,28 @@ async def admin_toggle_subscription(
             period_start = getattr(stripe_subscription, 'current_period_start', None)
             period_end = getattr(stripe_subscription, 'current_period_end', None)
 
+            # IMPORTANT: Invoice subscriptions are created as 'active' by Stripe even before payment
+            # Check if the invoice has been paid to determine the real status
+            invoice_paid = False
+            latest_invoice_id = stripe_subscription.latest_invoice
+            if latest_invoice_id:
+                try:
+                    invoice = stripe.Invoice.retrieve(latest_invoice_id)
+                    invoice_paid = invoice.paid
+                    logger.info(f"Invoice {latest_invoice_id} payment status: {'PAID' if invoice_paid else 'UNPAID'}")
+                except Exception as e:
+                    logger.warning(f"Could not check invoice payment status: {e}")
+
+            # Set subscription status based on invoice payment
+            db_status = 'active' if invoice_paid else 'incomplete'
+            logger.info(f"Storing subscription with status: {db_status} (invoice_paid={invoice_paid})")
+
             server.database.create_subscription(
                 user_id=user_id,
                 tool_category=category,
                 stripe_customer_id=stripe_customer_id,
                 stripe_subscription_id=stripe_subscription.id,
-                status=stripe_subscription.status,  # Usually 'active' or 'incomplete'
+                status=db_status,  # Use 'incomplete' until invoice is paid
                 current_period_start=datetime.fromtimestamp(period_start) if period_start else datetime.now(),
                 current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30)
             )
