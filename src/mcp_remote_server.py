@@ -1629,13 +1629,16 @@ async def dashboard(session_token: Optional[str] = Query(None)):
     else:
         total_tools = sum(tool_counts[cat] for cat in enabled_categories)
 
-    # Pre-compute subscription badges for each category (avoids complex nested f-string)
-    subscription_badges = {}
-    for category in all_categories:
-        if category in active_subscriptions:
-            subscription_badges[category] = '<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>'
-        else:
-            subscription_badges[category] = f'<a href="/subscribe?category={category}&session_token={session_token}" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'
+    # Category info for shopping cart
+    category_info = {
+        'gmail': {'emoji': '📧', 'name': 'Gmail Tools', 'tools': 25, 'desc': 'Search, send, manage emails'},
+        'calendar': {'emoji': '📅', 'name': 'Calendar Tools', 'tools': 15, 'desc': 'Create events, check availability'},
+        'docs': {'emoji': '📄', 'name': 'Google Docs Tools', 'tools': 8, 'desc': 'Create, read, update documents'},
+        'sheets': {'emoji': '📊', 'name': 'Google Sheets Tools', 'tools': 12, 'desc': 'Read, write, manage spreadsheets'},
+        'fathom': {'emoji': '🎥', 'name': 'Fathom Tools', 'tools': 10, 'desc': 'Meeting recordings & analytics', 'note': '💡 Requires Fathom API key'},
+        'instantly': {'emoji': '📨', 'name': 'Instantly Tools', 'tools': 10, 'desc': 'Email campaigns & lead management (Instantly.ai)', 'note': '💡 Requires Instantly API key'},
+        'bison': {'emoji': '🦬', 'name': 'Bison Tools', 'tools': 4, 'desc': 'Email campaigns & lead management (EmailBison)', 'note': '💡 Requires Bison API key'}
+    }
 
     # Render dashboard HTML
     return HTMLResponse(f"""
@@ -1848,8 +1851,54 @@ async def dashboard(session_token: Optional[str] = Query(None)):
 
         <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
 
-        <h2>🛠️ Tool Selection</h2>
-        <p>Choose which tool categories you want available in Claude Desktop:</p>
+        <!-- Subscriptions Shopping Cart Section -->
+        <h2>💰 Subscriptions & Billing</h2>
+        <p>Select tool categories to subscribe ($5/month each). Check multiple to add to cart:</p>
+
+        <div id="subscription-cart" style="display: grid; gap: 15px; margin-bottom: 30px;">
+            {''.join([f'''
+                <label class="subscription-item" style="display: flex; align-items: center; padding: 20px; border: 2px solid {"#d4edda" if cat in active_subscriptions else "#ddd"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions else "pointer"}; background: {"#f8f9fa" if cat in active_subscriptions else "white"}; transition: all 0.2s;">
+                    <input type="checkbox" name="subscribe-{cat}" value="{cat}" {"disabled" if cat in active_subscriptions else ""} class="subscription-checkbox" style="width: 20px; height: 20px; margin-right: 15px; cursor: {"not-allowed" if cat in active_subscriptions else "pointer"};">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                            <span style="font-size: 24px;">{category_info[cat]["emoji"]}</span>
+                            <strong style="font-size: 16px;">{category_info[cat]["name"]}</strong>
+                            <span style="font-size: 14px; color: #666;">({category_info[cat]["tools"]} tools)</span>
+                        </div>
+                        <div style="font-size: 14px; color: #666;">{category_info[cat]["desc"]}</div>
+                        {f'<div style="font-size: 12px; color: #999; margin-top: 4px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] else ''}
+                    </div>
+                    {f'<span style="background: #d4edda; color: #155724; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if cat in active_subscriptions else '<span style="color: #667eea; font-size: 16px; font-weight: 600;">$5/mo</span>'}
+                </label>
+            ''' for cat in all_categories])}
+        </div>
+
+        <!-- Cart Summary -->
+        <div id="cart-summary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+                <div>
+                    <div style="font-size: 16px; opacity: 0.9; margin-bottom: 8px;">Cart Total</div>
+                    <div style="font-size: 36px; font-weight: 700;">$<span id="cart-total">0</span><span style="font-size: 18px; opacity: 0.8;">/month</span></div>
+                    <div style="font-size: 14px; opacity: 0.8; margin-top: 8px;"><span id="cart-count">0</span> categories selected</div>
+                </div>
+                <button id="checkout-btn" style="background: white; color: #667eea; padding: 18px 36px; border: none; border-radius: 10px; font-size: 17px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.15); transition: transform 0.2s;">
+                    🛒 Checkout Now
+                </button>
+            </div>
+            <div id="cart-items-list" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 14px;"></div>
+        </div>
+
+        <!-- Manage Existing Subscriptions -->
+        <div style="text-align: center; margin-bottom: 50px;">
+            <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 14px 28px; background: #6c757d; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: background 0.2s;">
+                💳 Manage Existing Subscriptions
+            </a>
+        </div>
+
+        <hr style="margin: 50px 0; border: none; border-top: 2px solid #e0e0e0;">
+
+        <h2>🛠️ Tool Preferences</h2>
+        <p>Choose which tool categories you want visible in Claude Desktop (independent of subscriptions):</p>
 
         <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
             <div style="display: flex; align-items: start; gap: 12px;">
@@ -1867,94 +1916,18 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             <strong>Currently showing: <span id="tool-count">{total_tools}</span> tools</strong>
         </div>
 
-        <!-- Manage Billing Button -->
-        <div style="margin-bottom: 30px; text-align: center;">
-            <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 12px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
-                💳 Manage Billing & Subscriptions
-            </a>
-        </div>
-
         <form id="tool-categories-form">
             <div style="display: grid; gap: 15px;">
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="gmail" {enabled_categories_str.get('gmail', 'checked')}>
-                            <span>📧 <strong>Gmail Tools</strong> (25 tools)</span>
-                            {subscription_badges['gmail']}
+                {''.join([f'''
+                    <label class="category-checkbox" style="display: flex; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer;">
+                        <input type="checkbox" name="{cat}" {enabled_categories_str.get(cat, 'checked')} style="margin-right: 12px; width: 18px; height: 18px;">
+                        <div>
+                            <div><strong>{category_info[cat]["emoji"]} {category_info[cat]["name"]}</strong> ({category_info[cat]["tools"]} tools)</div>
+                            <div style="font-size: 13px; color: #666;">{category_info[cat]["desc"]}</div>
+                            {f'<div style="font-size: 12px; color: #999; margin-top: 4px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] else ''}
                         </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Search, send, manage emails</div>
-                    </div>
-                </label>
-
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="calendar" {enabled_categories_str.get('calendar', 'checked')}>
-                            <span>📅 <strong>Calendar Tools</strong> (15 tools)</span>
-                            {subscription_badges['calendar']}
-                        </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Create events, check availability</div>
-                    </div>
-                </label>
-
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="docs" {enabled_categories_str.get('docs', 'checked')}>
-                            <span>📄 <strong>Google Docs Tools</strong> (8 tools)</span>
-                            {subscription_badges['docs']}
-                        </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Create, read, update documents</div>
-                    </div>
-                </label>
-
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="sheets" {enabled_categories_str.get('sheets', 'checked')}>
-                            <span>📊 <strong>Google Sheets Tools</strong> (12 tools)</span>
-                            {subscription_badges['sheets']}
-                        </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Read, write, manage spreadsheets</div>
-                    </div>
-                </label>
-
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="fathom" {enabled_categories_str.get('fathom', 'checked')}>
-                            <span>🎥 <strong>Fathom Tools</strong> (10 tools)</span>
-                            {subscription_badges['fathom']}
-                        </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Meeting recordings & analytics</div>
-                        <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Fathom API key</div>
-                    </div>
-                </label>
-
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="instantly" {enabled_categories_str.get('instantly', 'checked')}>
-                            <span>📨 <strong>Instantly Tools</strong> (10 tools)</span>
-                            {subscription_badges['instantly']}
-                        </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (Instantly.ai)</div>
-                        <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Instantly API key</div>
-                    </div>
-                </label>
-
-                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" name="bison" {enabled_categories_str.get('bison', 'checked')}>
-                            <span>🦬 <strong>Bison Tools</strong> (4 tools)</span>
-                            {subscription_badges['bison']}
-                        </div>
-                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (EmailBison)</div>
-                        <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Bison API key</div>
-                    </div>
-                </label>
+                    </label>
+                ''' for cat in all_categories])}
             </div>
 
             <button type="submit" style="margin-top: 20px;">💾 Save Tool Preferences</button>
@@ -1986,6 +1959,71 @@ async def dashboard(session_token: Optional[str] = Query(None)):
                 }}, 400);
             }}, 4000);
         }}
+
+        // Shopping Cart Logic
+        const cart = new Set();
+        const cartSummary = document.getElementById('cart-summary');
+        const cartTotal = document.getElementById('cart-total');
+        const cartCount = document.getElementById('cart-count');
+        const cartItemsList = document.getElementById('cart-items-list');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        const categoryNames = {{
+            'gmail': 'Gmail Tools',
+            'calendar': 'Calendar Tools',
+            'docs': 'Google Docs Tools',
+            'sheets': 'Google Sheets Tools',
+            'fathom': 'Fathom Tools',
+            'instantly': 'Instantly Tools',
+            'bison': 'Bison Tools'
+        }};
+
+        function updateCart() {{
+            if (cart.size > 0) {{
+                cartSummary.style.display = 'block';
+                cartTotal.textContent = cart.size * 5;
+                cartCount.textContent = cart.size;
+
+                // Update items list
+                cartItemsList.innerHTML = Array.from(cart).map(cat =>
+                    `• ${{categoryNames[cat]}} - $5/mo`
+                ).join('<br>');
+            }} else {{
+                cartSummary.style.display = 'none';
+            }}
+        }}
+
+        // Add event listeners to subscription checkboxes
+        document.querySelectorAll('.subscription-checkbox').forEach(checkbox => {{
+            checkbox.addEventListener('change', (e) => {{
+                const category = e.target.value;
+                if (e.target.checked) {{
+                    cart.add(category);
+                    e.target.closest('.subscription-item').style.borderColor = '#667eea';
+                    e.target.closest('.subscription-item').style.background = '#f0f4ff';
+                }} else {{
+                    cart.delete(category);
+                    e.target.closest('.subscription-item').style.borderColor = '#ddd';
+                    e.target.closest('.subscription-item').style.background = 'white';
+                }}
+                updateCart();
+            }});
+        }});
+
+        // Checkout button handler
+        checkoutBtn.addEventListener('click', async () => {{
+            if (cart.size === 0) return;
+
+            const categories = Array.from(cart);
+
+            // Redirect to subscribe endpoint with multiple categories
+            const params = new URLSearchParams({{
+                session_token: '{session_token}',
+                categories: categories.join(',')
+            }});
+
+            window.location.href = `/subscribe?${{params.toString()}}`;
+        }});
 
         document.getElementById('api-keys-form').addEventListener('submit', async (e) => {{
             e.preventDefault();
@@ -2179,14 +2217,15 @@ async def update_tool_categories_endpoint(
 
 @app.get("/subscribe")
 async def subscribe_to_category(
-    category: str = Query(..., description="Tool category to subscribe to"),
+    categories: str = Query(..., description="Comma-separated list of tool categories to subscribe to"),
     session_token: Optional[str] = Query(None)
 ):
     """
-    Create Stripe Checkout session for subscribing to a tool category.
+    Create Stripe Checkout session for subscribing to tool categories.
+    Supports multiple categories in shopping cart style.
 
     Args:
-        category: Tool category ('gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison')
+        categories: Comma-separated categories ('gmail,calendar,docs')
         session_token: User's session token
 
     Returns:
@@ -2201,13 +2240,21 @@ async def subscribe_to_category(
     except HTTPException:
         raise HTTPException(401, "Invalid or expired session token")
 
-    # Validate category
+    # Parse and validate categories
     valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
-    if category not in valid_categories:
-        raise HTTPException(400, f"Invalid category. Must be one of: {', '.join(valid_categories)}")
+    category_list = [cat.strip() for cat in categories.split(',') if cat.strip()]
 
-    # Check if already subscribed
-    if server.database.has_active_subscription(ctx.user_id, category):
+    if not category_list:
+        raise HTTPException(400, "No categories provided")
+
+    for cat in category_list:
+        if cat not in valid_categories:
+            raise HTTPException(400, f"Invalid category '{cat}'. Must be one of: {', '.join(valid_categories)}")
+
+    # Filter out already subscribed categories
+    categories_to_subscribe = [cat for cat in category_list if not server.database.has_active_subscription(ctx.user_id, cat)]
+
+    if not categories_to_subscribe:
         return RedirectResponse(
             url=f"/dashboard?session_token={session_token}&error=already_subscribed",
             status_code=303
@@ -2228,36 +2275,40 @@ async def subscribe_to_category(
         stripe_customer_id = customer.id
         logger.info(f"Created Stripe customer {stripe_customer_id} for user {ctx.email}")
 
-    # Get price ID for category
-    try:
-        price_id = server.config.get_stripe_price_id(category)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    # Build line items for all selected categories
+    line_items = []
+    for category in categories_to_subscribe:
+        try:
+            price_id = server.config.get_stripe_price_id(category)
+            line_items.append({
+                'price': price_id,
+                'quantity': 1
+            })
+        except ValueError as e:
+            logger.error(f"Failed to get price ID for {category}: {e}")
+            raise HTTPException(400, str(e))
 
     # Get deployment URL for success/cancel redirects
     deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", "http://localhost:8000"))
     if not deployment_url.startswith("http"):
         deployment_url = f"https://{deployment_url}"
 
-    # Create Checkout session
+    # Create Checkout session with multiple line items
     try:
         checkout_session = stripe.checkout.Session.create(
             customer=stripe_customer_id,
             payment_method_types=['card'],
-            line_items=[{
-                'price': price_id,
-                'quantity': 1
-            }],
+            line_items=line_items,
             mode='subscription',
             success_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_success=true",
             cancel_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_cancelled=true",
             metadata={
                 'user_id': ctx.user_id,
-                'tool_category': category
+                'tool_categories': ','.join(categories_to_subscribe)  # Store all categories
             }
         )
 
-        logger.info(f"Created checkout session for user {ctx.email}, category {category}")
+        logger.info(f"Created checkout session for user {ctx.email}, categories: {', '.join(categories_to_subscribe)}")
 
         # Redirect to Stripe Checkout
         return RedirectResponse(url=checkout_session.url, status_code=303)
