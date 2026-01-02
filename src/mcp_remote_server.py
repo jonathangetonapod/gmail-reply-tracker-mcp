@@ -421,10 +421,10 @@ async def handle_jsonrpc_request(
                     return 'gmail'
                 elif any(x in tool_name_lower for x in ['calendar', 'event', 'availability']):
                     return 'calendar'
-                elif 'doc' in tool_name_lower and 'google' not in tool_name_lower:
-                    return 'docs'
                 elif 'sheet' in tool_name_lower:
                     return 'sheets'
+                elif 'doc' in tool_name_lower:  # Matches google_doc, document, etc.
+                    return 'docs'
                 elif 'fathom' in tool_name_lower:
                     return 'fathom'
                 elif 'bison' in tool_name_lower:
