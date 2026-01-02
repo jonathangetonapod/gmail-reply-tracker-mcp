@@ -1821,35 +1821,20 @@ async def dashboard(session_token: Optional[str] = Query(None)):
         <div id="success-message" class="success"></div>
         <div id="error-message" class="error"></div>
 
-        <h2>API Keys</h2>
-        <p>Add or update your API keys for third-party services:</p>
+        {'<div>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="display: none;">'}
+            <h2>🔑 API Keys</h2>
+            <p>Configure API keys for your subscribed services:</p>
 
-        <form id="api-keys-form">
-            <div class="form-group">
-                <label for="fathom_key">Fathom API Key</label>
-                <input type="text" id="fathom_key" name="fathom_key"
-                       value="{api_keys.get('fathom', '')}"
-                       placeholder="Your Fathom API key">
-            </div>
+            <form id="api-keys-form">
+                {'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="' + api_keys.get('fathom', '') + '" placeholder="Your Fathom API key"></div>' if 'fathom' in active_subscriptions else ''}
+                {'<div class="form-group"><label for="instantly_key">Instantly API Key</label><input type="text" id="instantly_key" name="instantly_key" value="' + api_keys.get('instantly', '') + '" placeholder="Your Instantly.ai API key"></div>' if 'instantly' in active_subscriptions else ''}
+                {'<div class="form-group"><label for="bison_key">Bison API Key</label><input type="text" id="bison_key" name="bison_key" value="' + api_keys.get('bison', '') + '" placeholder="Your EmailBison API key"></div>' if 'bison' in active_subscriptions else ''}
 
-            <div class="form-group">
-                <label for="instantly_key">Instantly API Key</label>
-                <input type="text" id="instantly_key" name="instantly_key"
-                       value="{api_keys.get('instantly', '')}"
-                       placeholder="Your Instantly.ai API key">
-            </div>
+                <button type="submit">💾 Save API Keys</button>
+            </form>
 
-            <div class="form-group">
-                <label for="bison_key">Bison API Key</label>
-                <input type="text" id="bison_key" name="bison_key"
-                       value="{api_keys.get('bison', '')}"
-                       placeholder="Your EmailBison API key">
-            </div>
-
-            <button type="submit">💾 Save API Keys</button>
-        </form>
-
-        <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+            <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+        </div>
 
         <!-- Subscriptions Shopping Cart Section -->
         <h2>💰 Subscriptions & Billing</h2>
@@ -1897,46 +1882,45 @@ async def dashboard(session_token: Optional[str] = Query(None)):
 
         <hr style="margin: 50px 0; border: none; border-top: 2px solid #e0e0e0;">
 
-        <h2>🛠️ Tool Preferences</h2>
-        <p>Choose which tool categories you want visible in Claude Desktop (independent of subscriptions):</p>
+        <h2>📊 Your Active Subscriptions</h2>
+        <p>Tools from subscribed categories appear automatically in Claude Desktop.</p>
 
-        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 18px; border-radius: 8px; margin-bottom: 25px;">
             <div style="display: flex; align-items: start; gap: 12px;">
-                <div style="font-size: 24px;">⚠️</div>
+                <div style="font-size: 28px;">✨</div>
                 <div>
-                    <strong style="color: #856404; font-size: 15px;">Important: Restart Required</strong>
-                    <div style="color: #856404; margin-top: 6px; font-size: 14px;">
-                        After saving tool preferences, you <strong>must restart Claude Desktop</strong> to see changes. This is an MCP protocol limitation.
+                    <strong style="color: #0d47a1; font-size: 16px;">How It Works</strong>
+                    <div style="color: #1565c0; margin-top: 8px; font-size: 14px; line-height: 1.6;">
+                        Subscribe to categories above → Tools appear instantly in Claude Desktop.<br>
+                        Cancel subscription → Tools disappear immediately.<br>
+                        No manual configuration needed!
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="tools-info" style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <strong>Currently showing: <span id="tool-count">{total_tools}</span> tools</strong>
-        </div>
-
-        <form id="tool-categories-form">
-            <div style="display: grid; gap: 15px;">
-                {''.join([f'''
-                    <label class="category-checkbox" style="display: flex; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer;">
-                        <input type="checkbox" name="{cat}" {enabled_categories_str.get(cat, 'checked')} style="margin-right: 12px; width: 18px; height: 18px;">
-                        <div>
-                            <div><strong>{category_info[cat]["emoji"]} {category_info[cat]["name"]}</strong> ({category_info[cat]["tools"]} tools)</div>
-                            <div style="font-size: 13px; color: #666;">{category_info[cat]["desc"]}</div>
-                            {f'<div style="font-size: 12px; color: #999; margin-top: 4px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] else ''}
-                        </div>
-                    </label>
-                ''' for cat in all_categories])}
+        {f'''<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #81c784;">
+            <div style="font-size: 18px; font-weight: 700; color: #2e7d32; margin-bottom: 15px;">✅ Currently Active ({len(active_subscriptions)} {("category" if len(active_subscriptions) == 1 else "categories")})</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                {"".join([f'<div style="background: white; color: #2e7d32; padding: 10px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);"><span style="font-size: 20px;">{category_info[cat]["emoji"]}</span><span>{category_info[cat]["name"]}</span><span style="background: #e8f5e9; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${5}/mo</span></div>' for cat in active_subscriptions])}
             </div>
-
-            <button type="submit" style="margin-top: 20px;">💾 Save Tool Preferences</button>
-        </form>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(46, 125, 50, 0.2); color: #2e7d32; font-size: 15px; font-weight: 600;">
+                Total: ${len(active_subscriptions) * 5}/month
+            </div>
+        </div>''' if active_subscriptions else '<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; color: #666; margin-bottom: 30px;"><div style="font-size: 48px; margin-bottom: 10px;">📭</div><div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">No Active Subscriptions</div><div style="font-size: 14px;">Subscribe to categories above to get started!</div></div>'}
 
         <div class="token-section">
-            <h2>Session Token</h2>
+            <h2>🔑 Session Token</h2>
             <p>Use this token in Claude Desktop to connect to your MCP server:</p>
             <code>{session_token}</code>
+            <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <div style="font-size: 14px; color: #856404; line-height: 1.6;">
+                    <strong>💡 Setup Instructions:</strong><br>
+                    1. Copy the session token above<br>
+                    2. Add to Claude Desktop MCP configuration<br>
+                    3. Restart Claude Desktop to see your tools
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2069,73 +2053,6 @@ async def dashboard(session_token: Optional[str] = Query(None)):
         }});
 
         // Tool categories form handler
-        document.getElementById('tool-categories-form').addEventListener('submit', async (e) => {{
-            e.preventDefault();
-
-            const form = e.target;
-            const formData = new FormData(form);
-            const categories = [];
-
-            // Collect checked categories
-            for (let [key, value] of formData.entries()) {{
-                if (form.elements[key].checked) {{
-                    categories.push(key);
-                }}
-            }}
-
-            const response = await fetch('/dashboard/update-tool-categories?session_token={session_token}', {{
-                method: 'POST',
-                headers: {{'Content-Type': 'application/json'}},
-                body: JSON.stringify({{
-                    categories: categories
-                }})
-            }});
-
-            const successDiv = document.getElementById('success-message');
-            const errorDiv = document.getElementById('error-message');
-
-            if (response.ok) {{
-                const data = await response.json();
-                const successMsg = `✅ Tool preferences saved! Now showing ${{data.tool_count}} tools.`;
-                const reminderMsg = '⚠️ IMPORTANT: You must restart Claude Desktop to see these changes (MCP protocol limitation).';
-
-                // Show prominent toast notification
-                showToast(successMsg + ' ' + reminderMsg);
-
-                // Also show inline message
-                successDiv.innerHTML = `<strong>${{successMsg}}</strong><br><strong style="color: #856404;">${{reminderMsg}}</strong>`;
-                successDiv.style.display = 'block';
-                errorDiv.style.display = 'none';
-
-                // Update tool count display
-                document.getElementById('tool-count').textContent = data.tool_count;
-
-                setTimeout(() => {{ successDiv.style.display = 'none'; }}, 6000);
-            }} else {{
-                const error = await response.json();
-                const errorMsg = '❌ Error: ' + error.detail;
-
-                // Show toast notification
-                showToast(errorMsg, 'error');
-
-                // Also show inline message
-                errorDiv.textContent = errorMsg;
-                errorDiv.style.display = 'block';
-                successDiv.style.display = 'none';
-            }}
-        }});
-
-        // Update tool count dynamically as user checks/unchecks
-        const toolCounts = {{gmail: 25, calendar: 15, docs: 8, sheets: 12, fathom: 10, instantly: 10, bison: 4}};
-        document.querySelectorAll('.category-checkbox input').forEach(checkbox => {{
-            checkbox.addEventListener('change', () => {{
-                let total = 0;
-                document.querySelectorAll('.category-checkbox input:checked').forEach(checked => {{
-                    total += toolCounts[checked.name] || 0;
-                }});
-                document.getElementById('tool-count').textContent = total;
-            }});
-        }});
     </script>
 </body>
 </html>
