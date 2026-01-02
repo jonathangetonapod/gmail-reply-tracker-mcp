@@ -7463,6 +7463,56 @@ async def admin_generate_password(
         raise HTTPException(500, f"Internal server error: {str(e)}")
 
 
+@app.post("/admin/user/{user_id}/clear-enabled-categories")
+async def admin_clear_enabled_categories(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Admin endpoint to clear enabled_tool_categories filter.
+
+    This removes the legacy enabled_tool_categories filter so that
+    only active subscriptions control which tools are visible.
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Get user data
+        result = server.database.supabase.table('users').select('email, enabled_tool_categories').eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(404, "User not found")
+
+        user_data = result.data[0]
+        user_email = user_data['email']
+        old_value = user_data.get('enabled_tool_categories')
+
+        # Clear enabled_tool_categories
+        server.database.supabase.table('users').update({
+            'enabled_tool_categories': None
+        }).eq('user_id', user_id).execute()
+
+        logger.info(f"Admin cleared enabled_tool_categories for user {user_email} (was: {old_value})")
+
+        return JSONResponse({
+            "status": "success",
+            "message": f"Cleared enabled_tool_categories for {user_email}",
+            "previous_value": old_value
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error clearing enabled_tool_categories: {e}")
+        raise HTTPException(500, f"Internal server error: {str(e)}")
+
+
 # ===========================================================================
 # SESSION MANAGEMENT ENDPOINTS
 # ===========================================================================
