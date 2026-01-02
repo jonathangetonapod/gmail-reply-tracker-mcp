@@ -84,21 +84,26 @@ class Database:
                 "email": email
             }
         else:
-            # Create new user
+            # Create new user with 3-day free trial
+            trial_end_date = (datetime.now() + timedelta(days=3)).isoformat()
+
             self.supabase.table('users').insert({
                 'user_id': user_id,
                 'email': email,
                 'encrypted_google_token': encrypted_google_token,
                 'encrypted_api_keys': encrypted_api_keys,
                 'session_token': session_token,
-                'session_expiry': session_expiry
+                'session_expiry': session_expiry,
+                'trial_end_date': trial_end_date,
+                'is_trial_active': True
             }).execute()
 
-            logger.info(f"Created new user: {email}")
+            logger.info(f"Created new user: {email} (3-day trial expires: {trial_end_date})")
             return {
                 "user_id": user_id,
                 "session_token": session_token,
-                "email": email
+                "email": email,
+                "trial_end_date": trial_end_date
             }
 
     def get_user_by_session(self, session_token: str) -> Optional[Dict[str, Any]]:
@@ -776,3 +781,179 @@ class Database:
             user_subs[user_id]['is_paying'] = True
 
         return user_subs
+
+    # ========================================================================
+    # FREE TRIAL & USAGE TRACKING
+    # ========================================================================
+
+    def check_trial_status(self, user_id: str) -> Dict[str, Any]:
+        """
+        Check if user is in trial period and how much time remains.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Dict with trial status info
+        """
+        result = self.supabase.table('users').select('trial_end_date, is_trial_active').eq('user_id', user_id).execute()
+
+        if not result.data:
+            return {'is_trial': False, 'days_remaining': 0, 'expired': True}
+
+        user = result.data[0]
+        trial_end_date = user.get('trial_end_date')
+        is_trial_active = user.get('is_trial_active', False)
+
+        if not trial_end_date or not is_trial_active:
+            return {'is_trial': False, 'days_remaining': 0, 'expired': True}
+
+        # Parse trial end date
+        if isinstance(trial_end_date, str):
+            if '+' in trial_end_date:
+                trial_end_date = trial_end_date.split('+')[0]
+            trial_end = datetime.fromisoformat(trial_end_date)
+        else:
+            trial_end = trial_end_date
+
+        # Calculate time remaining
+        now = datetime.now()
+        time_remaining = trial_end - now
+
+        if time_remaining.total_seconds() <= 0:
+            # Trial expired - mark as inactive
+            self.supabase.table('users').update({
+                'is_trial_active': False
+            }).eq('user_id', user_id).execute()
+
+            return {
+                'is_trial': False,
+                'days_remaining': 0,
+                'hours_remaining': 0,
+                'expired': True,
+                'trial_end_date': trial_end.isoformat()
+            }
+
+        days_remaining = time_remaining.days
+        hours_remaining = int(time_remaining.total_seconds() / 3600)
+
+        return {
+            'is_trial': True,
+            'days_remaining': days_remaining,
+            'hours_remaining': hours_remaining,
+            'expired': False,
+            'trial_end_date': trial_end.isoformat()
+        }
+
+    def get_daily_usage(self, user_id: str) -> int:
+        """
+        Get tool call count for user today.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Number of tool calls made today
+        """
+        result = self.supabase.table('daily_usage').select('tool_calls_count').eq(
+            'user_id', user_id
+        ).eq('usage_date', datetime.now().date().isoformat()).execute()
+
+        if result.data:
+            return result.data[0]['tool_calls_count']
+        return 0
+
+    def increment_usage(self, user_id: str) -> int:
+        """
+        Increment tool call count for user today.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            New tool call count for today
+        """
+        # Use the PostgreSQL function
+        result = self.supabase.rpc('increment_daily_usage', {'p_user_id': user_id}).execute()
+
+        if result.data:
+            return result.data
+
+        # Fallback if function doesn't exist
+        current_count = self.get_daily_usage(user_id)
+        new_count = current_count + 1
+
+        today = datetime.now().date().isoformat()
+
+        if current_count == 0:
+            # Insert new record
+            self.supabase.table('daily_usage').insert({
+                'user_id': user_id,
+                'usage_date': today,
+                'tool_calls_count': 1
+            }).execute()
+        else:
+            # Update existing record
+            self.supabase.table('daily_usage').update({
+                'tool_calls_count': new_count,
+                'updated_at': datetime.now().isoformat()
+            }).eq('user_id', user_id).eq('usage_date', today).execute()
+
+        return new_count
+
+    def can_use_tool(self, user_id: str, tool_category: str) -> Dict[str, Any]:
+        """
+        Check if user can use a tool (trial or paid subscription).
+
+        Args:
+            user_id: User ID
+            tool_category: Category of the tool (gmail, calendar, etc.)
+
+        Returns:
+            Dict with permission status and reason
+        """
+        # Check if in trial
+        trial_status = self.check_trial_status(user_id)
+
+        if trial_status['is_trial']:
+            # In trial - check daily limit (10 calls/day for free tier after trial)
+            daily_usage = self.get_daily_usage(user_id)
+
+            return {
+                'allowed': True,
+                'reason': 'trial',
+                'trial_days_remaining': trial_status['days_remaining'],
+                'daily_usage': daily_usage
+            }
+
+        # Not in trial - check for active subscription
+        has_subscription = self.has_active_subscription(user_id, tool_category)
+
+        if has_subscription:
+            return {
+                'allowed': True,
+                'reason': 'subscription',
+                'daily_usage': self.get_daily_usage(user_id)
+            }
+
+        # No trial, no subscription - check free tier limit
+        daily_usage = self.get_daily_usage(user_id)
+        FREE_TIER_DAILY_LIMIT = 10
+
+        if daily_usage < FREE_TIER_DAILY_LIMIT:
+            return {
+                'allowed': True,
+                'reason': 'free_tier',
+                'daily_usage': daily_usage,
+                'daily_limit': FREE_TIER_DAILY_LIMIT,
+                'remaining': FREE_TIER_DAILY_LIMIT - daily_usage
+            }
+
+        # Exceeded free tier limit
+        return {
+            'allowed': False,
+            'reason': 'limit_exceeded',
+            'daily_usage': daily_usage,
+            'daily_limit': FREE_TIER_DAILY_LIMIT,
+            'message': f'Free tier limit exceeded ({daily_usage}/{FREE_TIER_DAILY_LIMIT} calls today). Upgrade to continue.'
+        }

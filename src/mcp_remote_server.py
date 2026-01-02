@@ -488,6 +488,56 @@ async def handle_jsonrpc_request(
             try:
                 # If multi-tenant context provided, use per-user clients
                 if ctx:
+                    # Determine tool category
+                    def get_tool_category(tool_name):
+                        """Determine which category a tool belongs to based on its name."""
+                        tool_name_lower = tool_name.lower()
+                        if any(x in tool_name_lower for x in ['email', 'gmail', 'label', 'draft', 'send', 'search']):
+                            return 'gmail'
+                        elif any(x in tool_name_lower for x in ['calendar', 'event', 'availability']):
+                            return 'calendar'
+                        elif 'doc' in tool_name_lower and 'google' not in tool_name_lower:
+                            return 'docs'
+                        elif 'sheet' in tool_name_lower:
+                            return 'sheets'
+                        elif 'fathom' in tool_name_lower:
+                            return 'fathom'
+                        elif 'bison' in tool_name_lower:
+                            return 'bison'
+                        elif 'instantly' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
+                            return 'instantly'
+                        return 'general'  # Default category
+
+                    tool_category = get_tool_category(tool_name)
+
+                    # Check usage limits and permissions
+                    if hasattr(server, 'database') and server.database:
+                        permission = server.database.can_use_tool(ctx.user_id, tool_category)
+
+                        if not permission['allowed']:
+                            # Return error with upgrade prompt
+                            return {
+                                "jsonrpc": "2.0",
+                                "id": request_id,
+                                "error": {
+                                    "code": -32000,
+                                    "message": permission['message'],
+                                    "data": {
+                                        "reason": permission['reason'],
+                                        "daily_usage": permission['daily_usage'],
+                                        "daily_limit": permission['daily_limit'],
+                                        "upgrade_url": f"/dashboard?session_token={ctx.session_token}"
+                                    }
+                                }
+                            }
+
+                        # Increment usage counter
+                        try:
+                            new_count = server.database.increment_usage(ctx.user_id)
+                            logger.info(f"User {ctx.email} usage: {new_count} calls today (reason: {permission['reason']})")
+                        except Exception as e:
+                            logger.warning(f"Failed to increment usage: {e}")
+
                     # Execute with user-specific clients
                     response = await execute_tool_with_context(
                         tool_name=tool_name,
@@ -767,7 +817,8 @@ async def root():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Email Assistant for Claude - Supercharge Your Productivity</title>
+    <title>84 AI Tools for Claude Desktop - Gmail, Calendar, Docs & More</title>
+    <meta name="description" content="Access 84 powerful tools directly in Claude Desktop. Manage Gmail, Google Calendar, Docs, Sheets, Fathom, Instantly, and more. 3-day free trial.">
     <style>
         * {
             margin: 0;
@@ -778,22 +829,21 @@ async def root():
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #1a202c;
+            background: #ffffff;
         }
 
+        /* Hero Section */
         .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            padding: 80px 20px 60px;
+            text-align: center;
         }
 
         .hero-content {
-            max-width: 800px;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         h1 {
@@ -805,9 +855,20 @@ async def root():
 
         .subtitle {
             font-size: 1.5rem;
-            margin-bottom: 40px;
+            margin-bottom: 15px;
             opacity: 0.95;
             font-weight: 400;
+        }
+
+        .trial-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.25);
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
         .cta-button {
@@ -828,61 +889,255 @@ async def root():
             box-shadow: 0 15px 40px rgba(0,0,0,0.3);
         }
 
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-top: 80px;
-            text-align: left;
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 20px;
         }
 
-        .feature {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 30px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* Section Headers */
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
         }
 
-        .feature-icon {
-            font-size: 3rem;
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
             margin-bottom: 15px;
+            color: #1a202c;
         }
 
-        .feature h3 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+        .section-header p {
+            font-size: 1.2rem;
+            color: #718096;
         }
 
-        .feature p {
-            opacity: 0.9;
-            font-size: 1.1rem;
+        /* Tool Categories */
+        .tool-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 80px;
         }
 
-        .pricing {
-            margin-top: 60px;
-            padding: 30px;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        .category-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 35px;
+            transition: all 0.3s;
         }
 
-        .pricing h2 {
-            font-size: 2rem;
+        .category-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+        }
+
+        .category-icon {
+            font-size: 3rem;
             margin-bottom: 20px;
         }
 
-        .pricing-details {
-            font-size: 1.2rem;
-            opacity: 0.95;
+        .category-card h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #1a202c;
+        }
+
+        .tool-count {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .tool-list {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .tool-list li {
+            padding: 8px 0;
+            color: #4a5568;
+            font-size: 0.95rem;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .tool-list li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        .category-price {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 20px;
+        }
+
+        /* How It Works */
+        .how-it-works {
+            background: #f7fafc;
+            padding: 80px 20px;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .step {
+            text-align: center;
+        }
+
+        .step-number {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 auto 20px;
+        }
+
+        .step h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #1a202c;
+        }
+
+        .step p {
+            color: #718096;
+            font-size: 1rem;
+        }
+
+        /* Pricing */
+        .pricing-section {
+            background: white;
+            padding: 80px 20px;
+        }
+
+        .pricing-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .pricing-card.featured {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .plan-price {
+            font-size: 3rem;
+            font-weight: 800;
             margin-bottom: 10px;
         }
 
-        .pricing-note {
+        .plan-period {
             font-size: 1rem;
-            opacity: 0.8;
-            margin-top: 15px;
+            opacity: 0.7;
+            margin-bottom: 30px;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .plan-features li {
+            padding: 10px 0;
+            font-size: 0.95rem;
+        }
+
+        .plan-features li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        .pricing-card.featured .plan-features li:before {
+            color: white;
+        }
+
+        .plan-button {
+            display: inline-block;
+            padding: 15px 40px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .plan-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .pricing-card.featured .plan-button {
+            background: white;
+            color: #667eea;
+        }
+
+        /* Footer CTA */
+        .footer-cta {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .footer-cta h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .footer-cta p {
+            font-size: 1.3rem;
+            margin-bottom: 40px;
+            opacity: 0.95;
         }
 
         @media (max-width: 768px) {
@@ -894,55 +1149,238 @@ async def root():
                 font-size: 1.2rem;
             }
 
-            .features {
+            .tool-categories {
                 grid-template-columns: 1fr;
+            }
+
+            .steps {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.featured {
+                transform: scale(1);
             }
         }
     </style>
 </head>
 <body>
+    <!-- Hero Section -->
     <div class="hero">
         <div class="hero-content">
-            <h1>AI Email Assistant for Claude</h1>
-            <p class="subtitle">Manage Gmail, Calendar, Docs & Sheets directly from Claude Desktop. No switching tabs. No context loss.</p>
+            <h1>84 AI Tools for Claude Desktop</h1>
+            <p class="subtitle">Access Gmail, Google Calendar, Docs, Sheets, Fathom, Instantly & more—all without leaving Claude.</p>
+            <div class="trial-badge">🎉 3-Day Free Trial • No Credit Card Required</div>
+            <a href="/setup/start" class="cta-button">Start Free Trial →</a>
+        </div>
+    </div>
 
-            <a href="/setup/start" class="cta-button">Get Started Free →</a>
+    <!-- Tool Categories Section -->
+    <div class="container">
+        <div class="section-header">
+            <h2>All 84 Tools, Organized by Category</h2>
+            <p>Pick and choose the categories you need. Only pay for what you use.</p>
+        </div>
 
-            <div class="features">
-                <div class="feature">
-                    <div class="feature-icon">📧</div>
-                    <h3>Smart Email Management</h3>
-                    <p>Search, read, send, and organize emails with AI. Never miss an important message.</p>
-                </div>
-
-                <div class="feature">
-                    <div class="feature-icon">📅</div>
-                    <h3>Calendar Automation</h3>
-                    <p>Schedule meetings, check availability, and manage your calendar without leaving Claude.</p>
-                </div>
-
-                <div class="feature">
-                    <div class="feature-icon">📄</div>
-                    <h3>Document Creation</h3>
-                    <p>Create and edit Google Docs & Sheets. Perfect for reports, proposals, and data analysis.</p>
-                </div>
+        <div class="tool-categories">
+            <!-- Gmail Tools -->
+            <div class="category-card">
+                <div class="category-icon">📧</div>
+                <h3>Gmail Tools</h3>
+                <div class="tool-count">25 tools included</div>
+                <ul class="tool-list">
+                    <li>Search emails with advanced filters</li>
+                    <li>Read, send, and reply to messages</li>
+                    <li>Manage labels and organize inbox</li>
+                    <li>Mark as read/unread, archive, delete</li>
+                    <li>Extract attachments and metadata</li>
+                    <li>Bulk operations and email analysis</li>
+                </ul>
+                <div class="category-price">$5/month</div>
             </div>
 
-            <div class="pricing">
-                <h2>Simple, Pay-As-You-Go Pricing</h2>
-                <div class="pricing-details">
-                    <strong>$5/month per category</strong><br>
-                    Subscribe only to what you need:<br>
-                    • Gmail Tools (25 tools)<br>
-                    • Calendar Tools (15 tools)<br>
-                    • Google Docs Tools (8 tools)<br>
-                    • Google Sheets Tools (12 tools)<br>
-                    • Fathom Meeting Tools (10 tools)<br>
-                    • Email Campaign Tools (14 tools)
-                </div>
-                <p class="pricing-note">Cancel anytime. No contracts. No surprises.</p>
+            <!-- Calendar Tools -->
+            <div class="category-card">
+                <div class="category-icon">📅</div>
+                <h3>Google Calendar</h3>
+                <div class="tool-count">15 tools included</div>
+                <ul class="tool-list">
+                    <li>Create and schedule events</li>
+                    <li>Check availability and find meeting times</li>
+                    <li>Update and delete events</li>
+                    <li>Manage attendees and invitations</li>
+                    <li>Set reminders and notifications</li>
+                    <li>List upcoming events and agendas</li>
+                </ul>
+                <div class="category-price">$5/month</div>
+            </div>
+
+            <!-- Google Docs -->
+            <div class="category-card">
+                <div class="category-icon">📄</div>
+                <h3>Google Docs</h3>
+                <div class="tool-count">8 tools included</div>
+                <ul class="tool-list">
+                    <li>Create and edit documents</li>
+                    <li>Read and extract document content</li>
+                    <li>Format text and paragraphs</li>
+                    <li>Insert images and tables</li>
+                    <li>Share and manage permissions</li>
+                    <li>Export to PDF and other formats</li>
+                </ul>
+                <div class="category-price">$5/month</div>
+            </div>
+
+            <!-- Google Sheets -->
+            <div class="category-card">
+                <div class="category-icon">📊</div>
+                <h3>Google Sheets</h3>
+                <div class="tool-count">12 tools included</div>
+                <ul class="tool-list">
+                    <li>Read and write cell data</li>
+                    <li>Create formulas and calculations</li>
+                    <li>Format cells and ranges</li>
+                    <li>Add charts and visualizations</li>
+                    <li>Filter and sort data</li>
+                    <li>Move, copy, and delete rows/columns</li>
+                </ul>
+                <div class="category-price">$5/month</div>
+            </div>
+
+            <!-- Fathom Tools -->
+            <div class="category-card">
+                <div class="category-icon">🎙️</div>
+                <h3>Fathom Meetings</h3>
+                <div class="tool-count">10 tools included</div>
+                <ul class="tool-list">
+                    <li>Access meeting recordings</li>
+                    <li>Read AI-generated transcripts</li>
+                    <li>Extract key points and action items</li>
+                    <li>Search across all meetings</li>
+                    <li>Get meeting summaries</li>
+                    <li>Analyze conversation insights</li>
+                </ul>
+                <div class="category-price">$5/month</div>
+            </div>
+
+            <!-- Instantly Tools -->
+            <div class="category-card">
+                <div class="category-icon">✉️</div>
+                <h3>Instantly Campaigns</h3>
+                <div class="tool-count">10 tools included</div>
+                <ul class="tool-list">
+                    <li>Manage email campaigns</li>
+                    <li>Track lead status and engagement</li>
+                    <li>Add and remove leads</li>
+                    <li>Update campaign settings</li>
+                    <li>View analytics and performance</li>
+                    <li>Automate follow-up sequences</li>
+                </ul>
+                <div class="category-price">$5/month</div>
+            </div>
+
+            <!-- Bison Tools -->
+            <div class="category-card">
+                <div class="category-icon">🔍</div>
+                <h3>Bison Analysis</h3>
+                <div class="tool-count">4 tools included</div>
+                <ul class="tool-list">
+                    <li>Advanced data analysis</li>
+                    <li>Pattern recognition</li>
+                    <li>Predictive modeling</li>
+                    <li>Custom insights generation</li>
+                </ul>
+                <div class="category-price">$5/month</div>
             </div>
         </div>
+    </div>
+
+    <!-- How It Works -->
+    <div class="how-it-works">
+        <div class="section-header">
+            <h2>How It Works</h2>
+            <p>Get started in less than 3 minutes</p>
+        </div>
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Sign Up Free</h3>
+                <p>Connect your Google account with one click. No credit card required for the 3-day trial.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Choose Categories</h3>
+                <p>Select which tool categories you want. Start with everything free for 3 days.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Connect to Claude</h3>
+                <p>Add the server URL to Claude Desktop. Copy-paste setup takes 30 seconds.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <h3>Start Using Tools</h3>
+                <p>Ask Claude to check your email, schedule meetings, or create docs. It just works.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="pricing-section">
+        <div class="section-header">
+            <h2>Simple, Transparent Pricing</h2>
+            <p>Only pay for the categories you need. Cancel anytime.</p>
+        </div>
+        <div class="pricing-cards">
+            <div class="pricing-card">
+                <div class="plan-name">Free Trial</div>
+                <div class="plan-price">$0</div>
+                <div class="plan-period">First 3 days</div>
+                <ul class="plan-features">
+                    <li>All 84 tools unlocked</li>
+                    <li>All 7 categories included</li>
+                    <li>No credit card required</li>
+                    <li>Full access to test everything</li>
+                </ul>
+                <a href="/setup/start" class="plan-button">Start Free Trial</a>
+            </div>
+
+            <div class="pricing-card featured">
+                <div class="plan-name">Pay-As-You-Go</div>
+                <div class="plan-price">$5</div>
+                <div class="plan-period">per category/month</div>
+                <ul class="plan-features">
+                    <li>Subscribe to 1+ categories</li>
+                    <li>Unlimited tool usage</li>
+                    <li>Cancel anytime</li>
+                    <li>No contracts or commitments</li>
+                </ul>
+                <a href="/setup/start" class="plan-button">Get Started</a>
+            </div>
+
+            <div class="pricing-card">
+                <div class="plan-name">Full Access</div>
+                <div class="plan-price">$35</div>
+                <div class="plan-period">per month</div>
+                <ul class="plan-features">
+                    <li>All 84 tools included</li>
+                    <li>All 7 categories unlocked</li>
+                    <li>Best value for power users</li>
+                    <li>Everything you need</li>
+                </ul>
+                <a href="/setup/start" class="plan-button">Start Free Trial</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer CTA -->
+    <div class="footer-cta">
+        <h2>Ready to supercharge Claude Desktop?</h2>
+        <p>Start your 3-day free trial. No credit card required.</p>
+        <a href="/setup/start" class="cta-button">Start Free Trial →</a>
     </div>
 </body>
 </html>

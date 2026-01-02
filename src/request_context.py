@@ -40,6 +40,7 @@ class RequestContext:
     api_keys: dict  # Store all API keys for tools that need them
     enabled_tool_categories: Optional[list]  # List of enabled tool categories or None for all
     active_subscriptions: list  # List of tool categories with active subscriptions
+    session_token: str  # For generating dashboard links
 
 
 async def create_request_context(
@@ -193,5 +194,6 @@ async def create_request_context(
         fathom_client=fathom_client,
         api_keys=api_keys,  # Store all API keys for tools that need them
         enabled_tool_categories=user.get('enabled_tool_categories'),  # None = all tools, [...] = filter
-        active_subscriptions=active_subscriptions  # List of categories with active subscriptions
+        active_subscriptions=active_subscriptions,  # List of categories with active subscriptions
+        session_token=session_token  # For generating dashboard links
     )
