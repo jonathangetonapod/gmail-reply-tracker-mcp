@@ -20,7 +20,7 @@ import inspect
 import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 from uuid import uuid4
 
@@ -2282,7 +2282,17 @@ async def stripe_webhook(request: Request):
             return JSONResponse({"status": "error", "message": "Missing required fields"})
 
         # Retrieve the subscription to get period info
-        subscription = stripe.Subscription.retrieve(subscription_id)
+        try:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+
+            # Use bracket notation for safer access to Stripe object attributes
+            current_period_start = datetime.fromtimestamp(subscription['current_period_start'])
+            current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+        except Exception as e:
+            logger.error(f"Failed to retrieve subscription {subscription_id}: {e}")
+            # Use current time as fallback
+            current_period_start = datetime.now()
+            current_period_end = datetime.now() + timedelta(days=30)
 
         # Parse comma-separated categories and create subscription for each
         categories = [cat.strip() for cat in tool_categories.split(',')]
@@ -2295,8 +2305,8 @@ async def stripe_webhook(request: Request):
                 stripe_customer_id=customer_id,
                 stripe_subscription_id=subscription_id,
                 status='active',
-                current_period_start=datetime.fromtimestamp(subscription.current_period_start),
-                current_period_end=datetime.fromtimestamp(subscription.current_period_end)
+                current_period_start=current_period_start,
+                current_period_end=current_period_end
             )
             logger.info(f"Created subscription for user {user_id}, category {category}")
 
