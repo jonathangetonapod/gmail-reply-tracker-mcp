@@ -1484,8 +1484,12 @@ async def setup_callback(
 # ===========================================================================
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(session_token: Optional[str] = Query(None)):
-    """Admin dashboard for managing API keys."""
+async def dashboard(
+    session_token: Optional[str] = Query(None),
+    welcome: Optional[str] = Query(None),
+    subscription_success: Optional[str] = Query(None)
+):
+    """Admin dashboard for managing API keys and subscriptions."""
     if not session_token:
         return HTMLResponse("""
 <!DOCTYPE html>
@@ -1782,6 +1786,40 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             <strong>Logged in as:</strong> {ctx.email}<br>
             <strong>User ID:</strong> {ctx.user_id}
         </div>
+
+        <!-- Welcome/Success Banners -->
+        {f'''
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
+            <div style="font-size: 32px; margin-bottom: 10px;">👋</div>
+            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome to Your AI Email Assistant!</h2>
+            <p style="margin: 0; font-size: 16px; opacity: 0.95;">Subscribe to tool categories below to supercharge Claude with Gmail, Calendar, Docs & Sheets.</p>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">💡 After subscribing, we'll show you how to connect to Claude Desktop.</p>
+        </div>
+        ''' if welcome == 'true' else ''}
+        
+        {f'''
+        <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
+            <div style="font-size: 32px; margin-bottom: 10px;">🎉</div>
+            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Subscription Successful!</h2>
+            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95;">Your tools are now active! Here's how to use them in Claude Desktop:</p>
+            <ol style="margin: 0; padding-left: 20px; font-size: 14px; opacity: 0.95; line-height: 1.8;">
+                <li>Open Claude Desktop app</li>
+                <li>Go to Settings → Developer → Edit Config</li>
+                <li>Add this configuration:
+                    <pre style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; overflow-x: auto; margin: 10px 0; font-size: 12px;">{{
+  "mcpServers": {{
+    "gmail-tools": {{
+      "url": "https://{request.url.hostname}/mcp?session_token={session_token}"
+    }}
+  }}
+}}</pre>
+                </li>
+                <li>Restart Claude Desktop</li>
+                <li>Start a new chat and ask Claude to check your emails!</li>
+            </ol>
+            <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-size: 14px;">Got it! ✓</button>
+        </div>
+        ''' if subscription_success == 'true' else ''}
 
         <div id="success-message" class="success"></div>
         <div id="error-message" class="error"></div>
@@ -2297,11 +2335,21 @@ async def stripe_webhook(request: Request):
 
         our_status = status_map.get(status, 'cancelled')
 
+        # Safely extract period dates with bracket notation
+        try:
+            current_period_start = datetime.fromtimestamp(subscription['current_period_start'])
+            current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+        except (KeyError, TypeError) as e:
+            logger.warning(f"Could not extract period dates from subscription {subscription_id}: {e}")
+            # Use current time as fallback
+            current_period_start = datetime.now()
+            current_period_end = datetime.now() + timedelta(days=30)
+
         server.database.update_subscription_status(
             stripe_subscription_id=subscription_id,
             status=our_status,
-            current_period_start=datetime.fromtimestamp(subscription.current_period_start),
-            current_period_end=datetime.fromtimestamp(subscription.current_period_end)
+            current_period_start=current_period_start,
+            current_period_end=current_period_end
         )
 
         logger.info(f"Updated subscription {subscription_id} to status {our_status}")
