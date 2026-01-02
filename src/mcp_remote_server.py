@@ -10037,7 +10037,7 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             }}
 
             try {{
-                const response = await fetch(`/admin/grant-team?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                const response = await fetch(`/admin/grant-team?session_token={user_data['session_token']}&admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
                     body: JSON.stringify({{
