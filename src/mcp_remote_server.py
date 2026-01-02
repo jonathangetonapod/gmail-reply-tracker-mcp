@@ -5316,13 +5316,11 @@ async def dashboard(
             // Update category items availability
             document.querySelectorAll('.subscription-item').forEach(item => {{
                 const category = item.dataset.category;
-                const checkbox = item.querySelector('.subscription-checkbox');
                 const statusDiv = item.querySelector('.subscription-status');
+                const wasInCart = cart.has(category);
 
                 if (existingSubscriptions.includes(category)) {{
-                    // Already subscribed
-                    checkbox.checked = false;
-                    checkbox.disabled = true;
+                    // Already subscribed - show as disabled
                     item.style.cursor = 'not-allowed';
                     item.style.opacity = '0.6';
                     item.style.borderColor = '#10b981';
@@ -5332,13 +5330,12 @@ async def dashboard(
                     // Remove from cart if it was selected
                     cart.delete(category);
                 }} else {{
-                    // Available for subscription
-                    checkbox.disabled = false;
+                    // Available for subscription - show checkbox
                     item.style.cursor = 'pointer';
                     item.style.opacity = '1';
-                    item.style.borderColor = checkbox.checked ? '#667eea' : '#e2e8f0';
+                    item.style.borderColor = wasInCart ? '#667eea' : '#e2e8f0';
                     item.style.background = 'white';
-                    statusDiv.innerHTML = '<input type="checkbox" name="subscribe-' + category + '" value="' + category + '" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;"' + (checkbox.checked ? ' checked' : '') + '>';
+                    statusDiv.innerHTML = '<input type="checkbox" name="subscribe-' + category + '" value="' + category + '" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;"' + (wasInCart ? ' checked' : '') + '>';
 
                     // Re-attach event listener to new checkbox
                     const newCheckbox = statusDiv.querySelector('.subscription-checkbox');
