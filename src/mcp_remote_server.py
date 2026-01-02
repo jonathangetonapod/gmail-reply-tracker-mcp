@@ -4942,6 +4942,49 @@ async def stripe_webhook(request: Request):
 
         logger.info(f"Cancelled subscription {subscription_id}")
 
+    elif event_type == 'invoice.paid':
+        # Invoice paid - activate subscription (important for send_invoice subscriptions)
+        invoice = data
+        subscription_id = invoice.get('subscription')
+
+        if subscription_id:
+            logger.info(f"Invoice paid for subscription {subscription_id} - ensuring active status")
+
+            # Retrieve full subscription from Stripe
+            try:
+                subscription = stripe.Subscription.retrieve(subscription_id)
+
+                # Extract period dates
+                current_period_start = datetime.fromtimestamp(subscription['current_period_start'])
+                current_period_end = datetime.fromtimestamp(subscription['current_period_end'])
+
+                # Update subscription to active status
+                server.database.update_subscription_status(
+                    stripe_subscription_id=subscription_id,
+                    status='active',
+                    current_period_start=current_period_start,
+                    current_period_end=current_period_end
+                )
+
+                logger.info(f"Activated subscription {subscription_id} after invoice payment")
+            except Exception as e:
+                logger.error(f"Failed to activate subscription {subscription_id} after invoice payment: {e}")
+
+    elif event_type == 'invoice.payment_failed':
+        # Invoice payment failed - mark subscription as past_due
+        invoice = data
+        subscription_id = invoice.get('subscription')
+
+        if subscription_id:
+            logger.warning(f"Invoice payment failed for subscription {subscription_id}")
+
+            server.database.update_subscription_status(
+                stripe_subscription_id=subscription_id,
+                status='past_due'
+            )
+
+            logger.info(f"Marked subscription {subscription_id} as past_due after payment failure")
+
     return JSONResponse({"status": "success"})
 
 
@@ -6674,13 +6717,17 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                         // Show invoice link with copy button
                         messageDiv.innerHTML = `
                             <div style="margin-bottom: 12px;">✓ Added ${{categories.length}} subscription${{categories.length > 1 ? 's' : ''}} successfully!</div>
+                            <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; border-radius: 6px; margin: 12px 0; color: #856404;">
+                                <div style="font-weight: 600; margin-bottom: 4px;">⚠️ Tools are LOCKED until payment</div>
+                                <div style="font-size: 13px;">User must pay the invoice before they can access these tools.</div>
+                            </div>
                             <div style="background: hsl(var(--muted) / 0.3); padding: 12px; border-radius: 6px; margin-top: 8px;">
                                 <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">📧 Invoice Link ($$${{categories.length * 5}}/month):</div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <input type="text" value="${{result.invoice_link}}" readonly style="flex: 1; padding: 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; font-size: 12px; font-family: monospace;">
                                     <button onclick="copyInvoiceLink('${{result.invoice_link}}')" style="padding: 8px 16px; background: hsl(var(--primary)); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; white-space: nowrap;">📋 Copy</button>
                                 </div>
-                                <div style="font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 8px;">Share this link with the user to pay their invoice</div>
+                                <div style="font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 8px;">Share this link with the user to pay their invoice (30 days to pay)</div>
                             </div>
                         `;
                         messageDiv.style.background = 'hsl(var(--success) / 0.1)';
@@ -6903,11 +6950,13 @@ async def admin_add_batch_subscriptions(
                 raise HTTPException(400, f"No Stripe price configured for {cat}: {str(e)}")
 
         # Create ONE Stripe subscription with multiple line items
+        # payment_behavior='default_incomplete' keeps subscription inactive until invoice is paid
         stripe_subscription = stripe.Subscription.create(
             customer=stripe_customer_id,
             items=line_items,
             collection_method='send_invoice',
             days_until_due=30,
+            payment_behavior='default_incomplete',  # Tools locked until payment received
             metadata={
                 'user_id': user_id,
                 'categories': ','.join(categories_to_add),
@@ -6960,7 +7009,7 @@ async def admin_add_batch_subscriptions(
             "is_free": False,
             "invoice_link": invoice_link,
             "total_monthly": len(categories_to_add) * 5,
-            "note": f"One invoice will be sent for all {len(categories_to_add)} categories - payment due within 30 days"
+            "note": f"⚠️ Tools are LOCKED until invoice is paid. One invoice sent for all {len(categories_to_add)} categories - payment due within 30 days."
         })
 
     except HTTPException:
@@ -7099,11 +7148,13 @@ async def admin_toggle_subscription(
             # Create real Stripe subscription with invoice billing
             # This allows creating subscriptions without payment method on file
             # Stripe will email the user an invoice to pay
+            # payment_behavior='default_incomplete' keeps subscription inactive until invoice is paid
             stripe_subscription = stripe.Subscription.create(
                 customer=stripe_customer_id,
                 items=[{'price': price_id}],
                 collection_method='send_invoice',  # Invoice billing - no card required upfront
                 days_until_due=30,  # User has 30 days to pay invoice
+                payment_behavior='default_incomplete',  # Tools locked until payment received
                 metadata={
                     'user_id': user_id,
                     'tool_category': category,
@@ -7154,7 +7205,7 @@ async def admin_toggle_subscription(
                 "stripe_status": stripe_subscription.status,
                 "is_free": False,
                 "invoice_link": invoice_link,
-                "note": "Stripe will email an invoice to the user - payment due within 30 days"
+                "note": "⚠️ Tools are LOCKED until invoice is paid. Invoice sent to user - payment due within 30 days."
             })
 
         elif action == 'remove':
