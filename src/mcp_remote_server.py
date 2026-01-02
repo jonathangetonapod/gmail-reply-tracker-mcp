@@ -6413,17 +6413,6 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 </div>''' if subscription_info['stripe_customer_id'] else ''}
             </div>
 
-            {f'''<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px; display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 20px;">🔒</span>
-                <div style="flex: 1;">
-                    <strong style="color: #856404; font-size: 14px;">Payment Required:</strong>
-                    <span style="color: #856404; font-size: 14px; margin-left: 8px;">
-                        {"".join([f'<span style="background: #856404; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-right: 6px;">{cat.title()}</span>' for cat in subscription_info['incomplete_categories']])}
-                        awaiting payment
-                    </span>
-                </div>
-            </div>''' if subscription_info.get('incomplete_categories') else ''}
-
             <div class="card">
                 <h2><span>⚙️</span> Manage Subscriptions</h2>
                 <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 16px;">Add or remove tool categories for this user</p>
@@ -6444,6 +6433,10 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                     ''' for cat in ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']])}
                 </div>
                 <div id="subscription-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
+
+                {f'''<div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px 12px; margin-top: 16px; border-radius: 4px; font-size: 13px;">
+                    <span style="color: #856404;">🔒 <strong>Awaiting payment:</strong> {"".join([f'<span style="background: #856404; color: white; padding: 1px 6px; border-radius: 8px; font-size: 11px; font-weight: 600; margin: 0 4px;">{cat.title()}</span>' for cat in subscription_info['incomplete_categories']])}</span>
+                </div>''' if subscription_info.get('incomplete_categories') else ''}
             </div>
 
             <div class="card">
