@@ -5892,7 +5892,7 @@ async def team_settings_page(
         </div>
 
         <!-- Add New Member -->
-        {'<div class="section"><h2><span>➕</span> Add Team Member</h2><p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Add a member directly - account will be created with a generated password and emailed to them</p><form class="add-member-form" onsubmit="addMember(event)"><div style="display: flex; gap: 12px; align-items: end;"><div style="flex: 1;"><input type="email" id="add-member-email" placeholder="Enter email address" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"></div><div><select id="add-member-role" required style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;"><option value="member">Member</option><option value="admin">Admin</option></select></div><div><button type="submit" class="btn btn-primary" style="padding: 10px 20px; white-space: nowrap;">Add Member</button></div></div></form></div>' if is_admin else ''}
+        {'<div class="section"><h2><span>➕</span> Add Team Member</h2><p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Add a member directly - account will be created if needed</p><form class="add-member-form" onsubmit="addMember(event)"><div style="display: flex; flex-direction: column; gap: 16px;"><div style="display: flex; gap: 12px;"><div style="flex: 1;"><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Email Address</label><input type="email" id="add-member-email" placeholder="member@example.com" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"></div><div style="min-width: 140px;"><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Role</label><select id="add-member-role" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;"><option value="member">Member</option><option value="admin">Admin</option></select></div></div><div><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Password</label><div style="display: flex; gap: 16px; margin-bottom: 12px;"><label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="password-method" value="auto" checked onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;"><span style="font-size: 14px; color: #374151;">Auto-generate password</span></label><label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="password-method" value="manual" onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;"><span style="font-size: 14px; color: #374151;">Set password manually</span></label></div><div id="manual-password-container" style="display: none;"><input type="password" id="add-member-password" placeholder="Enter password (min 8 characters)" minlength="8" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"><p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Password will be emailed to the user</p></div></div><div><button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Add Member</button></div></div></form></div>' if is_admin else ''}
 
         <!-- Pending Invitations -->
         {'<div class="section"><h2><span>⏳</span> Pending Invitations</h2>' + ('<div class="invitation-list">' + ''.join(['<div class="invitation-item"><div class="member-info"><div class="member-avatar">' + inv["email"][0].upper() + '</div><div class="member-details"><div class="member-email">' + inv["email"] + '</div><div class="member-role">Invited ' + inv["created_at"][:10] + ' • Expires ' + inv["expires_at"][:10] + '</div></div></div><button onclick="cancelInvitation(&apos;' + inv["invitation_id"] + '&apos;, &apos;' + inv["email"] + '&apos;)" class="btn btn-danger">Cancel</button></div>' for inv in invitations]) + '</div>' if invitations else '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No pending invitations</p></div>') + '</div>' if is_admin else ''}
@@ -5940,11 +5940,38 @@ async def team_settings_page(
             }}
         }}
 
+        function togglePasswordMethod() {{
+            const passwordMethod = document.querySelector('input[name="password-method"]:checked').value;
+            const manualPasswordContainer = document.getElementById('manual-password-container');
+            const passwordInput = document.getElementById('add-member-password');
+
+            if (passwordMethod === 'manual') {{
+                manualPasswordContainer.style.display = 'block';
+                passwordInput.required = true;
+            }} else {{
+                manualPasswordContainer.style.display = 'none';
+                passwordInput.required = false;
+                passwordInput.value = '';
+            }}
+        }}
+
         async function addMember(event) {{
             event.preventDefault();
             const email = document.getElementById('add-member-email').value;
             const role = document.getElementById('add-member-role').value;
+            const passwordMethod = document.querySelector('input[name="password-method"]:checked').value;
             const sessionToken = '{session_token}';
+
+            // Build request payload
+            const payload = {{ email, role }};
+
+            // Add password if manually entered
+            if (passwordMethod === 'manual') {{
+                const password = document.getElementById('add-member-password').value;
+                if (password) {{
+                    payload.password = password;
+                }}
+            }}
 
             // Show loading state
             const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -5956,7 +5983,7 @@ async def team_settings_page(
                 const response = await fetch('/teams/{team_id}/add-member?session_token=' + sessionToken, {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{ email, role }})
+                    body: JSON.stringify(payload)
                 }});
 
                 const result = await response.json();
@@ -5967,13 +5994,24 @@ async def team_settings_page(
                         : `✓ Created account and added ${{email}} as ${{role}}`;
 
                     if (!result.user_existed) {{
-                        message += result.email_sent
-                            ? '\\n📧 Credentials emailed to user'
-                            : '\\n⚠️ Email failed - password: ' + result.password;
+                        if (result.password_generated) {{
+                            // Auto-generated password
+                            message += result.email_sent
+                                ? '\\n📧 Auto-generated password emailed to user'
+                                : '\\n⚠️ Email failed - password: ' + result.password;
+                        }} else {{
+                            // Manual password
+                            message += result.email_sent
+                                ? '\\n📧 Login credentials emailed to user'
+                                : '\\n⚠️ Email failed - please share the password with the user manually';
+                        }}
                     }}
 
                     alert(message);
                     document.getElementById('add-member-email').value = '';
+                    document.getElementById('add-member-password').value = '';
+                    document.querySelector('input[name="password-method"][value="auto"]').checked = true;
+                    togglePasswordMethod();
                     window.location.reload();
                 }} else {{
                     document.getElementById('error-message').textContent = '✗ ' + result.detail;
@@ -6248,6 +6286,7 @@ async def add_team_member(
         body = await request.json()
         email = body.get('email', '').strip().lower()
         role = body.get('role', 'member').strip().lower()
+        manual_password = body.get('password', '').strip()  # Optional manual password
 
         if not email:
             raise HTTPException(400, "Email is required")
@@ -6259,6 +6298,10 @@ async def add_team_member(
         # Validate role
         if role not in ['member', 'admin']:
             raise HTTPException(400, "Role must be 'member' or 'admin'")
+
+        # Validate manual password if provided
+        if manual_password and len(manual_password) < 8:
+            raise HTTPException(400, "Password must be at least 8 characters")
 
         # Check if user is team owner or admin
         teams = server.database.get_user_teams(ctx.user_id)
@@ -6309,9 +6352,15 @@ async def add_team_member(
             # Generate user ID
             user_id = secrets.token_urlsafe(16)
 
-            # Generate secure random password
-            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-            password = ''.join(secrets.choice(alphabet) for _ in range(12))
+            # Use manual password if provided, otherwise generate one
+            if manual_password:
+                password = manual_password
+                password_generated = False
+            else:
+                # Auto-generate secure random password
+                alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+                password = ''.join(secrets.choice(alphabet) for _ in range(12))
+                password_generated = True
 
             # Hash password
             password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
@@ -6420,7 +6469,8 @@ async def add_team_member(
                 "message": f"Created account and added {email} to team",
                 "user_existed": False,
                 "role": role,
-                "password": password,
+                "password": password if password_generated else None,  # Only return password if auto-generated
+                "password_generated": password_generated,
                 "email_sent": email_sent
             }
 
