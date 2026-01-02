@@ -5387,12 +5387,12 @@ async def dashboard(
 
         // View team function (placeholder)
         function viewTeam(teamId) {{
-            window.location.href = `/team/${{teamId}}?session_token={{session_token}}`;
+            window.location.href = `/team/${{teamId}}?session_token={session_token}`;
         }}
 
         // Manage team function (navigate to team settings)
         function manageTeam(teamId) {{
-            window.location.href = `/team/${{teamId}}?session_token={{session_token}}`;
+            window.location.href = `/team/${{teamId}}?session_token={session_token}`;
         }}
 
         // Load teams when Teams tab is opened
