@@ -5511,7 +5511,7 @@ async def create_team_endpoint(
 async def get_user_teams_endpoint(
     session_token: Optional[str] = Query(None)
 ):
-    """Get all teams for the current user."""
+    """Get all teams for the current user with member counts."""
     if not session_token:
         raise HTTPException(401, "Missing session token")
 
@@ -5523,6 +5523,11 @@ async def get_user_teams_endpoint(
 
     # Get user's teams
     teams = server.database.get_user_teams(ctx.user_id)
+
+    # Add member count for each team
+    for team in teams:
+        members = server.database.get_team_members(team['team_id'])
+        team['member_count'] = len(members)
 
     return {
         "success": True,
