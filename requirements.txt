@@ -32,6 +32,9 @@ Werkzeug>=3.0.0
 # Encryption for token storage
 cryptography>=41.0.0
 
+# Password hashing
+bcrypt>=4.0.0
+
 # Database
 supabase>=2.0.0
 

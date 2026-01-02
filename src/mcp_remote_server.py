@@ -1965,6 +1965,533 @@ async def login_start(request: Request):
         """, status_code=500)
 
 
+# ===========================================================================
+# EMAIL/PASSWORD AUTHENTICATION
+# ===========================================================================
+
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_form(request: Request, error: Optional[str] = Query(None)):
+    """Show email/password signup form."""
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sign Up - AI Email Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }}
+        .container {{
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 450px;
+            width: 100%;
+        }}
+        h1 {{
+            color: #1a202c;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            text-align: center;
+        }}
+        .subtitle {{
+            color: #718096;
+            text-align: center;
+            margin: 0 0 30px 0;
+            font-size: 15px;
+        }}
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+        label {{
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-size: 14px;
+        }}
+        input {{
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }}
+        input:focus {{
+            outline: none;
+            border-color: #667eea;
+        }}
+        .btn {{
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        .btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }}
+        .btn:active {{
+            transform: translateY(0);
+        }}
+        .error-msg {{
+            background: #fee;
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 4px solid #f56565;
+        }}
+        .divider {{
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            color: #a0aec0;
+            font-size: 13px;
+        }}
+        .divider::before,
+        .divider::after {{
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        .divider span {{
+            padding: 0 15px;
+        }}
+        .oauth-btn {{
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #2d3748;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }}
+        .oauth-btn:hover {{
+            border-color: #cbd5e0;
+            background: #f7fafc;
+        }}
+        .footer-link {{
+            text-align: center;
+            margin-top: 20px;
+            color: #718096;
+            font-size: 14px;
+        }}
+        .footer-link a {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .footer-link a:hover {{
+            text-decoration: underline;
+        }}
+        .password-requirements {{
+            font-size: 13px;
+            color: #718096;
+            margin-top: 6px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Create Your Account</h1>
+        <p class="subtitle">Start your 3-day free trial with all 84 tools unlocked</p>
+
+        {f'<div class="error-msg">❌ {error}</div>' if error else ''}
+
+        <form method="post" action="/signup">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="name">Full Name (Optional)</label>
+                <input type="text" id="name" name="name" placeholder="John Doe">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="••••••••">
+                <div class="password-requirements">Minimum 8 characters</div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" required placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn">Create Account →</button>
+        </form>
+
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <a href="/signup/start" class="oauth-btn">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
+                <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9.001c0 1.452.348 2.827.957 4.041l3.007-2.332z" fill="#FBBC05"/>
+                <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+        </a>
+
+        <div class="footer-link">
+            Already have an account? <a href="/login">Log In</a>
+        </div>
+
+        <div class="footer-link" style="margin-top: 10px;">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Client-side password validation
+        document.querySelector('form').addEventListener('submit', function(e) {{
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (password !== confirmPassword) {{
+                e.preventDefault();
+                alert('Passwords do not match. Please try again.');
+                return false;
+            }}
+
+            if (password.length < 8) {{
+                e.preventDefault();
+                alert('Password must be at least 8 characters long.');
+                return false;
+            }}
+        }});
+    </script>
+</body>
+</html>
+    """)
+
+
+@app.post("/signup")
+async def signup_submit(request: Request):
+    """Handle email/password signup submission."""
+    try:
+        # Parse form data
+        form_data = await request.form()
+        email = form_data.get('email', '').strip()
+        name = form_data.get('name', '').strip() or None
+        password = form_data.get('password', '')
+        confirm_password = form_data.get('confirm_password', '')
+
+        # Validate inputs
+        if not email or not password:
+            return RedirectResponse(
+                url=f"/signup?error=Email and password are required",
+                status_code=303
+            )
+
+        if password != confirm_password:
+            return RedirectResponse(
+                url=f"/signup?error=Passwords do not match",
+                status_code=303
+            )
+
+        # Create user in database
+        if not hasattr(server, 'database') or server.database is None:
+            raise ValueError("Database not initialized")
+
+        try:
+            user_data = server.database.create_user_with_password(
+                email=email,
+                password=password,
+                name=name
+            )
+        except ValueError as e:
+            # Handle duplicate email or weak password
+            return RedirectResponse(
+                url=f"/signup?error={str(e)}",
+                status_code=303
+            )
+
+        logger.info(f"New email/password signup: {email}")
+
+        # Redirect to dashboard with welcome message
+        first_name = name.split()[0] if name else email.split('@')[0]
+        return RedirectResponse(
+            url=f"/dashboard?session_token={user_data['session_token']}&is_new_user=True&first_name={first_name}",
+            status_code=303
+        )
+
+    except Exception as e:
+        logger.error(f"Signup error: {e}")
+        return RedirectResponse(
+            url=f"/signup?error=An error occurred. Please try again.",
+            status_code=303
+        )
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request, error: Optional[str] = Query(None)):
+    """Show email/password login form."""
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Log In - AI Email Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }}
+        .container {{
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 450px;
+            width: 100%;
+        }}
+        h1 {{
+            color: #1a202c;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            text-align: center;
+        }}
+        .subtitle {{
+            color: #718096;
+            text-align: center;
+            margin: 0 0 30px 0;
+            font-size: 15px;
+        }}
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+        label {{
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-size: 14px;
+        }}
+        input {{
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }}
+        input:focus {{
+            outline: none;
+            border-color: #667eea;
+        }}
+        .btn {{
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        .btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }}
+        .btn:active {{
+            transform: translateY(0);
+        }}
+        .error-msg {{
+            background: #fee;
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            border-left: 4px solid #f56565;
+        }}
+        .divider {{
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            color: #a0aec0;
+            font-size: 13px;
+        }}
+        .divider::before,
+        .divider::after {{
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        .divider span {{
+            padding: 0 15px;
+        }}
+        .oauth-btn {{
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #2d3748;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }}
+        .oauth-btn:hover {{
+            border-color: #cbd5e0;
+            background: #f7fafc;
+        }}
+        .footer-link {{
+            text-align: center;
+            margin-top: 20px;
+            color: #718096;
+            font-size: 14px;
+        }}
+        .footer-link a {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .footer-link a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👋 Welcome Back</h1>
+        <p class="subtitle">Log in to access your AI Email Assistant</p>
+
+        {f'<div class="error-msg">❌ {error}</div>' if error else ''}
+
+        <form method="post" action="/login">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="you@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn">Log In →</button>
+        </form>
+
+        <div class="divider">
+            <span>OR</span>
+        </div>
+
+        <a href="/login/start" class="oauth-btn">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
+                <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9.001c0 1.452.348 2.827.957 4.041l3.007-2.332z" fill="#FBBC05"/>
+                <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
+            </svg>
+            Continue with Google
+        </a>
+
+        <div class="footer-link">
+            Don't have an account? <a href="/signup">Sign Up</a>
+        </div>
+
+        <div class="footer-link" style="margin-top: 10px;">
+            <a href="/">← Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>
+    """)
+
+
+@app.post("/login")
+async def login_submit(request: Request):
+    """Handle email/password login submission."""
+    try:
+        # Parse form data
+        form_data = await request.form()
+        email = form_data.get('email', '').strip()
+        password = form_data.get('password', '')
+
+        # Validate inputs
+        if not email or not password:
+            return RedirectResponse(
+                url=f"/login?error=Email and password are required",
+                status_code=303
+            )
+
+        # Authenticate user
+        if not hasattr(server, 'database') or server.database is None:
+            raise ValueError("Database not initialized")
+
+        user_data = server.database.authenticate_email_password(email, password)
+
+        if not user_data:
+            return RedirectResponse(
+                url=f"/login?error=Invalid email or password",
+                status_code=303
+            )
+
+        logger.info(f"Successful email/password login: {email}")
+
+        # Redirect to dashboard with welcome message
+        first_name = email.split('@')[0]  # Fallback to email username
+        return RedirectResponse(
+            url=f"/dashboard?session_token={user_data['session_token']}&is_new_user=False&first_name={first_name}",
+            status_code=303
+        )
+
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return RedirectResponse(
+            url=f"/login?error=An error occurred. Please try again.",
+            status_code=303
+        )
+
+
 @app.get("/setup/callback")
 async def setup_callback(
     request: Request,

@@ -118,6 +118,179 @@ class Database:
                 "login_count": 1
             }
 
+    def create_user_with_password(
+        self,
+        email: str,
+        password: str,
+        name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new user with email/password authentication.
+
+        Args:
+            email: User's email address
+            password: Plain text password (will be hashed)
+            name: Optional user's full name
+
+        Returns:
+            Dict with user_id, session_token, and email
+
+        Raises:
+            ValueError: If email already exists or password is too weak
+        """
+        import bcrypt
+
+        # Validate email doesn't already exist
+        result = self.supabase.table('users').select('user_id').eq('email', email).execute()
+        if result.data:
+            raise ValueError("Email already registered. Please log in instead.")
+
+        # Validate password strength (minimum 8 characters)
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        # Hash password with bcrypt
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+
+        # Generate IDs
+        user_id = secrets.token_urlsafe(16)
+        session_token = f"sess_{secrets.token_urlsafe(32)}"
+
+        # Session expiry (90 days)
+        session_expiry = (datetime.now() + timedelta(days=90)).isoformat()
+
+        # Trial period (3 days)
+        trial_end_date = (datetime.now() + timedelta(days=3)).isoformat()
+        now = datetime.now().isoformat()
+
+        # Create empty encrypted API keys (user will add via dashboard)
+        encrypted_api_keys = self._encrypt(json.dumps({}))
+
+        # For email/password users, we don't have Google tokens yet
+        # Store a placeholder that indicates this is an email/password account
+        placeholder_google_token = {
+            'type': 'email_password',
+            'token': None,
+            'refresh_token': None
+        }
+        encrypted_google_token = self._encrypt(json.dumps(placeholder_google_token))
+
+        # Create new user
+        self.supabase.table('users').insert({
+            'user_id': user_id,
+            'email': email,
+            'password_hash': password_hash.decode('utf-8'),  # Store as string
+            'encrypted_google_token': encrypted_google_token,  # Placeholder
+            'encrypted_api_keys': encrypted_api_keys,
+            'session_token': session_token,
+            'session_expiry': session_expiry,
+            'trial_end_date': trial_end_date,
+            'is_trial_active': True,
+            'first_login_at': now,
+            'login_count': 1,
+            'last_login': now
+        }).execute()
+
+        logger.info(f"Created new email/password user: {email} (3-day trial expires: {trial_end_date})")
+        return {
+            "user_id": user_id,
+            "session_token": session_token,
+            "email": email,
+            "name": name,
+            "trial_end_date": trial_end_date,
+            "is_new_user": True,
+            "login_count": 1
+        }
+
+    def authenticate_email_password(self, email: str, password: str) -> Optional[Dict[str, Any]]:
+        """
+        Authenticate user with email and password.
+
+        Args:
+            email: User's email address
+            password: Plain text password to verify
+
+        Returns:
+            Dict with user data and new session token if successful, None otherwise
+        """
+        import bcrypt
+
+        # Look up user by email
+        result = self.supabase.table('users').select('user_id, email, password_hash, login_count').eq('email', email).execute()
+
+        if not result.data:
+            logger.warning(f"Login attempt for non-existent email: {email}")
+            return None
+
+        user = result.data[0]
+        stored_hash = user.get('password_hash')
+
+        # Check if user has a password (might be OAuth-only user)
+        if not stored_hash:
+            logger.warning(f"Login attempt for OAuth-only user: {email}")
+            return None
+
+        # Verify password
+        if not bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
+            logger.warning(f"Invalid password attempt for: {email}")
+            return None
+
+        # Password correct - generate new session token
+        session_token = f"sess_{secrets.token_urlsafe(32)}"
+        session_expiry = (datetime.now() + timedelta(days=90)).isoformat()
+
+        # Increment login count
+        current_login_count = user.get('login_count', 0)
+        new_login_count = current_login_count + 1
+
+        # Update session and login tracking
+        self.supabase.table('users').update({
+            'session_token': session_token,
+            'session_expiry': session_expiry,
+            'last_login': datetime.now().isoformat(),
+            'login_count': new_login_count
+        }).eq('user_id', user['user_id']).execute()
+
+        logger.info(f"Successful email/password login: {email} (login count: {new_login_count})")
+        return {
+            "user_id": user['user_id'],
+            "session_token": session_token,
+            "email": user['email'],
+            "is_new_user": False,
+            "login_count": new_login_count
+        }
+
+    def update_password(self, user_id: str, new_password: str) -> bool:
+        """
+        Update user's password.
+
+        Args:
+            user_id: User's ID
+            new_password: New plain text password (will be hashed)
+
+        Returns:
+            True if successful
+
+        Raises:
+            ValueError: If password is too weak
+        """
+        import bcrypt
+
+        # Validate password strength
+        if len(new_password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        # Hash new password
+        password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+
+        # Update in database
+        self.supabase.table('users').update({
+            'password_hash': password_hash.decode('utf-8')
+        }).eq('user_id', user_id).execute()
+
+        logger.info(f"Password updated for user: {user_id}")
+        return True
+
     def get_user_by_session(self, session_token: str) -> Optional[Dict[str, Any]]:
         """
         Get user information by session token.
