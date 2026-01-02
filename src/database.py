@@ -660,3 +660,111 @@ class Database:
         ).limit(1).execute()
 
         return result.data[0]['stripe_customer_id'] if result.data else None
+
+    # ==================== Subscription Analytics ====================
+
+    def get_subscription_stats(self) -> Dict[str, Any]:
+        """
+        Get overall subscription statistics for admin dashboard.
+
+        Returns:
+            Dict with subscription stats (MRR, user counts, category breakdown)
+        """
+        # Get all active subscriptions
+        result = self.supabase.table('subscriptions').select('*').eq('status', 'active').execute()
+        active_subs = result.data
+
+        # Calculate MRR (each subscription is $5/month)
+        total_mrr = len(active_subs) * 5
+
+        # Get unique paying users
+        paying_user_ids = set(sub['user_id'] for sub in active_subs)
+        paying_users_count = len(paying_user_ids)
+
+        # Get total users
+        all_users_result = self.supabase.table('users').select('user_id', count='exact').execute()
+        total_users = all_users_result.count if hasattr(all_users_result, 'count') else len(all_users_result.data)
+
+        free_users_count = total_users - paying_users_count
+
+        # Category breakdown
+        category_counts = {}
+        for sub in active_subs:
+            category = sub['tool_category']
+            category_counts[category] = category_counts.get(category, 0) + 1
+
+        # Sort by most popular
+        category_breakdown = dict(sorted(category_counts.items(), key=lambda x: x[1], reverse=True))
+
+        return {
+            'total_mrr': total_mrr,
+            'total_subscriptions': len(active_subs),
+            'paying_users': paying_users_count,
+            'free_users': free_users_count,
+            'total_users': total_users,
+            'category_breakdown': category_breakdown
+        }
+
+    def get_user_subscription_summary(self, user_id: str) -> Dict[str, Any]:
+        """
+        Get subscription summary for a specific user.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Dict with user subscription info (active subs, MRR, Stripe customer ID)
+        """
+        # Get active subscriptions
+        result = self.supabase.table('subscriptions').select('*').eq(
+            'user_id', user_id
+        ).eq('status', 'active').execute()
+
+        active_subs = result.data
+        subscription_count = len(active_subs)
+        user_mrr = subscription_count * 5
+
+        # Get Stripe customer ID
+        stripe_customer_id = self.get_stripe_customer_id(user_id) if subscription_count > 0 else None
+
+        # Get category names
+        categories = [sub['tool_category'] for sub in active_subs]
+
+        return {
+            'subscription_count': subscription_count,
+            'mrr': user_mrr,
+            'stripe_customer_id': stripe_customer_id,
+            'categories': categories,
+            'is_paying': subscription_count > 0
+        }
+
+    def get_all_user_subscriptions(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get subscription summaries for all users (for admin user list).
+
+        Returns:
+            Dict mapping user_id to subscription summary
+        """
+        # Get all active subscriptions
+        result = self.supabase.table('subscriptions').select('*').eq('status', 'active').execute()
+        active_subs = result.data
+
+        # Group by user_id
+        user_subs = {}
+        for sub in active_subs:
+            user_id = sub['user_id']
+            if user_id not in user_subs:
+                user_subs[user_id] = {
+                    'subscription_count': 0,
+                    'categories': [],
+                    'stripe_customer_id': sub['stripe_customer_id']
+                }
+            user_subs[user_id]['subscription_count'] += 1
+            user_subs[user_id]['categories'].append(sub['tool_category'])
+
+        # Calculate MRR for each user
+        for user_id in user_subs:
+            user_subs[user_id]['mrr'] = user_subs[user_id]['subscription_count'] * 5
+            user_subs[user_id]['is_paying'] = True
+
+        return user_subs

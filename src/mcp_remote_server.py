@@ -2679,6 +2679,10 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
         stats = server.database.get_all_usage_stats(days=7)
         recent_activity = server.database.get_recent_activity(limit=20)
 
+        # Get subscription stats
+        subscription_stats = server.database.get_subscription_stats()
+        all_user_subs = server.database.get_all_user_subscriptions()
+
         # Calculate additional metrics
         total_users = len(users)
         active_users = len([u for u in users if u.get('last_active')])
@@ -2699,6 +2703,18 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
             api_keys_status = "has-keys" if user.get('has_api_keys') else "no-keys"
             api_keys_badge = '<span class="badge badge-success">✓ API Keys</span>' if user.get('has_api_keys') else '<span class="badge badge-muted">No Keys</span>'
 
+            # Get subscription info for this user
+            user_sub_info = all_user_subs.get(user['user_id'], {})
+            is_paying = user_sub_info.get('is_paying', False)
+            sub_count = user_sub_info.get('subscription_count', 0)
+            user_mrr = user_sub_info.get('mrr', 0)
+
+            # Subscription badge
+            if is_paying:
+                sub_badge = f'<span class="badge badge-success" style="background: #10b981;">💰 ${user_mrr}/mo ({sub_count} subs)</span>'
+            else:
+                sub_badge = '<span class="badge badge-muted">🆓 Free</span>'
+
             users_html += f"""
             <tr class="user-row" onclick="window.location.href='/admin/user/{user['user_id']}'">
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-weight: 500;">
@@ -2707,6 +2723,7 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
                         <div>{user['email']}</div>
                     </div>
                 </td>
+                <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{sub_badge}</td>
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: center;">{api_keys_badge}</td>
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px; color: hsl(var(--muted-foreground));">{last_active}</td>
                 <td style="padding: 16px; border-bottom: 1px solid hsl(var(--border)); text-align: right;">
@@ -3036,7 +3053,32 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
             <a href="/admin/logout" class="logout-btn">Logout</a>
         </div>
 
+        <!-- Subscription Stats -->
         <div class="stats-grid">
+            <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value" style="color: white;">${subscription_stats['total_mrr']}</div>
+                <div class="stat-label" style="color: rgba(255,255,255,0.9);">Monthly Recurring Revenue</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" style="color: white;">{subscription_stats['total_subscriptions']}</div>
+                <div class="stat-label" style="color: rgba(255,255,255,0.9);">Active Subscriptions</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value" style="color: white;">{subscription_stats['paying_users']}</div>
+                <div class="stat-label" style="color: rgba(255,255,255,0.9);">Paying Users</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+                <div class="stat-icon">🆓</div>
+                <div class="stat-value" style="color: white;">{subscription_stats['free_users']}</div>
+                <div class="stat-label" style="color: rgba(255,255,255,0.9);">Free Users</div>
+            </div>
+        </div>
+
+        <!-- Usage Stats -->
+        <div class="stats-grid" style="margin-top: 20px;">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
                 <div class="stat-value">{total_users}</div>
@@ -3059,19 +3101,28 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
             </div>
         </div>
 
+        <!-- Popular Categories -->
+        <div class="section" style="margin-top: 30px;">
+            <h2><span>🏆</span> Popular Tool Categories</h2>
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                {(''.join([f'<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb;"><span style="font-weight: 500; text-transform: capitalize;">📦 {{category}}</span><span style="color: #10b981; font-weight: 600;">{{count}} subscriptions (${{{count * 5}}}/mo)</span></div>' for category, count in subscription_stats['category_breakdown'].items()]) if subscription_stats['category_breakdown'] else '<p style="color: #6b7280; text-align: center;">No subscriptions yet</p>')}
+            </div>
+        </div>
+
         <div class="section">
             <h2><span>👥</span> All Users</h2>
             <table>
                 <thead>
                     <tr>
                         <th>User</th>
+                        <th style="text-align: center;">Subscription</th>
                         <th style="text-align: center;">API Keys</th>
                         <th>Last Active</th>
                         <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {users_html if users_html else '<tr><td colspan="4" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No users yet</td></tr>'}
+                    {users_html if users_html else '<tr><td colspan="5" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No users yet</td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -3187,6 +3238,9 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 
         # Get usage stats
         usage_stats = server.database.get_user_usage_stats(user_id, days=30)
+
+        # Get subscription info
+        subscription_info = server.database.get_user_subscription_summary(user_id)
 
         # Get recent activity
         recent_logs = server.database.supabase.table('usage_logs').select('*').eq('user_id', user_id).order('timestamp', desc=True).limit(20).execute()
@@ -3627,6 +3681,30 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
         </div>
 
         <div class="grid">
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h2 style="color: white;"><span>💰</span> Subscription Status</h2>
+                <div class="stat-row" style="border-color: rgba(255,255,255,0.2);">
+                    <span class="stat-label" style="color: rgba(255,255,255,0.9);">Status</span>
+                    <span class="stat-value" style="color: white;">{'💰 Paying' if subscription_info['is_paying'] else '🆓 Free'}</span>
+                </div>
+                <div class="stat-row" style="border-color: rgba(255,255,255,0.2);">
+                    <span class="stat-label" style="color: rgba(255,255,255,0.9);">Active Subscriptions</span>
+                    <span class="stat-value" style="color: white;">{subscription_info['subscription_count']}</span>
+                </div>
+                <div class="stat-row" style="border-color: rgba(255,255,255,0.2);">
+                    <span class="stat-label" style="color: rgba(255,255,255,0.9);">Monthly Revenue</span>
+                    <span class="stat-value" style="color: white;">${subscription_info['mrr']}/mo</span>
+                </div>
+                {f'''<div class="stat-row" style="border-color: rgba(255,255,255,0.2);">
+                    <span class="stat-label" style="color: rgba(255,255,255,0.9);">Categories</span>
+                    <span class="stat-value" style="color: white;">{", ".join([c.title() for c in subscription_info['categories']])}</span>
+                </div>''' if subscription_info['categories'] else ''}
+                {f'''<div class="stat-row" style="border-color: rgba(255,255,255,0.2); border-bottom: none;">
+                    <span class="stat-label" style="color: rgba(255,255,255,0.9);">Stripe Customer</span>
+                    <span class="stat-value" style="color: white;"><a href="https://dashboard.stripe.com/test/customers/{subscription_info['stripe_customer_id']}" target="_blank" style="color: white; text-decoration: underline;">View in Stripe</a></span>
+                </div>''' if subscription_info['stripe_customer_id'] else ''}
+            </div>
+
             <div class="card">
                 <h2><span>📊</span> Usage Statistics (30 Days)</h2>
                 <div class="stat-row">
