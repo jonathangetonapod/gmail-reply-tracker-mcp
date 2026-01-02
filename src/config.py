@@ -34,6 +34,17 @@ class Config:
     # Rate limiting
     max_requests_per_minute: int
 
+    # Stripe Payment Configuration
+    stripe_secret_key: str
+    stripe_webhook_secret: str
+    stripe_price_gmail: str
+    stripe_price_calendar: str
+    stripe_price_docs: str
+    stripe_price_sheets: str
+    stripe_price_fathom: str
+    stripe_price_instantly: str
+    stripe_price_bison: str
+
     @classmethod
     def from_env(cls, env_path: str = ".env") -> "Config":
         """
@@ -137,6 +148,17 @@ class Config:
             "250"  # Gmail API allows 250 quota units/second (15,000/minute)
         ))
 
+        # Stripe Configuration
+        stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "")
+        stripe_webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+        stripe_price_gmail = os.getenv("STRIPE_PRICE_GMAIL", "")
+        stripe_price_calendar = os.getenv("STRIPE_PRICE_CALENDAR", "")
+        stripe_price_docs = os.getenv("STRIPE_PRICE_DOCS", "")
+        stripe_price_sheets = os.getenv("STRIPE_PRICE_SHEETS", "")
+        stripe_price_fathom = os.getenv("STRIPE_PRICE_FATHOM", "")
+        stripe_price_instantly = os.getenv("STRIPE_PRICE_INSTANTLY", "")
+        stripe_price_bison = os.getenv("STRIPE_PRICE_BISON", "")
+
         return cls(
             credentials_path=credentials_path,
             token_path=token_path,
@@ -147,7 +169,16 @@ class Config:
             lead_sheets_gid_bison=lead_sheets_gid_bison,
             server_name=server_name,
             log_level=log_level,
-            max_requests_per_minute=max_requests_per_minute
+            max_requests_per_minute=max_requests_per_minute,
+            stripe_secret_key=stripe_secret_key,
+            stripe_webhook_secret=stripe_webhook_secret,
+            stripe_price_gmail=stripe_price_gmail,
+            stripe_price_calendar=stripe_price_calendar,
+            stripe_price_docs=stripe_price_docs,
+            stripe_price_sheets=stripe_price_sheets,
+            stripe_price_fathom=stripe_price_fathom,
+            stripe_price_instantly=stripe_price_instantly,
+            stripe_price_bison=stripe_price_bison
         )
 
     def validate(self) -> List[str]:
@@ -222,3 +253,35 @@ class Config:
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
+
+    def get_stripe_price_id(self, category: str) -> str:
+        """
+        Get Stripe price ID for a tool category.
+
+        Args:
+            category: Tool category name ('gmail', 'calendar', etc.)
+
+        Returns:
+            Stripe price ID for the category
+
+        Raises:
+            ValueError: If category is invalid
+        """
+        category_map = {
+            'gmail': self.stripe_price_gmail,
+            'calendar': self.stripe_price_calendar,
+            'docs': self.stripe_price_docs,
+            'sheets': self.stripe_price_sheets,
+            'fathom': self.stripe_price_fathom,
+            'instantly': self.stripe_price_instantly,
+            'bison': self.stripe_price_bison
+        }
+
+        if category not in category_map:
+            raise ValueError(f"Invalid category: {category}")
+
+        price_id = category_map[category]
+        if not price_id:
+            raise ValueError(f"Stripe price ID not configured for category: {category}")
+
+        return price_id

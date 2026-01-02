@@ -42,3 +42,6 @@ rapidfuzz>=3.0.0
 
 # AI Analysis
 anthropic>=0.75.0
+
+# Payments
+stripe>=7.0.0

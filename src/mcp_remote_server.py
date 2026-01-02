@@ -41,6 +41,9 @@ from request_context import RequestContext, create_request_context
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
+# Stripe imports
+import stripe
+
 # Load environment variables
 try:
     from dotenv import load_dotenv
@@ -408,30 +411,30 @@ async def handle_jsonrpc_request(
                 }
                 tools.append(tool_schema)
 
+            # Helper function to map tool names to categories
+            def get_tool_category(tool_name):
+                """Determine which category a tool belongs to based on its name."""
+                tool_name_lower = tool_name.lower()
+                if any(x in tool_name_lower for x in ['email', 'gmail', 'label', 'draft', 'send', 'search']):
+                    return 'gmail'
+                elif any(x in tool_name_lower for x in ['calendar', 'event', 'availability']):
+                    return 'calendar'
+                elif 'doc' in tool_name_lower and 'google' not in tool_name_lower:
+                    return 'docs'
+                elif 'sheet' in tool_name_lower:
+                    return 'sheets'
+                elif 'fathom' in tool_name_lower:
+                    return 'fathom'
+                elif 'bison' in tool_name_lower:
+                    return 'bison'
+                elif 'instantly' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
+                    return 'instantly'
+                return None  # Unknown category, include by default
+
             # Filter by user's enabled tool categories (if applicable)
             if ctx:
                 enabled_categories = ctx.enabled_tool_categories
                 if enabled_categories is not None:  # None = show all, [] or [...] = filter
-                    # Map tool names to categories
-                    def get_tool_category(tool_name):
-                        """Determine which category a tool belongs to based on its name."""
-                        tool_name_lower = tool_name.lower()
-                        if any(x in tool_name_lower for x in ['email', 'gmail', 'label', 'draft', 'send', 'search']):
-                            return 'gmail'
-                        elif any(x in tool_name_lower for x in ['calendar', 'event', 'availability']):
-                            return 'calendar'
-                        elif 'doc' in tool_name_lower and 'google' not in tool_name_lower:
-                            return 'docs'
-                        elif 'sheet' in tool_name_lower:
-                            return 'sheets'
-                        elif 'fathom' in tool_name_lower:
-                            return 'fathom'
-                        elif 'bison' in tool_name_lower:
-                            return 'bison'
-                        elif 'instantly' in tool_name_lower or any(x in tool_name_lower for x in ['campaign', 'lead']):
-                            return 'instantly'
-                        return None  # Unknown category, include by default
-
                     # Filter tools by enabled categories
                     if enabled_categories == []:
                         # Empty list = no tools
@@ -444,6 +447,23 @@ async def handle_jsonrpc_request(
                             if category is None or category in enabled_categories:
                                 filtered_tools.append(tool)
                         tools = filtered_tools
+
+                # Filter by active subscriptions (payment enforcement)
+                active_subscriptions = ctx.active_subscriptions
+                if active_subscriptions is not None and len(active_subscriptions) > 0:
+                    # User has some subscriptions - only show subscribed categories
+                    subscription_filtered_tools = []
+                    for tool in tools:
+                        category = get_tool_category(tool['name'])
+                        # Allow tools with no category OR tools in subscribed categories
+                        if category is None or category in active_subscriptions:
+                            subscription_filtered_tools.append(tool)
+                    tools = subscription_filtered_tools
+                    logger.info(f"Filtered to subscribed categories: {active_subscriptions}")
+                elif active_subscriptions == []:
+                    # User has no active subscriptions - show no tools
+                    tools = []
+                    logger.warning(f"User {ctx.email} has no active subscriptions - blocking all tools")
 
             logger.info(f"Listed {len(tools)} tools")
             return {
@@ -1582,6 +1602,9 @@ async def dashboard(session_token: Optional[str] = Query(None)):
     user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
 
+    # Get active subscriptions
+    active_subscriptions = server.database.get_active_subscriptions(ctx.user_id)
+
     # Get enabled tool categories
     enabled_categories = user.get('enabled_tool_categories')
     # None = all enabled (default), [] = none, [...] = specific categories
@@ -1836,51 +1859,93 @@ async def dashboard(session_token: Optional[str] = Query(None)):
             <strong>Currently showing: <span id="tool-count">{total_tools}</span> tools</strong>
         </div>
 
+        <!-- Manage Billing Button -->
+        <div style="margin-bottom: 30px; text-align: center;">
+            <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 12px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                💳 Manage Billing & Subscriptions
+            </a>
+        </div>
+
         <form id="tool-categories-form">
             <div style="display: grid; gap: 15px;">
-                <label class="category-checkbox">
-                    <input type="checkbox" name="gmail" {enabled_categories_str.get('gmail', 'checked')}>
-                    <span>📧 <strong>Gmail Tools</strong> (25 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Search, send, manage emails</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="gmail" {enabled_categories_str.get('gmail', 'checked')}>
+                            <span>📧 <strong>Gmail Tools</strong> (25 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'gmail' in active_subscriptions else '<a href="/subscribe?category=gmail&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Search, send, manage emails</div>
+                    </div>
                 </label>
 
-                <label class="category-checkbox">
-                    <input type="checkbox" name="calendar" {enabled_categories_str.get('calendar', 'checked')}>
-                    <span>📅 <strong>Calendar Tools</strong> (15 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Create events, check availability</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="calendar" {enabled_categories_str.get('calendar', 'checked')}>
+                            <span>📅 <strong>Calendar Tools</strong> (15 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'calendar' in active_subscriptions else '<a href="/subscribe?category=calendar&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Create events, check availability</div>
+                    </div>
                 </label>
 
-                <label class="category-checkbox">
-                    <input type="checkbox" name="docs" {enabled_categories_str.get('docs', 'checked')}>
-                    <span>📄 <strong>Google Docs Tools</strong> (8 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Create, read, update documents</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="docs" {enabled_categories_str.get('docs', 'checked')}>
+                            <span>📄 <strong>Google Docs Tools</strong> (8 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'docs' in active_subscriptions else '<a href="/subscribe?category=docs&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Create, read, update documents</div>
+                    </div>
                 </label>
 
-                <label class="category-checkbox">
-                    <input type="checkbox" name="sheets" {enabled_categories_str.get('sheets', 'checked')}>
-                    <span>📊 <strong>Google Sheets Tools</strong> (12 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Read, write, manage spreadsheets</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="sheets" {enabled_categories_str.get('sheets', 'checked')}>
+                            <span>📊 <strong>Google Sheets Tools</strong> (12 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'sheets' in active_subscriptions else '<a href="/subscribe?category=sheets&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Read, write, manage spreadsheets</div>
+                    </div>
                 </label>
 
-                <label class="category-checkbox">
-                    <input type="checkbox" name="fathom" {enabled_categories_str.get('fathom', 'checked')}>
-                    <span>🎥 <strong>Fathom Tools</strong> (10 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Meeting recordings & analytics</div>
-                    <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Fathom API key</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="fathom" {enabled_categories_str.get('fathom', 'checked')}>
+                            <span>🎥 <strong>Fathom Tools</strong> (10 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'fathom' in active_subscriptions else '<a href="/subscribe?category=fathom&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Meeting recordings & analytics</div>
+                        <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Fathom API key</div>
+                    </div>
                 </label>
 
-                <label class="category-checkbox">
-                    <input type="checkbox" name="instantly" {enabled_categories_str.get('instantly', 'checked')}>
-                    <span>📨 <strong>Instantly Tools</strong> (10 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (Instantly.ai)</div>
-                    <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Instantly API key</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="instantly" {enabled_categories_str.get('instantly', 'checked')}>
+                            <span>📨 <strong>Instantly Tools</strong> (10 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'instantly' in active_subscriptions else '<a href="/subscribe?category=instantly&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (Instantly.ai)</div>
+                        <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Instantly API key</div>
+                    </div>
                 </label>
 
-                <label class="category-checkbox">
-                    <input type="checkbox" name="bison" {enabled_categories_str.get('bison', 'checked')}>
-                    <span>🦬 <strong>Bison Tools</strong> (4 tools)</span>
-                    <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (EmailBison)</div>
-                    <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Bison API key</div>
+                <label class="category-checkbox" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="bison" {enabled_categories_str.get('bison', 'checked')}>
+                            <span>🦬 <strong>Bison Tools</strong> (4 tools)</span>
+                            {'<span style="background: #d4edda; color: #155724; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600;">✅ Subscribed</span>' if 'bison' in active_subscriptions else '<a href="/subscribe?category=bison&session_token=' + session_token + '" style="background: #007bff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; text-decoration: none;">🔒 Subscribe ($5/mo)</a>'}
+                        </div>
+                        <div style="font-size: 13px; color: #666; margin-left: 28px;">Email campaigns & lead management (EmailBison)</div>
+                        <div style="font-size: 12px; color: #999; margin-left: 28px;">💡 Requires Bison API key</div>
+                    </div>
                 </label>
             </div>
 
@@ -2098,6 +2163,261 @@ async def update_tool_categories_endpoint(
         "tool_count": total_tools,
         "categories": categories
     }
+
+
+# ===========================================================================
+# SUBSCRIPTION & BILLING ENDPOINTS
+# ===========================================================================
+
+@app.get("/subscribe")
+async def subscribe_to_category(
+    category: str = Query(..., description="Tool category to subscribe to"),
+    session_token: Optional[str] = Query(None)
+):
+    """
+    Create Stripe Checkout session for subscribing to a tool category.
+
+    Args:
+        category: Tool category ('gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison')
+        session_token: User's session token
+
+    Returns:
+        Redirect to Stripe Checkout
+    """
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session and get user
+    try:
+        ctx = await create_request_context(server.database, session_token, server.config)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Validate category
+    valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
+    if category not in valid_categories:
+        raise HTTPException(400, f"Invalid category. Must be one of: {', '.join(valid_categories)}")
+
+    # Check if already subscribed
+    if server.database.has_active_subscription(ctx.user_id, category):
+        return RedirectResponse(
+            url=f"/dashboard?session_token={session_token}&error=already_subscribed",
+            status_code=303
+        )
+
+    # Initialize Stripe
+    stripe.api_key = server.config.stripe_secret_key
+
+    # Get or create Stripe customer
+    stripe_customer_id = server.database.get_stripe_customer_id(ctx.user_id)
+
+    if not stripe_customer_id:
+        # Create new Stripe customer
+        customer = stripe.Customer.create(
+            email=ctx.email,
+            metadata={'user_id': ctx.user_id}
+        )
+        stripe_customer_id = customer.id
+        logger.info(f"Created Stripe customer {stripe_customer_id} for user {ctx.email}")
+
+    # Get price ID for category
+    try:
+        price_id = server.config.get_stripe_price_id(category)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    # Get deployment URL for success/cancel redirects
+    deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", "http://localhost:8000"))
+    if not deployment_url.startswith("http"):
+        deployment_url = f"https://{deployment_url}"
+
+    # Create Checkout session
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            customer=stripe_customer_id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1
+            }],
+            mode='subscription',
+            success_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_success=true",
+            cancel_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_cancelled=true",
+            metadata={
+                'user_id': ctx.user_id,
+                'tool_category': category
+            }
+        )
+
+        logger.info(f"Created checkout session for user {ctx.email}, category {category}")
+
+        # Redirect to Stripe Checkout
+        return RedirectResponse(url=checkout_session.url, status_code=303)
+
+    except Exception as e:
+        logger.error(f"Error creating checkout session: {e}")
+        raise HTTPException(500, "Failed to create checkout session")
+
+
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    """
+    Handle Stripe webhook events (subscription created, updated, cancelled, etc).
+
+    This endpoint is called by Stripe when subscription events occur.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+
+    stripe.api_key = server.config.stripe_secret_key
+    webhook_secret = server.config.stripe_webhook_secret
+
+    if not webhook_secret:
+        logger.warning("Stripe webhook secret not configured - skipping signature verification")
+        event = json.loads(payload)
+    else:
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, webhook_secret
+            )
+        except ValueError:
+            logger.error("Invalid webhook payload")
+            raise HTTPException(400, "Invalid payload")
+        except stripe.error.SignatureVerificationError:
+            logger.error("Invalid webhook signature")
+            raise HTTPException(400, "Invalid signature")
+
+    # Handle the event
+    event_type = event['type']
+    data = event['data']['object']
+
+    logger.info(f"Received Stripe webhook: {event_type}")
+
+    if event_type == 'checkout.session.completed':
+        # Payment successful - create subscription in database
+        session = data
+        subscription_id = session.get('subscription')
+        customer_id = session.get('customer')
+        user_id = session['metadata'].get('user_id')
+        category = session['metadata'].get('tool_category')
+
+        if not all([subscription_id, customer_id, user_id, category]):
+            logger.error(f"Missing required fields in checkout.session.completed: {session}")
+            return JSONResponse({"status": "error", "message": "Missing required fields"})
+
+        # Retrieve the subscription to get period info
+        subscription = stripe.Subscription.retrieve(subscription_id)
+
+        # Create subscription in database
+        server.database.create_subscription(
+            user_id=user_id,
+            tool_category=category,
+            stripe_customer_id=customer_id,
+            stripe_subscription_id=subscription_id,
+            status='active',
+            current_period_start=datetime.fromtimestamp(subscription.current_period_start),
+            current_period_end=datetime.fromtimestamp(subscription.current_period_end)
+        )
+
+        logger.info(f"Created subscription for user {user_id}, category {category}")
+
+    elif event_type == 'customer.subscription.updated':
+        # Subscription updated (renewed, changed, etc.)
+        subscription = data
+        subscription_id = subscription['id']
+        status = subscription['status']
+
+        # Map Stripe status to our status
+        status_map = {
+            'active': 'active',
+            'past_due': 'past_due',
+            'unpaid': 'unpaid',
+            'canceled': 'cancelled',
+            'incomplete': 'unpaid',
+            'incomplete_expired': 'cancelled',
+            'trialing': 'active',
+            'paused': 'cancelled'
+        }
+
+        our_status = status_map.get(status, 'cancelled')
+
+        server.database.update_subscription_status(
+            stripe_subscription_id=subscription_id,
+            status=our_status,
+            current_period_start=datetime.fromtimestamp(subscription.current_period_start),
+            current_period_end=datetime.fromtimestamp(subscription.current_period_end)
+        )
+
+        logger.info(f"Updated subscription {subscription_id} to status {our_status}")
+
+    elif event_type == 'customer.subscription.deleted':
+        # Subscription cancelled
+        subscription = data
+        subscription_id = subscription['id']
+
+        server.database.update_subscription_status(
+            stripe_subscription_id=subscription_id,
+            status='cancelled',
+            cancelled_at=datetime.now()
+        )
+
+        logger.info(f"Cancelled subscription {subscription_id}")
+
+    return JSONResponse({"status": "success"})
+
+
+@app.get("/billing")
+async def customer_portal(session_token: Optional[str] = Query(None)):
+    """
+    Redirect user to Stripe Customer Portal to manage their subscriptions.
+
+    Args:
+        session_token: User's session token
+
+    Returns:
+        Redirect to Stripe Customer Portal
+    """
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session and get user
+    try:
+        ctx = await create_request_context(server.database, session_token, server.config)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Get Stripe customer ID
+    stripe_customer_id = server.database.get_stripe_customer_id(ctx.user_id)
+
+    if not stripe_customer_id:
+        return RedirectResponse(
+            url=f"/dashboard?session_token={session_token}&error=no_subscriptions",
+            status_code=303
+        )
+
+    # Initialize Stripe
+    stripe.api_key = server.config.stripe_secret_key
+
+    # Get deployment URL for return URL
+    deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", "http://localhost:8000"))
+    if not deployment_url.startswith("http"):
+        deployment_url = f"https://{deployment_url}"
+
+    # Create Customer Portal session
+    try:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=stripe_customer_id,
+            return_url=f"{deployment_url}/dashboard?session_token={session_token}"
+        )
+
+        logger.info(f"Created billing portal session for user {ctx.email}")
+
+        # Redirect to Customer Portal
+        return RedirectResponse(url=portal_session.url, status_code=303)
+
+    except Exception as e:
+        logger.error(f"Error creating portal session: {e}")
+        raise HTTPException(500, "Failed to create billing portal session")
 
 
 # ===========================================================================

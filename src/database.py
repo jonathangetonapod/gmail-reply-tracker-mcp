@@ -513,3 +513,150 @@ class Database:
         ]
 
         return activities
+
+    # ==================== Subscription Management ====================
+
+    def create_subscription(
+        self,
+        user_id: str,
+        tool_category: str,
+        stripe_customer_id: str,
+        stripe_subscription_id: str,
+        status: str = 'active',
+        current_period_start: Optional[datetime] = None,
+        current_period_end: Optional[datetime] = None
+    ):
+        """
+        Create a new subscription for a user.
+
+        Args:
+            user_id: User ID
+            tool_category: Category name ('gmail', 'calendar', etc.)
+            stripe_customer_id: Stripe customer ID
+            stripe_subscription_id: Stripe subscription ID
+            status: Subscription status ('active', 'cancelled', 'past_due', 'unpaid')
+            current_period_start: Start of current billing period
+            current_period_end: End of current billing period
+        """
+        self.supabase.table('subscriptions').insert({
+            'user_id': user_id,
+            'tool_category': tool_category,
+            'stripe_customer_id': stripe_customer_id,
+            'stripe_subscription_id': stripe_subscription_id,
+            'status': status,
+            'current_period_start': current_period_start.isoformat() if current_period_start else None,
+            'current_period_end': current_period_end.isoformat() if current_period_end else None
+        }).execute()
+
+        logger.info(f"Created subscription for user {user_id}, category {tool_category}")
+
+    def get_user_subscriptions(self, user_id: str) -> list[Dict[str, Any]]:
+        """
+        Get all subscriptions for a user.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of subscription dicts
+        """
+        result = self.supabase.table('subscriptions').select('*').eq('user_id', user_id).execute()
+        return result.data
+
+    def get_active_subscriptions(self, user_id: str) -> list[str]:
+        """
+        Get list of active tool categories for a user.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            List of category names with active subscriptions
+        """
+        result = self.supabase.table('subscriptions').select('tool_category').eq(
+            'user_id', user_id
+        ).eq('status', 'active').execute()
+
+        return [sub['tool_category'] for sub in result.data]
+
+    def has_active_subscription(self, user_id: str, tool_category: str) -> bool:
+        """
+        Check if user has active subscription for a category.
+
+        Args:
+            user_id: User ID
+            tool_category: Category name
+
+        Returns:
+            True if user has active subscription
+        """
+        result = self.supabase.table('subscriptions').select('id').eq(
+            'user_id', user_id
+        ).eq('tool_category', tool_category).eq('status', 'active').execute()
+
+        return len(result.data) > 0
+
+    def update_subscription_status(
+        self,
+        stripe_subscription_id: str,
+        status: str,
+        current_period_start: Optional[datetime] = None,
+        current_period_end: Optional[datetime] = None,
+        cancelled_at: Optional[datetime] = None
+    ):
+        """
+        Update subscription status (called by Stripe webhook).
+
+        Args:
+            stripe_subscription_id: Stripe subscription ID
+            status: New status ('active', 'cancelled', 'past_due', 'unpaid')
+            current_period_start: Start of current billing period
+            current_period_end: End of current billing period
+            cancelled_at: Cancellation timestamp
+        """
+        update_data = {'status': status}
+
+        if current_period_start:
+            update_data['current_period_start'] = current_period_start.isoformat()
+        if current_period_end:
+            update_data['current_period_end'] = current_period_end.isoformat()
+        if cancelled_at:
+            update_data['cancelled_at'] = cancelled_at.isoformat()
+
+        self.supabase.table('subscriptions').update(update_data).eq(
+            'stripe_subscription_id', stripe_subscription_id
+        ).execute()
+
+        logger.info(f"Updated subscription {stripe_subscription_id} to status: {status}")
+
+    def get_subscription_by_stripe_id(self, stripe_subscription_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get subscription by Stripe subscription ID.
+
+        Args:
+            stripe_subscription_id: Stripe subscription ID
+
+        Returns:
+            Subscription dict or None
+        """
+        result = self.supabase.table('subscriptions').select('*').eq(
+            'stripe_subscription_id', stripe_subscription_id
+        ).execute()
+
+        return result.data[0] if result.data else None
+
+    def get_stripe_customer_id(self, user_id: str) -> Optional[str]:
+        """
+        Get Stripe customer ID for a user.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Stripe customer ID or None
+        """
+        result = self.supabase.table('subscriptions').select('stripe_customer_id').eq(
+            'user_id', user_id
+        ).limit(1).execute()
+
+        return result.data[0]['stripe_customer_id'] if result.data else None

@@ -39,6 +39,7 @@ class RequestContext:
     fathom_client: Optional[FathomClient]
     api_keys: dict  # Store all API keys for tools that need them
     enabled_tool_categories: Optional[list]  # List of enabled tool categories or None for all
+    active_subscriptions: list  # List of tool categories with active subscriptions
 
 
 async def create_request_context(
@@ -178,6 +179,10 @@ async def create_request_context(
             logger.warning(f"Failed to create Fathom client for user {user['email']}: {e}")
             # Don't fail the request if Fathom client creation fails
 
+    # Get active subscriptions for this user
+    active_subscriptions = database.get_active_subscriptions(user['user_id'])
+    logger.info(f"User {user['email']} has active subscriptions: {active_subscriptions}")
+
     return RequestContext(
         user_id=user['user_id'],
         email=user['email'],
@@ -187,5 +192,6 @@ async def create_request_context(
         sheets_client=sheets_client,
         fathom_client=fathom_client,
         api_keys=api_keys,  # Store all API keys for tools that need them
-        enabled_tool_categories=user.get('enabled_tool_categories')  # None = all tools, [...] = filter
+        enabled_tool_categories=user.get('enabled_tool_categories'),  # None = all tools, [...] = filter
+        active_subscriptions=active_subscriptions  # List of categories with active subscriptions
     )
