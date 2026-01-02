@@ -1201,8 +1201,8 @@ async def root():
             <p class="subtitle">Access Gmail, Google Calendar, Docs, Sheets, Fathom, Instantly & more—all without leaving Claude.</p>
             <div class="trial-badge">🎉 3-Day Free Trial • No Credit Card Required</div>
             <div class="cta-buttons">
-                <a href="/signup/start" class="cta-button">Sign Up Free →</a>
-                <a href="/login/start" class="cta-button-secondary">Log In</a>
+                <a href="/signup" class="cta-button">Sign Up Free →</a>
+                <a href="/login" class="cta-button-secondary">Log In</a>
             </div>
         </div>
     </div>
@@ -1374,7 +1374,7 @@ async def root():
                     <li>No credit card required</li>
                     <li>Full access to test everything</li>
                 </ul>
-                <a href="/signup/start" class="plan-button">Start Free Trial</a>
+                <a href="/signup" class="plan-button">Start Free Trial</a>
             </div>
 
             <div class="pricing-card featured">
@@ -1387,7 +1387,7 @@ async def root():
                     <li>Cancel anytime</li>
                     <li>No contracts or commitments</li>
                 </ul>
-                <a href="/signup/start" class="plan-button">Get Started</a>
+                <a href="/signup" class="plan-button">Get Started</a>
             </div>
 
             <div class="pricing-card">
@@ -1400,7 +1400,7 @@ async def root():
                     <li>Best value for power users</li>
                     <li>Everything you need</li>
                 </ul>
-                <a href="/signup/start" class="plan-button">Start Free Trial</a>
+                <a href="/signup" class="plan-button">Start Free Trial</a>
             </div>
         </div>
     </div>
@@ -1410,8 +1410,8 @@ async def root():
         <h2>Ready to supercharge Claude Desktop?</h2>
         <p>Start your 3-day free trial. No credit card required.</p>
         <div class="cta-buttons">
-            <a href="/signup/start" class="cta-button">Sign Up Free →</a>
-            <a href="/login/start" class="cta-button-secondary">Log In</a>
+            <a href="/signup" class="cta-button">Sign Up Free →</a>
+            <a href="/login" class="cta-button-secondary">Log In</a>
         </div>
     </div>
 </body>
