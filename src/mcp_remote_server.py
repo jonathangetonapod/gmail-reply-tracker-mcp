@@ -4609,6 +4609,20 @@ async def dashboard(
     # Get user's teams (for team subscription option)
     user_teams = server.database.get_user_teams(ctx.user_id) if teams_enabled else []
 
+    # Get personal subscriptions only (not team subscriptions)
+    personal_subs_result = server.database.supabase.table('subscriptions').select('tool_category').eq(
+        'user_id', ctx.user_id
+    ).eq('status', 'active').is_('team_id', 'null').execute()
+    personal_subscriptions = [sub['tool_category'] for sub in personal_subs_result.data]
+
+    # Get subscriptions for each team
+    team_subscriptions_map = {}
+    for team in user_teams:
+        team_subs_result = server.database.supabase.table('subscriptions').select('tool_category').eq(
+            'team_id', team['team_id']
+        ).eq('status', 'active').eq('is_team_subscription', True).execute()
+        team_subscriptions_map[team['team_id']] = [sub['tool_category'] for sub in team_subs_result.data]
+
     # Determine user tier
     if trial_status['is_trial']:
         user_tier = 'trial'
@@ -5016,10 +5030,12 @@ async def dashboard(
 
                 <div id="subscription-cart" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     {''.join([f'''
-                        <label class="subscription-item" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid {"#10b981" if cat in active_subscriptions else "#e2e8f0"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions or cat in cancelled_subscriptions else "pointer"}; background: {"#f0fdf4" if cat in active_subscriptions else "white"}; opacity: {("0.6" if cat in cancelled_subscriptions else "1")}; transition: all 0.2s;">
+                        <label class="subscription-item" data-category="{cat}" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; background: white; transition: all 0.2s;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
                                 <span style="font-size: 36px;">{category_info[cat]["emoji"]}</span>
-                                {f'<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Subscribed</span>' if cat in active_subscriptions else (f'<span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⚠️ Cancelled</span>' if cat in cancelled_subscriptions else '<input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">')}
+                                <div class="subscription-status">
+                                    <input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">
+                                </div>
                             </div>
                             <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a202c;">{category_info[cat]["name"]}</h3>
                             <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280; flex: 1;">{category_info[cat]["desc"]}</p>
@@ -5027,9 +5043,9 @@ async def dashboard(
                                 <span style="font-size: 13px; color: #9ca3af;">{category_info[cat]["tools"]} tools</span>
                                 <span style="font-size: 16px; font-weight: 700; color: #667eea;">$5/mo</span>
                             </div>
-                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] and cat not in active_subscriptions and cat not in cancelled_subscriptions else ''}
+                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] else ''}
                         </label>
-                    ''' for cat in all_categories if cat not in active_subscriptions])}
+                    ''' for cat in all_categories])}
                 </div>
 
                 <!-- Cart Summary -->
@@ -5204,6 +5220,10 @@ async def dashboard(
             'bison': 'Bison Tools'
         }};
 
+        // Subscription data for dynamic filtering
+        const personalSubscriptions = {json.dumps(personal_subscriptions)};
+        const teamSubscriptionsMap = {json.dumps(team_subscriptions_map)};
+
         function updateCart() {{
             if (cart.size > 0) {{
                 cartSummary.style.display = 'block';
@@ -5277,13 +5297,61 @@ async def dashboard(
                 }}
             }});
 
-            // Update tip text
+            // Determine which subscriptions to check against
+            let existingSubscriptions = [];
             if (selectedType.value === 'personal') {{
+                existingSubscriptions = personalSubscriptions;
                 tip.textContent = "These subscriptions will be just for you. Other users won't have access.";
             }} else {{
-                const teamLabel = selectedType.closest('label').querySelector('div > div').textContent;
+                const teamId = selectedType.value;
+                existingSubscriptions = teamSubscriptionsMap[teamId] || [];
                 tip.innerHTML = "<strong>Subscribing for entire team!</strong> All members will instantly get access to these tools.";
             }}
+
+            // Update category items availability
+            document.querySelectorAll('.subscription-item').forEach(item => {{
+                const category = item.dataset.category;
+                const checkbox = item.querySelector('.subscription-checkbox');
+                const statusDiv = item.querySelector('.subscription-status');
+
+                if (existingSubscriptions.includes(category)) {{
+                    // Already subscribed
+                    checkbox.checked = false;
+                    checkbox.disabled = true;
+                    item.style.cursor = 'not-allowed';
+                    item.style.opacity = '0.6';
+                    item.style.borderColor = '#10b981';
+                    item.style.background = '#f0fdf4';
+                    statusDiv.innerHTML = '<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Subscribed</span>';
+
+                    // Remove from cart if it was selected
+                    cart.delete(category);
+                }} else {{
+                    // Available for subscription
+                    checkbox.disabled = false;
+                    item.style.cursor = 'pointer';
+                    item.style.opacity = '1';
+                    item.style.borderColor = checkbox.checked ? '#667eea' : '#e2e8f0';
+                    item.style.background = 'white';
+                    statusDiv.innerHTML = '<input type="checkbox" name="subscribe-' + category + '" value="' + category + '" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;"' + (checkbox.checked ? ' checked' : '') + '>';
+
+                    // Re-attach event listener to new checkbox
+                    const newCheckbox = statusDiv.querySelector('.subscription-checkbox');
+                    newCheckbox.addEventListener('change', (e) => {{
+                        const cat = e.target.value;
+                        if (e.target.checked) {{
+                            cart.add(cat);
+                            e.target.closest('.subscription-item').style.borderColor = '#667eea';
+                        }} else {{
+                            cart.delete(cat);
+                            e.target.closest('.subscription-item').style.borderColor = '#e2e8f0';
+                        }}
+                        updateCart();
+                    }});
+                }}
+            }});
+
+            updateCart();
         }}
 
         checkoutBtn.addEventListener('click', async () => {{
@@ -5319,6 +5387,11 @@ async def dashboard(
                 console.error('Checkout error:', error);
             }}
         }});
+
+        // Initialize subscription type filtering on page load
+        if (document.querySelector('input[name="subscription-type"]')) {{
+            updateSubscriptionType();
+        }}
 
         // API Keys form
         const apiKeysForm = document.getElementById('api-keys-form');
