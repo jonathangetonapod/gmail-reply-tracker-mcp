@@ -10846,7 +10846,7 @@ async def admin_grant_personal_subscription(
         raise HTTPException(404, "User not found")
 
     # Check if subscription already exists
-    existing = server.database.supabase.table('subscriptions').select('subscription_id').eq(
+    existing = server.database.supabase.table('subscriptions').select('*').eq(
         'user_id', user['user_id']
     ).eq('tool_category', category).eq('is_team_subscription', False).execute()
 
@@ -10908,7 +10908,7 @@ async def admin_grant_team_subscription_single(
     team = team_result.data[0]
 
     # Check if subscription already exists
-    existing = server.database.supabase.table('subscriptions').select('subscription_id').eq(
+    existing = server.database.supabase.table('subscriptions').select('*').eq(
         'team_id', team_id
     ).eq('tool_category', category).eq('is_team_subscription', True).execute()
 
@@ -10972,7 +10972,7 @@ async def admin_grant_team_subscription(
     granted_count = 0
     for category in categories:
         # Check if subscription already exists
-        existing = server.database.supabase.table('subscriptions').select('subscription_id').eq(
+        existing = server.database.supabase.table('subscriptions').select('*').eq(
             'team_id', team_id
         ).eq('tool_category', category).eq('is_team_subscription', True).execute()
 
