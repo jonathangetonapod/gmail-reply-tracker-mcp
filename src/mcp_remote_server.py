@@ -10716,10 +10716,15 @@ async def admin_get_user_activity(
         ).eq('status', 'active').execute()
         active_categories = [sub['tool_category'] for sub in subscriptions.data]
 
-        # Get API keys status
-        user_result = server.database.supabase.table('users').select('api_keys').eq('user_id', user_id).execute()
-        api_keys = user_result.data[0].get('api_keys', {}) if user_result.data else {}
-        api_keys_configured = {key: bool(value) for key, value in api_keys.items()}
+        # Get API keys status (handle if column doesn't exist)
+        api_keys_configured = {}
+        try:
+            user_result = server.database.supabase.table('users').select('api_keys').eq('user_id', user_id).execute()
+            api_keys = user_result.data[0].get('api_keys', {}) if user_result.data else {}
+            api_keys_configured = {key: bool(value) for key, value in api_keys.items()}
+        except Exception as e:
+            logger.warning(f"Could not fetch api_keys for user {user_id}: {e}")
+            # Column might not exist yet - that's okay, just return empty dict
 
         return JSONResponse({
             'logs': logs,
