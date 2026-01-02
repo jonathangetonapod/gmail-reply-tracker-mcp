@@ -5657,7 +5657,7 @@ async def team_settings_page(
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Team Settings - {{team['team_name']}}</title>
+    <title>Team Settings - {team['team_name']}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * {{
@@ -5854,14 +5854,14 @@ async def team_settings_page(
         <a href="/dashboard?session_token={session_token}" class="back-link">← Back to Dashboard</a>
 
         <div class="header">
-            <h1>👥 {{team['team_name']}}</h1>
+            <h1>👥 {team['team_name']}</h1>
             <div class="meta">
-                <strong>Owner:</strong> {{owner_email}}
+                <strong>Owner:</strong> {owner_email}
                 <span class="badge {'badge-owner' if is_owner else 'badge-' + user_member['role']}">
-                    {{'OWNER' if is_owner else user_member['role'].upper()}}
+                    {'OWNER' if is_owner else user_member['role'].upper()}
                 </span>
                 <br>
-                <strong>Members:</strong> {{len(members)}}
+                <strong>Members:</strong> {len(members)}
             </div>
         </div>
 
@@ -5878,10 +5878,10 @@ async def team_settings_page(
                 {''.join([f'''
                 <div class="member-item">
                     <div class="member-info">
-                        <div class="member-avatar">{{m['email'][0].upper()}}</div>
+                        <div class="member-avatar">{m['email'][0].upper()}</div>
                         <div class="member-details">
-                            <div class="member-email">{{m['email']}}</div>
-                            <div class="member-role">{{m['role'].title()}} • Joined {{m['joined_at'][:10]}}</div>
+                            <div class="member-email">{m['email']}</div>
+                            <div class="member-role">{m['role'].title()} • Joined {m['joined_at'][:10]}</div>
                         </div>
                     </div>
                     {'<button onclick="removeMember(&apos;' + m["user_id"] + '&apos;, &apos;' + m["email"] + '&apos;)" class="btn btn-danger">Remove</button>' if is_admin and m['user_id'] != ctx.user_id else ''}
@@ -6343,7 +6343,7 @@ async def invitation_page(
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Team Invitation - {{team['team_name']}}</title>
+    <title>Team Invitation - {team['team_name']}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {{
@@ -6483,18 +6483,18 @@ async def invitation_page(
         <div style="text-align: center; margin-bottom: 30px;">
             <div style="font-size: 48px; margin-bottom: 15px;">👥</div>
             <span class="team-badge">Team Invitation</span>
-            <h1>Join {{team['team_name']}}</h1>
-            <p style="color: #6b7280; margin: 10px 0 0 0;">{{inviter_email}} has invited you to join their team</p>
+            <h1>Join {team['team_name']}</h1>
+            <p style="color: #6b7280; margin: 10px 0 0 0;">{inviter_email} has invited you to join their team</p>
         </div>
 
         <div class="info-box">
             <div class="info-row">
                 <span class="label">Invited to:</span>
-                <span class="value">{{invitation['email']}}</span>
+                <span class="value">{invitation['email']}</span>
             </div>
             <div class="info-row">
                 <span class="label">Expires:</span>
-                <span class="value">{{expires_at.strftime('%B %d, %Y')}}</span>
+                <span class="value">{expires_at.strftime('%B %d, %Y')}</span>
             </div>
         </div>
 
