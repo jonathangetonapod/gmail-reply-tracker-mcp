@@ -1627,7 +1627,8 @@ async def dashboard(
             max-width: 800px;
             margin: 50px auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: #f5f7fa;
+            min-height: 100vh;
         }}
         .container {{
             background: white;
@@ -1784,8 +1785,19 @@ async def dashboard(
     </style>
 </head>
 <body>
+    <!-- Navigation Bar -->
+    <nav style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: -50px -20px 30px -20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto;">
+            <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🤖 AI Email Assistant</a>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <a href="/dashboard?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.2); font-weight: 500;">Dashboard</a>
+                <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; color: white; font-size: 14px;">{ctx.email}</div>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <h1>🛠️ MCP Dashboard</h1>
+        <h1>🛠️ Dashboard</h1>
 
         <div class="user-info">
             <strong>Logged in as:</strong> {ctx.email}<br>
