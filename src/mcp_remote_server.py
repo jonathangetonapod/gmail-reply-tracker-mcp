@@ -5257,6 +5257,17 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             const messageDiv = document.getElementById('subscription-message');
             const action = isCurrentlyActive ? 'remove' : 'add';
 
+            // If adding, show modal to choose free or paid
+            if (action === 'add') {{
+                showSubscriptionModal(userId, category);
+                return;
+            }}
+
+            // Removing - just confirm and proceed
+            if (!confirm(`Remove ${{category}} subscription? This will cancel billing and revoke access immediately.`)) {{
+                return;
+            }}
+
             try {{
                 const response = await fetch(`/admin/user/${{userId}}/subscription?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
                     method: 'POST',
@@ -5270,12 +5281,11 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 const result = await response.json();
 
                 if (response.ok) {{
-                    messageDiv.textContent = `✓ ${{action === 'add' ? 'Added' : 'Removed'}} ${{category}} subscription successfully!`;
+                    messageDiv.textContent = `✓ Removed ${{category}} subscription successfully!`;
                     messageDiv.style.display = 'block';
                     messageDiv.style.background = 'hsl(var(--success) / 0.1)';
                     messageDiv.style.color = 'hsl(var(--success))';
 
-                    // Reload page after 1 second
                     setTimeout(() => {{
                         window.location.reload();
                     }}, 1000);
@@ -5291,6 +5301,123 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
                 messageDiv.style.color = 'hsl(var(--destructive))';
             }}
+        }}
+
+        function showSubscriptionModal(userId, category) {{
+            const modal = document.createElement('div');
+            modal.id = 'subscription-modal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
+                    <h2 style="margin: 0 0 20px 0;">Add ${{category.charAt(0).toUpperCase() + category.slice(1)}} Subscription</h2>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; padding: 15px; border: 2px solid hsl(var(--border)); border-radius: 8px; cursor: pointer; margin-bottom: 12px;">
+                            <input type="radio" name="subscription-type" value="paid" checked style="margin-right: 12px; width: 18px; height: 18px;">
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">💳 Paid Subscription ($5/month)</div>
+                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Stripe will email an invoice - payment due in 30 days</div>
+                            </div>
+                        </label>
+
+                        <label style="display: flex; align-items: center; padding: 15px; border: 2px solid hsl(var(--border)); border-radius: 8px; cursor: pointer;">
+                            <input type="radio" name="subscription-type" value="free" style="margin-right: 12px; width: 18px; height: 18px;">
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">🎁 Free Subscription (No Billing)</div>
+                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Complimentary access - no invoices or charges</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button onclick="closeSubscriptionModal()" style="padding: 10px 20px; border: 2px solid hsl(var(--border)); background: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Cancel</button>
+                        <button onclick="confirmAddSubscription('${{userId}}', '${{category}}')" style="padding: 10px 20px; border: none; background: hsl(var(--primary)); color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Add Subscription</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.onclick = (e) => {{ if (e.target === modal) closeSubscriptionModal(); }};
+        }}
+
+        function closeSubscriptionModal() {{
+            const modal = document.getElementById('subscription-modal');
+            if (modal) modal.remove();
+        }}
+
+        async function confirmAddSubscription(userId, category) {{
+            const isFree = document.querySelector('input[name="subscription-type"]:checked').value === 'free';
+            const messageDiv = document.getElementById('subscription-message');
+
+            closeSubscriptionModal();
+
+            messageDiv.textContent = '⏳ Adding subscription...';
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = 'hsl(var(--muted) / 0.1)';
+            messageDiv.style.color = 'hsl(var(--muted-foreground))';
+
+            try {{
+                const response = await fetch(`/admin/user/${{userId}}/subscription?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{
+                        action: 'add',
+                        category: category,
+                        free: isFree
+                    }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    if (result.invoice_link) {{
+                        // Show invoice link with copy button
+                        messageDiv.innerHTML = `
+                            <div style="margin-bottom: 12px;">✓ Added ${{category}} subscription successfully!</div>
+                            <div style="background: hsl(var(--muted) / 0.3); padding: 12px; border-radius: 6px; margin-top: 8px;">
+                                <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">📧 Invoice Link:</div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="text" value="${{result.invoice_link}}" readonly style="flex: 1; padding: 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; font-size: 12px; font-family: monospace;">
+                                    <button onclick="copyInvoiceLink('${{result.invoice_link}}')" style="padding: 8px 16px; background: hsl(var(--primary)); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; white-space: nowrap;">📋 Copy</button>
+                                </div>
+                                <div style="font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 8px;">Share this link with the user to pay their invoice</div>
+                            </div>
+                        `;
+                        messageDiv.style.background = 'hsl(var(--success) / 0.1)';
+                        messageDiv.style.color = 'hsl(var(--success))';
+                    }} else {{
+                        messageDiv.textContent = `✓ Added ${{category}} subscription successfully!${{isFree ? ' (Free - no billing)' : ''}}`;
+                        messageDiv.style.background = 'hsl(var(--success) / 0.1)';
+                        messageDiv.style.color = 'hsl(var(--success))';
+                    }}
+
+                    setTimeout(() => {{
+                        window.location.reload();
+                    }}, 3000);
+                }} else {{
+                    messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
+                    messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--destructive))';
+                }}
+            }} catch (error) {{
+                messageDiv.textContent = `✗ Error: ${{error.message}}`;
+                messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                messageDiv.style.color = 'hsl(var(--destructive))';
+            }}
+        }}
+
+        function copyInvoiceLink(link) {{
+            navigator.clipboard.writeText(link).then(() => {{
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✓ Copied!';
+                button.style.background = 'hsl(var(--success))';
+                setTimeout(() => {{
+                    button.textContent = originalText;
+                    button.style.background = 'hsl(var(--primary))';
+                }}, 2000);
+            }});
         }}
 
         async function generatePassword() {{
@@ -5358,7 +5485,8 @@ async def admin_toggle_subscription(
 
     Body: {
         "action": "add" or "remove",
-        "category": "gmail" | "calendar" | "docs" | "sheets" | "fathom" | "instantly" | "bison"
+        "category": "gmail" | "calendar" | "docs" | "sheets" | "fathom" | "instantly" | "bison",
+        "free": true/false (optional, default false) - if true, no billing, just grants access
     }
     """
     # Check admin authentication
@@ -5374,6 +5502,7 @@ async def admin_toggle_subscription(
         body = await request.json()
         action = body.get('action')  # 'add' or 'remove'
         category = body.get('category')
+        is_free = body.get('free', False)  # Default to paid subscription
 
         if action not in ['add', 'remove']:
             raise HTTPException(400, "Invalid action. Must be 'add' or 'remove'")
@@ -5401,6 +5530,45 @@ async def admin_toggle_subscription(
                     "message": f"User already has an active {category} subscription"
                 })
 
+            # FREE SUBSCRIPTION - No billing, just database access
+            if is_free:
+                import secrets
+
+                # Get or create Stripe customer (for consistency, even though no billing)
+                stripe.api_key = server.config.stripe_secret_key
+                stripe_customer_id = server.database.get_stripe_customer_id(user_id)
+
+                if not stripe_customer_id:
+                    customer = stripe.Customer.create(
+                        email=user_data['email'],
+                        metadata={'user_id': user_id}
+                    )
+                    stripe_customer_id = customer.id
+
+                # Create database-only subscription (no Stripe subscription)
+                fake_subscription_id = f"free_{secrets.token_urlsafe(16)}"
+
+                server.database.create_subscription(
+                    user_id=user_id,
+                    tool_category=category,
+                    stripe_customer_id=stripe_customer_id,
+                    stripe_subscription_id=fake_subscription_id,
+                    status='active',
+                    current_period_start=datetime.now(),
+                    current_period_end=datetime.now() + timedelta(days=36500)  # 100 years (lifetime)
+                )
+
+                logger.info(f"Admin granted FREE {category} subscription for user {user_id}")
+
+                return JSONResponse({
+                    "status": "success",
+                    "message": f"Added FREE {category} subscription (no billing)",
+                    "subscription_id": fake_subscription_id,
+                    "is_free": True,
+                    "note": "This is a complimentary subscription with no billing"
+                })
+
+            # PAID SUBSCRIPTION - Create Stripe subscription with invoice
             # Initialize Stripe
             stripe.api_key = server.config.stripe_secret_key
 
@@ -5449,6 +5617,18 @@ async def admin_toggle_subscription(
                 current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end)
             )
 
+            # Get the invoice link
+            invoice_link = None
+            try:
+                # Retrieve the latest invoice for this subscription
+                latest_invoice_id = stripe_subscription.latest_invoice
+                if latest_invoice_id:
+                    invoice = stripe.Invoice.retrieve(latest_invoice_id)
+                    invoice_link = invoice.hosted_invoice_url
+                    logger.info(f"Invoice link: {invoice_link}")
+            except Exception as e:
+                logger.warning(f"Could not retrieve invoice link: {e}")
+
             logger.info(f"Admin created Stripe subscription {stripe_subscription.id} for user {user_id}, category {category}")
 
             return JSONResponse({
@@ -5456,6 +5636,8 @@ async def admin_toggle_subscription(
                 "message": f"Added {category} subscription (Stripe ID: {stripe_subscription.id})",
                 "subscription_id": stripe_subscription.id,
                 "stripe_status": stripe_subscription.status,
+                "is_free": False,
+                "invoice_link": invoice_link,
                 "note": "Stripe will email an invoice to the user - payment due within 30 days"
             })
 
