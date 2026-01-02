@@ -4104,6 +4104,100 @@ async def search_fathom_meetings_by_attendee(
 
 
 @mcp.tool()
+async def get_all_fathom_meetings(
+    max_meetings: int = 200,
+    calendar_invitees_domains_type: str = "all",
+    created_after: str = None,
+    created_before: str = None
+) -> str:
+    """
+    Fetch ALL Fathom meetings with automatic pagination handling.
+
+    This tool automatically follows pagination cursors to retrieve all meetings
+    within the specified parameters. Use this instead of list_fathom_meetings
+    when you need to ensure you get ALL meetings (not just the first page).
+
+    IMPORTANT: The standard list_fathom_meetings only returns the first page
+    (~10-50 meetings). If you're searching for specific meetings or need a
+    complete list across a date range, use this tool instead.
+
+    Args:
+        max_meetings: Maximum total meetings to fetch (default: 200)
+        calendar_invitees_domains_type: Filter meetings by attendee type
+            - "all": All meetings
+            - "internal_only": Only meetings with internal attendees
+            - "one_or_more_external": Meetings with at least one external attendee
+        created_after: Filter to meetings created after this timestamp (ISO 8601 format).
+            Example: "2024-11-01T00:00:00Z" to get meetings from November onwards.
+            Essential for accessing historical meetings beyond the default window.
+        created_before: Filter to meetings created before this timestamp (ISO 8601 format).
+            Example: "2024-12-31T23:59:59Z" to get meetings before end of December.
+
+    Returns:
+        JSON string with complete list of meetings (automatically handles pagination)
+    """
+    try:
+        initialize_clients()
+
+        if not fathom_client:
+            return json.dumps({
+                "success": False,
+                "error": "Fathom API key not configured. Please set FATHOM_API_KEY in your environment."
+            }, indent=2)
+
+        logger.info("Fetching all Fathom meetings (max %d) with pagination...", max_meetings)
+
+        # Use get_all_meetings which handles pagination automatically
+        meetings = fathom_client.get_all_meetings(
+            max_meetings=max_meetings,
+            calendar_invitees_domains_type=calendar_invitees_domains_type,
+            created_after=created_after,
+            created_before=created_before
+        )
+
+        # Format meeting information
+        meeting_list = []
+        for meeting in meetings:
+            meeting_list.append({
+                "recording_id": meeting.get('recording_id'),
+                "title": meeting.get('title') or meeting.get('meeting_title'),
+                "url": meeting.get('url'),
+                "share_url": meeting.get('share_url'),
+                "scheduled_start": meeting.get('scheduled_start_time'),
+                "scheduled_end": meeting.get('scheduled_end_time'),
+                "recording_start": meeting.get('recording_start_time'),
+                "recording_end": meeting.get('recording_end_time'),
+                "language": meeting.get('transcript_language'),
+                "attendees": [
+                    {
+                        "name": att.get('name'),
+                        "email": att.get('email'),
+                        "is_external": att.get('is_external')
+                    }
+                    for att in meeting.get('calendar_invitees', [])
+                ]
+            })
+
+        logger.info("Retrieved %d total Fathom meetings with pagination", len(meeting_list))
+
+        return json.dumps({
+            "success": True,
+            "count": len(meeting_list),
+            "total_fetched": len(meeting_list),
+            "meetings": meeting_list,
+            "note": f"Fetched all available meetings up to max_meetings={max_meetings}. Pagination was handled automatically."
+        }, indent=2)
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error("Error in get_all_fathom_meetings: %s", error_msg)
+        return json.dumps({
+            "success": False,
+            "error": error_msg
+        }, indent=2)
+
+
+@mcp.tool()
 async def get_fathom_action_items(recording_id: int) -> str:
     """
     Get action items from a Fathom meeting recording.
