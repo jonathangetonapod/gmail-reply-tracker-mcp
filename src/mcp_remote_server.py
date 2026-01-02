@@ -5857,7 +5857,7 @@ async def team_settings_page(
             <h1>👥 {{team['team_name']}}</h1>
             <div class="meta">
                 <strong>Owner:</strong> {{owner_email}}
-                <span class="badge {'badge-owner' if is_owner else 'badge-' + user_member['role']}}">
+                <span class="badge {'badge-owner' if is_owner else 'badge-' + user_member['role']}">
                     {{'OWNER' if is_owner else user_member['role'].upper()}}
                 </span>
                 <br>
@@ -6607,10 +6607,14 @@ async def subscribe_to_category(
     """
     Create Stripe Checkout session for subscribing to tool categories.
     Supports multiple categories in shopping cart style.
+    Supports both personal and team subscriptions.
 
     Args:
         session_token: User's session token
-        Body: { "categories": ["gmail", "calendar", ...] }
+        Body: {
+            "categories": ["gmail", "calendar", ...],
+            "team_id": "team_xxx" (optional - for team subscriptions)
+        }
 
     Returns:
         JSON with checkout_url or redirect
@@ -6628,6 +6632,7 @@ async def subscribe_to_category(
     try:
         body = await request.json()
         category_list = body.get('categories', [])
+        team_id = body.get('team_id')  # Optional team_id for team subscriptions
     except:
         raise HTTPException(400, "Invalid request body")
 
@@ -6641,12 +6646,39 @@ async def subscribe_to_category(
         if cat not in valid_categories:
             raise HTTPException(400, f"Invalid category '{cat}'. Must be one of: {', '.join(valid_categories)}")
 
+    # Determine if this is a team or personal subscription
+    is_team_subscription = team_id is not None
+    billing_entity_id = team_id if is_team_subscription else ctx.user_id
+
+    # If team subscription, validate user is owner/admin
+    if is_team_subscription:
+        teams = server.database.get_user_teams(ctx.user_id)
+        user_team = next((t for t in teams if t['team_id'] == team_id), None)
+
+        if not user_team:
+            raise HTTPException(404, "Team not found or you're not a member")
+
+        if user_team['role'] not in ['owner', 'admin']:
+            raise HTTPException(403, "Only team owners and admins can manage team subscriptions")
+
     # Filter out already subscribed categories
-    categories_to_subscribe = [cat for cat in category_list if not server.database.has_active_subscription(ctx.user_id, cat)]
+    if is_team_subscription:
+        # Check team subscriptions
+        categories_to_subscribe = []
+        for cat in category_list:
+            existing = server.database.supabase.table('subscriptions').select('*').eq(
+                'team_id', team_id
+            ).eq('tool_category', cat).eq('is_team_subscription', True).eq('status', 'active').execute()
+            if not existing.data:
+                categories_to_subscribe.append(cat)
+    else:
+        # Check personal subscriptions
+        categories_to_subscribe = [cat for cat in category_list if not server.database.has_active_subscription(ctx.user_id, cat)]
 
     if not categories_to_subscribe:
+        entity_type = "team" if is_team_subscription else "you"
         return JSONResponse({
-            "error": "You're already subscribed to all selected categories",
+            "error": f"{entity_type.capitalize()} already subscribed to all selected categories",
             "status": "already_subscribed"
         }, status_code=400)
 
@@ -6654,16 +6686,43 @@ async def subscribe_to_category(
     stripe.api_key = server.config.stripe_secret_key
 
     # Get or create Stripe customer
-    stripe_customer_id = server.database.get_stripe_customer_id(ctx.user_id)
+    if is_team_subscription:
+        # Get team's Stripe customer
+        team_result = server.database.supabase.table('teams').select('stripe_customer_id, billing_email').eq('team_id', team_id).execute()
+        if not team_result.data:
+            raise HTTPException(404, "Team not found")
 
-    if not stripe_customer_id:
-        # Create new Stripe customer
-        customer = stripe.Customer.create(
-            email=ctx.email,
-            metadata={'user_id': ctx.user_id}
-        )
-        stripe_customer_id = customer.id
-        logger.info(f"Created Stripe customer {stripe_customer_id} for user {ctx.email}")
+        team_data = team_result.data[0]
+        stripe_customer_id = team_data.get('stripe_customer_id')
+        billing_email = team_data.get('billing_email') or ctx.email
+
+        if not stripe_customer_id:
+            # Create new Stripe customer for team
+            customer = stripe.Customer.create(
+                email=billing_email,
+                metadata={'team_id': team_id, 'created_by_user_id': ctx.user_id}
+            )
+            stripe_customer_id = customer.id
+
+            # Save to team
+            server.database.supabase.table('teams').update({
+                'stripe_customer_id': stripe_customer_id,
+                'billing_email': billing_email
+            }).eq('team_id', team_id).execute()
+
+            logger.info(f"Created Stripe customer {stripe_customer_id} for team {team_id}")
+    else:
+        # Personal subscription - use user's Stripe customer
+        stripe_customer_id = server.database.get_stripe_customer_id(ctx.user_id)
+
+        if not stripe_customer_id:
+            # Create new Stripe customer
+            customer = stripe.Customer.create(
+                email=ctx.email,
+                metadata={'user_id': ctx.user_id}
+            )
+            stripe_customer_id = customer.id
+            logger.info(f"Created Stripe customer {stripe_customer_id} for user {ctx.email}")
 
     # Build line items for all selected categories
     line_items = []
@@ -6685,6 +6744,16 @@ async def subscribe_to_category(
 
     # Create Checkout session with multiple line items
     try:
+        # Build metadata
+        metadata = {
+            'user_id': ctx.user_id,
+            'tool_categories': ','.join(categories_to_subscribe)
+        }
+
+        if is_team_subscription:
+            metadata['team_id'] = team_id
+            metadata['is_team_subscription'] = 'true'
+
         checkout_session = stripe.checkout.Session.create(
             customer=stripe_customer_id,
             payment_method_types=['card'],
@@ -6692,13 +6761,11 @@ async def subscribe_to_category(
             mode='subscription',
             success_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_success=true",
             cancel_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_cancelled=true",
-            metadata={
-                'user_id': ctx.user_id,
-                'tool_categories': ','.join(categories_to_subscribe)  # Store all categories
-            }
+            metadata=metadata
         )
 
-        logger.info(f"Created checkout session for user {ctx.email}, categories: {', '.join(categories_to_subscribe)}")
+        entity_description = f"team {team_id}" if is_team_subscription else f"user {ctx.email}"
+        logger.info(f"Created checkout session for {entity_description}, categories: {', '.join(categories_to_subscribe)}")
 
         # Return JSON with checkout URL
         return JSONResponse({
