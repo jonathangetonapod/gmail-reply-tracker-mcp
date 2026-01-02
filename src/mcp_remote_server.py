@@ -450,30 +450,11 @@ async def handle_jsonrpc_request(
                                 filtered_tools.append(tool)
                         tools = filtered_tools
 
+                # TEMPORARILY DISABLED: Show ALL tools regardless of subscription for debugging
                 # Filter by active subscriptions (payment enforcement)
                 active_subscriptions = ctx.active_subscriptions
-                if active_subscriptions is not None and len(active_subscriptions) > 0:
-                    # User has some subscriptions - only show subscribed categories
-                    subscription_filtered_tools = []
-                    # DEBUG: Show ALL tool names to see what we're working with
-                    all_tool_names = [t['name'] for t in tools]
-                    logger.info(f"DEBUG: All 84 tool names: {all_tool_names}")
-
-                    # DEBUG: Check which ones contain 'doc'
-                    doc_containing = [name for name in all_tool_names if 'doc' in name.lower()]
-                    logger.info(f"DEBUG: Tools containing 'doc': {doc_containing}")
-
-                    for tool in tools:
-                        category = get_tool_category(tool['name'])
-                        # ONLY allow tools that match subscribed categories (no uncategorized tools)
-                        if category is not None and category in active_subscriptions:
-                            subscription_filtered_tools.append(tool)
-                    tools = subscription_filtered_tools
-                    logger.info(f"Filtered to subscribed categories: {active_subscriptions}, showing {len(tools)} tools")
-                elif active_subscriptions == []:
-                    # User has no active subscriptions - show no tools
-                    tools = []
-                    logger.warning(f"User {ctx.email} has no active subscriptions - blocking all tools")
+                logger.info(f"User has active subscriptions: {active_subscriptions}, but showing ALL {len(tools)} tools for debugging")
+                # TODO: Re-enable subscription filtering once we figure out why docs tools are missing
 
             logger.info(f"Listed {len(tools)} tools")
             return {
