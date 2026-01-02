@@ -6951,6 +6951,8 @@ async def stripe_webhook(request: Request):
         customer_id = session.get('customer')
         user_id = session['metadata'].get('user_id')
         tool_categories = session['metadata'].get('tool_categories')  # Comma-separated string
+        team_id = session['metadata'].get('team_id')  # Optional - for team subscriptions
+        is_team_subscription = session['metadata'].get('is_team_subscription') == 'true'
 
         if not all([subscription_id, customer_id, user_id, tool_categories]):
             logger.error(f"Missing required fields in checkout.session.completed: {session}")
@@ -6974,18 +6976,35 @@ async def stripe_webhook(request: Request):
 
         for category in categories:
             # Create subscription in database for each category
-            server.database.create_subscription(
-                user_id=user_id,
-                tool_category=category,
-                stripe_customer_id=customer_id,
-                stripe_subscription_id=subscription_id,
-                status='active',
-                current_period_start=current_period_start,
-                current_period_end=current_period_end
-            )
-            logger.info(f"Created subscription for user {user_id}, category {category}")
+            if is_team_subscription and team_id:
+                # Team subscription
+                server.database.supabase.table('subscriptions').insert({
+                    'user_id': user_id,  # Creator of the subscription
+                    'team_id': team_id,
+                    'is_team_subscription': True,
+                    'tool_category': category,
+                    'stripe_customer_id': customer_id,
+                    'stripe_subscription_id': subscription_id,
+                    'status': 'active',
+                    'current_period_start': current_period_start.isoformat(),
+                    'current_period_end': current_period_end.isoformat()
+                }).execute()
+                logger.info(f"Created TEAM subscription for team {team_id}, category {category}")
+            else:
+                # Personal subscription
+                server.database.create_subscription(
+                    user_id=user_id,
+                    tool_category=category,
+                    stripe_customer_id=customer_id,
+                    stripe_subscription_id=subscription_id,
+                    status='active',
+                    current_period_start=current_period_start,
+                    current_period_end=current_period_end
+                )
+                logger.info(f"Created PERSONAL subscription for user {user_id}, category {category}")
 
-        logger.info(f"Successfully processed checkout for {len(categories)} categories: {', '.join(categories)}")
+        entity_description = f"team {team_id}" if is_team_subscription else f"user {user_id}"
+        logger.info(f"Successfully processed checkout for {entity_description}: {len(categories)} categories ({', '.join(categories)})")
 
     elif event_type == 'customer.subscription.updated':
         # Subscription updated (renewed, changed, etc.)
