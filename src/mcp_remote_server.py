@@ -9976,18 +9976,46 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
         const userId = '{user_id}';
         const adminPassword = '{os.getenv("ADMIN_PASSWORD")}';
 
+        function toggleRawData(index) {{
+            const rawDataDiv = document.getElementById(`raw-data-${{index}}`);
+            const icon = document.getElementById(`toggle-icon-${{index}}`);
+
+            if (rawDataDiv.style.display === 'none') {{
+                rawDataDiv.style.display = 'block';
+                icon.textContent = '▲';
+            }} else {{
+                rawDataDiv.style.display = 'none';
+                icon.textContent = '▼';
+            }}
+        }}
+
         async function refreshActivity() {{
+            console.log('[DIAGNOSTICS] Refreshing activity data...');
+            console.log('[DIAGNOSTICS] User ID:', userId);
+            console.log('[DIAGNOSTICS] Admin password set:', !!adminPassword);
+
             try {{
-                const response = await fetch(
-                    `/admin/user/${{userId}}/activity?admin_password=${{adminPassword}}&limit=50`
-                );
+                const url = `/admin/user/${{userId}}/activity?admin_password=${{adminPassword}}&limit=50`;
+                console.log('[DIAGNOSTICS] Fetching:', url);
+
+                const response = await fetch(url);
+                console.log('[DIAGNOSTICS] Response status:', response.status, response.statusText);
 
                 if (!response.ok) {{
-                    console.error('Failed to fetch activity');
+                    const errorText = await response.text();
+                    console.error('[DIAGNOSTICS] Fetch failed:', errorText);
+                    document.getElementById('total-requests').textContent = 'ERROR';
+                    document.getElementById('success-rate').textContent = 'ERROR';
+                    document.getElementById('error-count').textContent = 'ERROR';
+                    document.getElementById('last-updated').textContent = response.status + ' ' + response.statusText;
                     return;
                 }}
 
                 const data = await response.json();
+                console.log('[DIAGNOSTICS] Data received:', data);
+                console.log('[DIAGNOSTICS] Total logs:', data.total_logs);
+                console.log('[DIAGNOSTICS] Success count:', data.success_count);
+                console.log('[DIAGNOSTICS] Error count:', data.error_count);
 
                 // Update summary stats
                 document.getElementById('total-requests').textContent = data.total_logs;
@@ -10026,30 +10054,64 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 }}
 
                 let timelineHTML = '';
-                data.logs.forEach(log => {{
+                data.logs.forEach((log, index) => {{
                     const timestamp = new Date(log.timestamp);
                     const timeStr = timestamp.toLocaleString('en-US', {{
                         month: 'short',
                         day: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
+                        second: '2-digit'
                     }});
 
                     const statusClass = log.success ? 'success' : 'destructive';
                     const statusIcon = log.success ? '✓' : '✗';
                     const durationStr = log.duration_ms ? ` (${{log.duration_ms}}ms)` : '';
 
+                    // Format raw request params as JSON
+                    const rawParams = JSON.stringify(log.request_params || {{}}, null, 2);
+                    const rawResponse = log.response_data ? JSON.stringify(log.response_data, null, 2) : 'No response data';
+                    const hasParams = log.request_params && Object.keys(log.request_params).length > 0;
+
                     timelineHTML += `
-                        <div class="timeline-item">
-                            <div class="timeline-marker ${{statusClass}}"></div>
-                            <div class="timeline-content">
-                                <div class="timeline-header">
-                                    <code>${{log.tool_name}}</code>
-                                    <span class="badge badge-${{statusClass}}">${{statusIcon}}</span>
+                        <div class="timeline-item" style="border: 2px solid ${{log.success ? 'hsl(var(--border))' : 'hsl(var(--destructive))'}};  padding: 12px; border-radius: 8px; margin-bottom: 8px; background: white;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">
+                                        <code style="color: ${{log.success ? 'hsl(var(--foreground))' : 'hsl(var(--destructive))'}}">${{log.tool_name}}</code>
+                                        <span class="badge badge-${{statusClass}}" style="margin-left: 8px;">${{statusIcon}}</span>
+                                    </div>
+                                    <div style="font-size: 13px; color: hsl(var(--muted-foreground));">${{timeStr}}${{durationStr}}</div>
                                 </div>
-                                <div class="timeline-time">${{timeStr}}${{durationStr}}</div>
-                                ${{log.error_message ? `<div class="timeline-error">${{log.error_message}}</div>` : ''}}
-                                ${{log.params_summary ? `<div style="font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 4px;">${{log.params_summary}}</div>` : ''}}
+                                <button onclick="toggleRawData(${{index}})" style="padding: 4px 10px; border: 1px solid hsl(var(--border)); background: white; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                    <span id="toggle-icon-${{index}}">▼</span> RAW
+                                </button>
+                            </div>
+
+                            ${{log.error_message ? `<div style="padding: 8px; background: hsl(var(--destructive) / 0.1); border-left: 3px solid hsl(var(--destructive)); border-radius: 4px; margin-bottom: 8px; font-size: 13px;"><strong>Error:</strong> ${{log.error_message}}</div>` : ''}}
+
+                            ${{log.error_type ? `<div style="font-size: 12px; color: hsl(var(--muted-foreground)); margin-bottom: 4px;"><strong>Error Type:</strong> ${{log.error_type}}</div>` : ''}}
+
+                            <!-- RAW DATA (expandable) -->
+                            <div id="raw-data-${{index}}" style="display: none; margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-family: monospace; font-size: 12px;">
+                                <div style="margin-bottom: 12px;">
+                                    <strong style="color: hsl(var(--primary));">📥 REQUEST PARAMS:</strong>
+                                    <pre style="margin: 4px 0 0 0; padding: 8px; background: white; border-radius: 4px; overflow-x: auto;">${{rawParams}}</pre>
+                                </div>
+
+                                ${{log.response_data ? `
+                                <div style="margin-bottom: 12px;">
+                                    <strong style="color: hsl(var(--primary));">📤 RESPONSE DATA:</strong>
+                                    <pre style="margin: 4px 0 0 0; padding: 8px; background: white; border-radius: 4px; overflow-x: auto; max-height: 300px;">${{rawResponse}}</pre>
+                                </div>
+                                ` : ''}}
+
+                                ${{log.stack_trace ? `
+                                <div>
+                                    <strong style="color: hsl(var(--destructive));">📍 STACK TRACE:</strong>
+                                    <pre style="margin: 4px 0 0 0; padding: 8px; background: white; border-radius: 4px; overflow-x: auto; color: hsl(var(--destructive)); max-height: 200px;">${{log.stack_trace}}</pre>
+                                </div>
+                                ` : ''}}
                             </div>
                         </div>
                     `;
@@ -10601,11 +10663,14 @@ async def admin_get_user_activity(
     request: Request,
     user_id: str,
     admin_password: Optional[str] = Query(None),
-    limit: int = Query(50)
+    limit: int = Query(50),
+    raw: bool = Query(False)  # Show RAW unfiltered data
 ):
     """
     API endpoint for real-time user activity polling.
     Returns recent usage logs as JSON for live updates.
+
+    Set raw=true to see FULL unfiltered request/response data (for debugging).
     """
     # Check admin authentication
     correct_password = os.getenv("ADMIN_PASSWORD")
@@ -10621,35 +10686,22 @@ async def admin_get_user_activity(
             'user_id', user_id
         ).order('timestamp', desc=True).limit(limit).execute()
 
-        # Format logs for JSON response (sanitize sensitive data)
+        # Format logs - show RAW data for admin debugging
         logs = []
         for log in recent_logs.data:
-            # Sanitize request params - only show safe metadata
-            request_params = log.get('request_params', {})
-            sanitized_params = {}
-
-            # Only include non-sensitive parameter keys
-            safe_keys = ['limit', 'max_results', 'folder', 'label', 'count', 'days', 'format']
-            for key in safe_keys:
-                if key in request_params:
-                    sanitized_params[key] = request_params[key]
-
-            # For queries/searches, just show that they exist, not content
-            if 'query' in request_params:
-                sanitized_params['query'] = '<redacted>'
-            if 'search_term' in request_params:
-                sanitized_params['search_term'] = '<redacted>'
-            if 'email' in request_params:
-                sanitized_params['email'] = '<redacted>'
-
-            logs.append({
+            log_entry = {
+                'id': log.get('id'),
                 'timestamp': log['timestamp'],
                 'tool_name': log['tool_name'],
                 'success': log['success'],
                 'error_message': log.get('error_message'),
+                'error_type': log.get('error_type'),
                 'duration_ms': log.get('duration_ms'),
-                'params_summary': f"{len(request_params)} params" if request_params else "no params"
-            })
+                'request_params': log.get('request_params', {}),  # RAW params
+                'response_data': log.get('response_data'),  # RAW response
+                'stack_trace': log.get('stack_trace')  # Full stack trace if available
+            }
+            logs.append(log_entry)
 
         # Get error summary
         error_logs = [log for log in recent_logs.data if not log['success']]
