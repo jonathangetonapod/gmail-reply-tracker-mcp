@@ -9004,6 +9004,18 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 
         # Calculate tool count
         tool_counts = {'gmail': 25, 'calendar': 15, 'docs': 8, 'sheets': 12, 'fathom': 10, 'instantly': 10, 'bison': 4}
+
+        # Define category info for display
+        category_info = {
+            'gmail': {'emoji': '📧', 'name': 'Gmail', 'tools': 25},
+            'calendar': {'emoji': '📅', 'name': 'Calendar', 'tools': 15},
+            'docs': {'emoji': '📄', 'name': 'Docs', 'tools': 8},
+            'sheets': {'emoji': '📊', 'name': 'Sheets', 'tools': 12},
+            'fathom': {'emoji': '📈', 'name': 'Fathom', 'tools': 10},
+            'instantly': {'emoji': '📨', 'name': 'Instantly', 'tools': 10},
+            'bison': {'emoji': '🦬', 'name': 'Bison', 'tools': 4}
+        }
+
         if enabled_categories is None:
             total_tools = 84
             tool_status = "All tools enabled"
@@ -9026,6 +9038,22 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 
         # Get recent activity
         recent_logs = server.database.supabase.table('usage_logs').select('*').eq('user_id', user_id).order('timestamp', desc=True).limit(20).execute()
+
+        # Get user's teams
+        user_teams = []
+        if user_data.get('teams_enabled', False):
+            user_teams = server.database.get_user_teams(user_id)
+
+            # For each team, get subscriptions and member count
+            for team in user_teams:
+                team_subs = server.database.supabase.table('subscriptions').select('tool_category').eq(
+                    'team_id', team['team_id']
+                ).eq('is_team_subscription', True).eq('status', 'active').execute()
+                team['active_categories'] = [s['tool_category'] for s in (team_subs.data if team_subs.data else [])]
+
+                # Get member count
+                members = server.database.get_team_members(team['team_id'])
+                team['member_count'] = len(members)
 
         # Format dates
         from dateutil import parser as date_parser
@@ -9588,6 +9616,57 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 <div id="team-access-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
             </div>
 
+            {f'''
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2><span>👥</span> Team Memberships & Subscriptions</h2>
+                <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 20px;">
+                    Teams this user belongs to and their current subscriptions. Grant free subscriptions by clicking the + buttons.
+                </p>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    {"".join([f"""
+                    <div style="border: 2px solid hsl(var(--border)); border-radius: 12px; padding: 20px; background: white;">
+                        <!-- Team Header -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <span style="font-size: 20px; font-weight: 700;">{team['team_name']}</span>
+                                    <span class="badge badge-{'success' if team['role'] == 'owner' else 'muted'}">{team['role'].title()}</span>
+                                    <span class="badge badge-muted">{team['member_count']} members</span>
+                                </div>
+                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Team ID: {team['team_id'][:16]}...</div>
+                            </div>
+                        </div>
+
+                        <!-- Current Subscriptions -->
+                        <div style="margin-bottom: 16px;">
+                            <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: hsl(var(--muted-foreground));">Current Team Subscriptions:</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                {"".join([f'<span class="badge badge-success">{category_info[cat]["emoji"]} {cat.title()}</span>' for cat in team['active_categories']]) if team['active_categories'] else '<span class="badge badge-muted">No subscriptions</span>'}
+                            </div>
+                        </div>
+
+                        <!-- Grant Buttons -->
+                        <div style="border-top: 1px solid hsl(var(--border)); padding-top: 16px;">
+                            <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: hsl(var(--muted-foreground));">Grant Additional Categories:</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;">
+                                {"".join([f"""<button
+                                    onclick="grantTeamSubscription('{team['team_id']}', '{cat}')"
+                                    style="padding: 10px 14px; border: {'2px solid hsl(var(--border))' if cat in team['active_categories'] else '2px solid hsl(var(--primary))'}; border-radius: 8px; font-weight: 600; cursor: {'not-allowed' if cat in team['active_categories'] else 'pointer'}; transition: all 0.2s; background: {'hsl(var(--muted))' if cat in team['active_categories'] else 'white'}; color: {'hsl(var(--muted-foreground))' if cat in team['active_categories'] else 'hsl(var(--primary))'}; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                                    {'disabled' if cat in team['active_categories'] else ''}>
+                                    <span style="font-size: 16px;">{category_info[cat]["emoji"]}</span>
+                                    <span>{'✓' if cat in team['active_categories'] else '+'} {cat.title()}</span>
+                                </button>""" for cat in ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']])}
+                            </div>
+                        </div>
+                    </div>
+                    """ for team in user_teams])}
+                </div>
+
+                <div id="team-grant-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
+            </div>
+            ''' if user_teams else ''}
+
             <div class="card">
                 <h2><span>ℹ️</span> Account Info</h2>
                 <div class="info-row">
@@ -9943,6 +10022,49 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 }}
             }} catch (error) {{
                 messageDiv.textContent = `✗ Error: ${{error.message}}`;
+                messageDiv.style.display = 'block';
+                messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                messageDiv.style.color = 'hsl(var(--destructive))';
+            }}
+        }}
+
+        async function grantTeamSubscription(teamId, category) {{
+            const messageDiv = document.getElementById('team-grant-message');
+
+            // Confirm action
+            if (!confirm(`Grant ${{category}} subscription to this team for free?`)) {{
+                return;
+            }}
+
+            try {{
+                const response = await fetch(`/admin/grant-team?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{
+                        team_id: teamId,
+                        category: category
+                    }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    messageDiv.textContent = `✓ Granted ${{category}} to team successfully!`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--success) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--success))';
+
+                    setTimeout(() => {{
+                        window.location.reload();
+                    }}, 1000);
+                }} else {{
+                    messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--destructive))';
+                }}
+            }} catch (e) {{
+                messageDiv.textContent = `✗ Network error: ${{e.message}}`;
                 messageDiv.style.display = 'block';
                 messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
                 messageDiv.style.color = 'hsl(var(--destructive))';
