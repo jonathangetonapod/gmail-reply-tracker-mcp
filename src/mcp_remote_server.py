@@ -7664,31 +7664,13 @@ async def stripe_webhook(request: Request):
         # Parse comma-separated categories and create subscription for each
         categories = [cat.strip() for cat in tool_categories.split(',')]
 
-        # For team subscriptions, get team members once
-        members = None
-        if is_team_subscription and team_id:
-            members = server.database.get_team_members(team_id)
-            if not members:
-                logger.error(f"Team {team_id} has no members, cannot create subscription")
-                return  # Skip this entire webhook event
-
         for category in categories:
             # Create subscription in database for each category
             if is_team_subscription and team_id:
-                # Team subscription - find a member without ANY subscription for this category
-                valid_user_id = user_id  # Default to the checkout creator
-                for member in members:
-                    member_user_id = member['user_id']
-                    any_sub = server.database.supabase.table('subscriptions').select('*').eq(
-                        'user_id', member_user_id
-                    ).eq('tool_category', category).execute()
-
-                    if not any_sub.data:
-                        valid_user_id = member_user_id
-                        break
-
+                # Team subscription - use checkout creator's user_id
+                # Now safe thanks to updated unique constraint that includes team_id
                 server.database.supabase.table('subscriptions').insert({
-                    'user_id': valid_user_id,  # Use a team member's user_id that won't conflict
+                    'user_id': user_id,  # Checkout creator as billing contact
                     'team_id': team_id,
                     'is_team_subscription': True,
                     'tool_category': category,
@@ -10929,43 +10911,10 @@ async def admin_grant_team_subscription_single(
     if existing.data:
         raise HTTPException(400, f"Team already has {category} subscription")
 
-    # Get team members to find a valid user_id
-    # (we need a user_id from the users table due to foreign key constraint)
-    members = server.database.get_team_members(team_id)
-    if not members:
-        raise HTTPException(400, "Team has no members")
-
-    # Find a team member who doesn't already have ANY subscription for this category
-    # (checking both personal and team subscriptions to avoid unique constraint)
-    valid_user_id = None
-    for member in members:
-        member_user_id = member['user_id']
-        # Check if this member has ANY subscription with this category
-        # (the unique constraint is on user_id + tool_category, regardless of team_id)
-        any_sub = server.database.supabase.table('subscriptions').select('*').eq(
-            'user_id', member_user_id
-        ).eq('tool_category', category).execute()
-
-        if not any_sub.data:
-            # This member doesn't have ANY subscription for this category, safe to use
-            valid_user_id = member_user_id
-            logger.info(f"Found valid user_id {member_user_id} without {category} subscription")
-            break
-        else:
-            logger.info(f"Member {member_user_id} already has {category} subscription, skipping")
-
-    if not valid_user_id:
-        # All team members already have subscriptions for this category
-        # Cannot grant team subscription - unique constraint will fail
-        raise HTTPException(
-            400,
-            f"Cannot grant team {category} subscription: all team members already have {category} subscriptions. "
-            f"The unique database constraint prevents duplicate (user_id, category) combinations."
-        )
-
     # Create free subscription (no Stripe)
+    # Use owner's user_id - now safe thanks to updated unique constraint that includes team_id
     server.database.supabase.table('subscriptions').insert({
-        'user_id': valid_user_id,  # Use a team member's user_id that won't conflict
+        'user_id': team['owner_user_id'],  # Team owner as billing contact
         'team_id': team_id,
         'is_team_subscription': True,
         'tool_category': category,
@@ -11011,11 +10960,6 @@ async def admin_grant_team_subscription(
 
     team = team_result.data[0]
 
-    # Get team members once for reuse
-    members = server.database.get_team_members(team_id)
-    if not members:
-        raise HTTPException(400, "Team has no members")
-
     # Create free subscriptions for each category
     granted_count = 0
     for category in categories:
@@ -11028,25 +10972,10 @@ async def admin_grant_team_subscription(
             logger.info(f"Subscription for {category} already exists for team {team_id}")
             continue
 
-        # Find a team member who doesn't have ANY subscription for this category
-        valid_user_id = None
-        for member in members:
-            member_user_id = member['user_id']
-            any_sub = server.database.supabase.table('subscriptions').select('*').eq(
-                'user_id', member_user_id
-            ).eq('tool_category', category).execute()
-
-            if not any_sub.data:
-                valid_user_id = member_user_id
-                break
-
-        if not valid_user_id:
-            logger.warning(f"Cannot grant {category} to team {team_id}: all members have {category} subscriptions")
-            continue  # Skip this category
-
         # Create free subscription (no Stripe)
+        # Use owner's user_id - now safe thanks to updated unique constraint
         server.database.supabase.table('subscriptions').insert({
-            'user_id': valid_user_id,  # Use a team member's user_id that won't conflict
+            'user_id': team['owner_user_id'],  # Team owner as billing contact
             'team_id': team_id,
             'is_team_subscription': True,
             'tool_category': category,
