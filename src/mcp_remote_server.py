@@ -5247,6 +5247,138 @@ async def dashboard(
                 }}
             }});
         }}
+
+        // Team creation form
+        const createTeamForm = document.getElementById('create-team-form');
+        if (createTeamForm) {{
+            createTeamForm.addEventListener('submit', async (e) => {{
+                e.preventDefault();
+
+                const teamNameInput = document.getElementById('team-name-input');
+                const teamName = teamNameInput.value.trim();
+
+                if (!teamName || teamName.length < 3) {{
+                    showToast('Team name must be at least 3 characters', 'error');
+                    return;
+                }}
+
+                try {{
+                    const response = await fetch('/teams?session_token={session_token}', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify({{ team_name: teamName }})
+                    }});
+
+                    if (response.ok) {{
+                        const data = await response.json();
+                        showToast('✓ Team "' + teamName + '" created successfully!');
+                        teamNameInput.value = '';  // Clear input
+                        loadTeams();  // Reload teams list
+                    }} else {{
+                        const error = await response.json();
+                        showToast('Error: ' + error.detail, 'error');
+                    }}
+                }} catch (error) {{
+                    showToast('Network error. Please try again.', 'error');
+                }}
+            }});
+        }}
+
+        // Load teams function
+        async function loadTeams() {{
+            const teamsContainer = document.getElementById('teams-container');
+            if (!teamsContainer) return;
+
+            try {{
+                const response = await fetch('/teams?session_token={session_token}');
+
+                if (!response.ok) {{
+                    teamsContainer.innerHTML = `
+                        <div style="text-align: center; padding: 60px; background: #fee; border-radius: 12px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                            <p style="color: #c00; font-size: 16px;">Failed to load teams</p>
+                        </div>
+                    `;
+                    return;
+                }}
+
+                const data = await response.json();
+                const teams = data.teams || [];
+
+                if (teams.length === 0) {{
+                    teamsContainer.innerHTML = `
+                        <div style="text-align: center; padding: 60px; background: #f9fafb; border-radius: 12px;">
+                            <div style="font-size: 64px; margin-bottom: 15px;">👥</div>
+                            <div style="font-size: 18px; font-weight: 600; color: #1a202c; margin-bottom: 8px;">No Teams Yet</div>
+                            <p style="color: #6b7280; font-size: 15px;">Create your first team above to get started!</p>
+                        </div>
+                    `;
+                }} else {{
+                    teamsContainer.innerHTML = teams.map(team => `
+                        <div style="background: white; padding: 25px; border-radius: 12px; border: 2px solid #e2e8f0; transition: all 0.2s; cursor: pointer;" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='#e2e8f0'">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0 0 8px 0; font-size: 20px; color: #1a202c; font-weight: 600;">${{team.team_name}}</h3>
+                                    <div style="display: flex; gap: 15px; font-size: 14px; color: #6b7280;">
+                                        <span>👤 ${{team.role === 'owner' ? '<strong style="color: #667eea;">Owner</strong>' : 'Member'}}</span>
+                                        <span>📅 Created ${{new Date(team.created_at).toLocaleDateString()}}</span>
+                                    </div>
+                                </div>
+                                <span style="background: #667eea; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                                    ${{team.member_count}} ${{team.member_count === 1 ? 'member' : 'members'}}
+                                </span>
+                            </div>
+                            <div style="padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
+                                <button onclick="viewTeam('${{team.team_id}}')" style="flex: 1; background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                                    View Team
+                                </button>
+                                ${{team.role === 'owner' ? `
+                                <button onclick="manageTeam('${{team.team_id}}')" style="background: #e2e8f0; color: #4a5568; padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                                    ⚙️ Manage
+                                </button>
+                                ` : ''}}
+                            </div>
+                        </div>
+                    `).join('');
+                }}
+            }} catch (error) {{
+                console.error('Error loading teams:', error);
+                teamsContainer.innerHTML = `
+                    <div style="text-align: center; padding: 60px; background: #fee; border-radius: 12px;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+                        <p style="color: #c00; font-size: 16px;">Error loading teams</p>
+                    </div>
+                `;
+            }}
+        }}
+
+        // View team function (placeholder)
+        function viewTeam(teamId) {{
+            showToast('Team details page coming soon!', 'error');
+            // TODO: Navigate to team details page
+        }}
+
+        // Manage team function (placeholder)
+        function manageTeam(teamId) {{
+            showToast('Team management page coming soon!', 'error');
+            // TODO: Navigate to team management page
+        }}
+
+        // Load teams when Teams tab is opened
+        document.querySelectorAll('.tab').forEach(tab => {{
+            const originalClick = tab.onclick;
+            tab.addEventListener('click', () => {{
+                const tabName = tab.dataset.tab;
+                if (tabName === 'teams') {{
+                    loadTeams();
+                }}
+            }});
+        }});
+
+        // Initial load if on Teams tab (shouldn't happen on page load, but just in case)
+        if (window.location.hash === '#teams') {{
+            loadTeams();
+        }}
     </script>
 </body>
 
