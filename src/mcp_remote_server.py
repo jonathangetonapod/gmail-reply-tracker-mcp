@@ -3465,9 +3465,9 @@ async def update_tool_categories_endpoint(
 # SUBSCRIPTION & BILLING ENDPOINTS
 # ===========================================================================
 
-@app.get("/subscribe")
+@app.post("/subscribe")
 async def subscribe_to_category(
-    categories: str = Query(..., description="Comma-separated list of tool categories to subscribe to"),
+    request: Request,
     session_token: Optional[str] = Query(None)
 ):
     """
@@ -3475,11 +3475,11 @@ async def subscribe_to_category(
     Supports multiple categories in shopping cart style.
 
     Args:
-        categories: Comma-separated categories ('gmail,calendar,docs')
         session_token: User's session token
+        Body: { "categories": ["gmail", "calendar", ...] }
 
     Returns:
-        Redirect to Stripe Checkout
+        JSON with checkout_url or redirect
     """
     if not session_token:
         raise HTTPException(401, "Missing session token")
@@ -3490,9 +3490,15 @@ async def subscribe_to_category(
     except HTTPException:
         raise HTTPException(401, "Invalid or expired session token")
 
-    # Parse and validate categories
+    # Parse request body
+    try:
+        body = await request.json()
+        category_list = body.get('categories', [])
+    except:
+        raise HTTPException(400, "Invalid request body")
+
+    # Validate categories
     valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
-    category_list = [cat.strip() for cat in categories.split(',') if cat.strip()]
 
     if not category_list:
         raise HTTPException(400, "No categories provided")
@@ -3505,10 +3511,10 @@ async def subscribe_to_category(
     categories_to_subscribe = [cat for cat in category_list if not server.database.has_active_subscription(ctx.user_id, cat)]
 
     if not categories_to_subscribe:
-        return RedirectResponse(
-            url=f"/dashboard?session_token={session_token}&error=already_subscribed",
-            status_code=303
-        )
+        return JSONResponse({
+            "error": "You're already subscribed to all selected categories",
+            "status": "already_subscribed"
+        }, status_code=400)
 
     # Initialize Stripe
     stripe.api_key = server.config.stripe_secret_key
@@ -3560,12 +3566,18 @@ async def subscribe_to_category(
 
         logger.info(f"Created checkout session for user {ctx.email}, categories: {', '.join(categories_to_subscribe)}")
 
-        # Redirect to Stripe Checkout
-        return RedirectResponse(url=checkout_session.url, status_code=303)
+        # Return JSON with checkout URL
+        return JSONResponse({
+            "checkout_url": checkout_session.url,
+            "status": "success"
+        })
 
     except Exception as e:
         logger.error(f"Error creating checkout session: {e}")
-        raise HTTPException(500, "Failed to create checkout session")
+        return JSONResponse({
+            "error": f"Failed to create checkout session: {str(e)}",
+            "status": "error"
+        }, status_code=500)
 
 
 @app.post("/webhooks/stripe")
