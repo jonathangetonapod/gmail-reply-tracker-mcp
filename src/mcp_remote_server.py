@@ -5422,10 +5422,14 @@ async def admin_toggle_subscription(
             except ValueError as e:
                 raise HTTPException(400, f"No Stripe price configured for {category}: {str(e)}")
 
-            # Create real Stripe subscription (will charge the user)
+            # Create real Stripe subscription with invoice billing
+            # This allows creating subscriptions without payment method on file
+            # Stripe will email the user an invoice to pay
             stripe_subscription = stripe.Subscription.create(
                 customer=stripe_customer_id,
                 items=[{'price': price_id}],
+                collection_method='send_invoice',  # Invoice billing - no card required upfront
+                days_until_due=30,  # User has 30 days to pay invoice
                 metadata={
                     'user_id': user_id,
                     'tool_category': category,
@@ -5452,7 +5456,7 @@ async def admin_toggle_subscription(
                 "message": f"Added {category} subscription (Stripe ID: {stripe_subscription.id})",
                 "subscription_id": stripe_subscription.id,
                 "stripe_status": stripe_subscription.status,
-                "note": "User will be billed according to the subscription plan"
+                "note": "Stripe will email an invoice to the user - payment due within 30 days"
             })
 
         elif action == 'remove':
