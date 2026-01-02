@@ -5412,11 +5412,7 @@ async def admin_toggle_subscription(
                     metadata={'user_id': user_id}
                 )
                 stripe_customer_id = customer.id
-
-                # Save to database
-                server.database.supabase.table('users').update({
-                    'stripe_customer_id': stripe_customer_id
-                }).eq('user_id', user_id).execute()
+                # Note: stripe_customer_id will be saved with the subscription record below
 
             # Create subscription manually (bypass Stripe for admin-added)
             import secrets
@@ -5458,7 +5454,7 @@ async def admin_toggle_subscription(
             server.database.supabase.table('subscriptions').update({
                 'status': 'cancelled',
                 'cancelled_at': datetime.now().isoformat()
-            }).eq('subscription_id', subscription['subscription_id']).execute()
+            }).eq('id', subscription['id']).execute()
 
             logger.info(f"Admin removed {category} subscription for user {user_id}")
 
