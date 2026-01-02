@@ -3270,7 +3270,7 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
         <div class="section" style="margin-top: 30px;">
             <h2><span>🏆</span> Popular Tool Categories</h2>
             <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                {(''.join([f'<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb;"><span style="font-weight: 500; text-transform: capitalize;">📦 {{category}}</span><span style="color: #10b981; font-weight: 600;">{{count}} subscriptions (${{{count * 5}}}/mo)</span></div>' for category, count in subscription_stats['category_breakdown'].items()]) if subscription_stats['category_breakdown'] else '<p style="color: #6b7280; text-align: center;">No subscriptions yet</p>')}
+                {(''.join([f'<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb;"><span style="font-weight: 500; text-transform: capitalize;">📦 {category}</span><span style="color: #10b981; font-weight: 600;">{count} subscriptions (${count * 5}/mo)</span></div>' for category, count in subscription_stats['category_breakdown'].items()]) if subscription_stats['category_breakdown'] else '<p style="color: #6b7280; text-align: center;">No subscriptions yet</p>')}
             </div>
         </div>
 
@@ -3406,6 +3406,10 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 
         # Get subscription info
         subscription_info = server.database.get_user_subscription_summary(user_id)
+
+        # Get detailed subscription info for management
+        all_subscriptions = server.database.get_user_subscriptions(user_id)
+        active_categories = [sub['tool_category'] for sub in all_subscriptions if sub['status'] == 'active']
 
         # Get recent activity
         recent_logs = server.database.supabase.table('usage_logs').select('*').eq('user_id', user_id).order('timestamp', desc=True).limit(20).execute()
@@ -3871,6 +3875,28 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             </div>
 
             <div class="card">
+                <h2><span>⚙️</span> Manage Subscriptions</h2>
+                <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 16px;">Add or remove tool categories for this user</p>
+                <div id="subscription-management" style="display: grid; gap: 12px;">
+                    {chr(10).join([f'''
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 2px solid {'hsl(var(--success))' if cat in active_categories else 'hsl(var(--border))'}; border-radius: 8px; background: {'hsl(var(--success) / 0.05)' if cat in active_categories else 'white'};">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">{cat.title()}</div>
+                            <div style="font-size: 13px; color: hsl(var(--muted-foreground));">{tool_counts.get(cat, 0)} tools • $5/month</div>
+                        </div>
+                        <button
+                            class="{'remove-btn' if cat in active_categories else 'add-btn'}"
+                            onclick="toggleSubscription('{user_id}', '{cat}', {str(cat in active_categories).lower()})"
+                            style="padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: {'hsl(var(--destructive))' if cat in active_categories else 'hsl(var(--primary))'}; color: white;">
+                            {('✗ Remove' if cat in active_categories else '+ Add')}
+                        </button>
+                    </div>
+                    ''' for cat in ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']])}
+                </div>
+                <div id="subscription-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
+            </div>
+
+            <div class="card">
                 <h2><span>📊</span> Usage Statistics (30 Days)</h2>
                 <div class="stat-row">
                     <span class="stat-label">Total Requests</span>
@@ -3936,6 +3962,48 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             </div>
         </div>
     </div>
+
+    <script>
+        async function toggleSubscription(userId, category, isCurrentlyActive) {{
+            const messageDiv = document.getElementById('subscription-message');
+            const action = isCurrentlyActive ? 'remove' : 'add';
+
+            try {{
+                const response = await fetch(`/admin/user/${{userId}}/subscription?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{
+                        action: action,
+                        category: category
+                    }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    messageDiv.textContent = `✓ ${{action === 'add' ? 'Added' : 'Removed'}} ${{category}} subscription successfully!`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--success) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--success))';
+
+                    // Reload page after 1 second
+                    setTimeout(() => {{
+                        window.location.reload();
+                    }}, 1000);
+                }} else {{
+                    messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--destructive))';
+                }}
+            }} catch (error) {{
+                messageDiv.textContent = `✗ Error: ${{error.message}}`;
+                messageDiv.style.display = 'block';
+                messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                messageDiv.style.color = 'hsl(var(--destructive))';
+            }}
+        }}
+    </script>
 </body>
 </html>
         """)
@@ -3956,6 +4024,135 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 </body>
 </html>
         """, status_code=500)
+
+
+@app.post("/admin/user/{user_id}/subscription")
+async def admin_toggle_subscription(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Admin endpoint to add or remove subscriptions for a user.
+
+    Body: {
+        "action": "add" or "remove",
+        "category": "gmail" | "calendar" | "docs" | "sheets" | "fathom" | "instantly" | "bison"
+    }
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Parse request body
+        body = await request.json()
+        action = body.get('action')  # 'add' or 'remove'
+        category = body.get('category')
+
+        if action not in ['add', 'remove']:
+            raise HTTPException(400, "Invalid action. Must be 'add' or 'remove'")
+
+        valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
+        if category not in valid_categories:
+            raise HTTPException(400, f"Invalid category. Must be one of: {', '.join(valid_categories)}")
+
+        # Get user data
+        result = server.database.supabase.table('users').select('*').eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(404, "User not found")
+
+        user_data = result.data[0]
+
+        if action == 'add':
+            # Check if already subscribed
+            existing = server.database.supabase.table('subscriptions').select('*').eq(
+                'user_id', user_id
+            ).eq('tool_category', category).eq('status', 'active').execute()
+
+            if existing.data:
+                return JSONResponse({
+                    "status": "already_exists",
+                    "message": f"User already has an active {category} subscription"
+                })
+
+            # Get or create Stripe customer
+            stripe_customer_id = server.database.get_stripe_customer_id(user_id)
+
+            if not stripe_customer_id:
+                # Create Stripe customer
+                stripe.api_key = server.config.stripe_secret_key
+                customer = stripe.Customer.create(
+                    email=user_data['email'],
+                    metadata={'user_id': user_id}
+                )
+                stripe_customer_id = customer.id
+
+                # Save to database
+                server.database.supabase.table('users').update({
+                    'stripe_customer_id': stripe_customer_id
+                }).eq('user_id', user_id).execute()
+
+            # Create subscription manually (bypass Stripe for admin-added)
+            import secrets
+            fake_subscription_id = f"admin_{secrets.token_urlsafe(16)}"
+
+            server.database.create_subscription(
+                user_id=user_id,
+                tool_category=category,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=fake_subscription_id,
+                status='active',
+                current_period_start=datetime.now(),
+                current_period_end=datetime.now() + timedelta(days=365)  # 1 year for admin-added
+            )
+
+            logger.info(f"Admin added {category} subscription for user {user_id}")
+
+            return JSONResponse({
+                "status": "success",
+                "message": f"Added {category} subscription",
+                "subscription_id": fake_subscription_id
+            })
+
+        elif action == 'remove':
+            # Find active subscription
+            existing = server.database.supabase.table('subscriptions').select('*').eq(
+                'user_id', user_id
+            ).eq('tool_category', category).eq('status', 'active').execute()
+
+            if not existing.data:
+                return JSONResponse({
+                    "status": "not_found",
+                    "message": f"No active {category} subscription found"
+                }, status_code=404)
+
+            subscription = existing.data[0]
+
+            # Update status to cancelled
+            server.database.supabase.table('subscriptions').update({
+                'status': 'cancelled',
+                'cancelled_at': datetime.now().isoformat()
+            }).eq('subscription_id', subscription['subscription_id']).execute()
+
+            logger.info(f"Admin removed {category} subscription for user {user_id}")
+
+            return JSONResponse({
+                "status": "success",
+                "message": f"Removed {category} subscription"
+            })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error toggling subscription: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal server error: {str(e)}")
 
 
 # ===========================================================================
