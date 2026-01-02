@@ -5890,8 +5890,8 @@ async def team_settings_page(
             </div>
         </div>
 
-        <!-- Invite New Member -->
-        {'<div class="section"><h2><span>✉️</span> Invite New Member</h2><form class="invite-form" onsubmit="inviteMember(event)"><input type="email" id="invite-email" placeholder="Enter email address" required><button type="submit" class="btn btn-primary">Send Invitation</button></form></div>' if is_admin else ''}
+        <!-- Add New Member -->
+        {'<div class="section"><h2><span>➕</span> Add Team Member</h2><p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Add a member directly - account will be created with a generated password and emailed to them</p><form class="add-member-form" onsubmit="addMember(event)"><div style="display: flex; gap: 12px; align-items: end;"><div style="flex: 1;"><input type="email" id="add-member-email" placeholder="Enter email address" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"></div><div><select id="add-member-role" required style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;"><option value="member">Member</option><option value="admin">Admin</option></select></div><div><button type="submit" class="btn btn-primary" style="padding: 10px 20px; white-space: nowrap;">Add Member</button></div></div></form></div>' if is_admin else ''}
 
         <!-- Pending Invitations -->
         {'<div class="section"><h2><span>⏳</span> Pending Invitations</h2>' + ('<div class="invitation-list">' + ''.join(['<div class="invitation-item"><div class="member-info"><div class="member-avatar">' + inv["email"][0].upper() + '</div><div class="member-details"><div class="member-email">' + inv["email"] + '</div><div class="member-role">Invited ' + inv["created_at"][:10] + ' • Expires ' + inv["expires_at"][:10] + '</div></div></div><button onclick="cancelInvitation(&apos;' + inv["invitation_id"] + '&apos;, &apos;' + inv["email"] + '&apos;)" class="btn btn-danger">Cancel</button></div>' for inv in invitations]) + '</div>' if invitations else '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No pending invitations</p></div>') + '</div>' if is_admin else ''}
@@ -5936,6 +5936,57 @@ async def team_settings_page(
                 document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
                 document.getElementById('error-message').style.display = 'block';
                 document.getElementById('success-message').style.display = 'none';
+            }}
+        }}
+
+        async function addMember(event) {{
+            event.preventDefault();
+            const email = document.getElementById('add-member-email').value;
+            const role = document.getElementById('add-member-role').value;
+            const sessionToken = '{session_token}';
+
+            // Show loading state
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Adding...';
+            submitBtn.disabled = true;
+
+            try {{
+                const response = await fetch('/teams/{team_id}/add-member?session_token=' + sessionToken, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ email, role }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    let message = result.user_existed
+                        ? `✓ Added ${{email}} to team as ${{role}}`
+                        : `✓ Created account and added ${{email}} as ${{role}}`;
+
+                    if (!result.user_existed) {{
+                        message += result.email_sent
+                            ? '\\n📧 Credentials emailed to user'
+                            : '\\n⚠️ Email failed - password: ' + result.password;
+                    }}
+
+                    alert(message);
+                    document.getElementById('add-member-email').value = '';
+                    window.location.reload();
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    document.getElementById('success-message').style.display = 'none';
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('success-message').style.display = 'none';
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }}
         }}
 
@@ -6164,6 +6215,212 @@ async def invite_team_member_endpoint(
         "invitation": invitation,
         "invitation_link": f"{request.url.scheme}://{request.url.hostname}/invite/{invitation['invitation_id']}"
     }
+
+
+@app.post("/teams/{team_id}/add-member")
+async def add_team_member(
+    team_id: str,
+    request: Request,
+    session_token: Optional[str] = Query(None)
+):
+    """
+    Add a team member directly (creates account if needed).
+
+    This is different from invitations - the owner/admin creates the account
+    immediately with a generated password, no acceptance needed.
+
+    Request body:
+    - email: Email address of the user to add
+    - role: Role to assign (member or admin)
+    """
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Parse request body
+    body = await request.json()
+    email = body.get('email', '').strip().lower()
+    role = body.get('role', 'member').strip().lower()
+
+    if not email:
+        raise HTTPException(400, "Email is required")
+
+    # Validate email
+    if '@' not in email or '.' not in email.split('@')[1]:
+        raise HTTPException(400, "Invalid email format")
+
+    # Validate role
+    if role not in ['member', 'admin']:
+        raise HTTPException(400, "Role must be 'member' or 'admin'")
+
+    # Check if user is team owner or admin
+    teams = server.database.get_user_teams(ctx.user_id)
+    user_team = next((t for t in teams if t['team_id'] == team_id), None)
+
+    if not user_team:
+        raise HTTPException(404, "Team not found or you're not a member")
+
+    if user_team['role'] not in ['owner', 'admin']:
+        raise HTTPException(403, "Only team owners and admins can add members")
+
+    # Get team info
+    team = server.database.supabase.table('teams').select('*').eq('team_id', team_id).execute()
+    if not team.data:
+        raise HTTPException(404, "Team not found")
+
+    team_name = team.data[0]['team_name']
+
+    # Check if user already exists
+    existing_user = server.database.supabase.table('users').select('*').eq('email', email).execute()
+
+    if existing_user.data:
+        # User exists - just add to team
+        existing_user_id = existing_user.data[0]['user_id']
+
+        # Check if already a team member
+        members = server.database.get_team_members(team_id)
+        if any(m['user_id'] == existing_user_id for m in members):
+            raise HTTPException(400, "User is already a team member")
+
+        # Add to team
+        server.database.add_team_member(team_id, existing_user_id, role)
+
+        logger.info(f"Added existing user {email} to team {team_id} as {role}")
+
+        return {
+            "success": True,
+            "message": f"Added {email} to team",
+            "user_existed": True,
+            "role": role
+        }
+
+    else:
+        # User doesn't exist - create new account
+        import bcrypt
+        import string
+
+        # Generate user ID
+        user_id = secrets.token_urlsafe(16)
+
+        # Generate secure random password
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        password = ''.join(secrets.choice(alphabet) for _ in range(12))
+
+        # Hash password
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+
+        # Create user account
+        try:
+            server.database.supabase.table('users').insert({
+                'user_id': user_id,
+                'email': email,
+                'password_hash': password_hash.decode('utf-8'),
+                'created_at': datetime.now().isoformat(),
+                'teams_enabled': True  # Enable teams by default for team members
+            }).execute()
+
+            logger.info(f"Created new user account for {email}")
+
+        except Exception as e:
+            logger.error(f"Failed to create user account for {email}: {e}")
+            raise HTTPException(500, "Failed to create user account")
+
+        # Add to team
+        try:
+            server.database.add_team_member(team_id, user_id, role)
+            logger.info(f"Added new user {email} to team {team_id} as {role}")
+        except Exception as e:
+            # Rollback - delete the user account
+            server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
+            logger.error(f"Failed to add user to team, rolled back account creation: {e}")
+            raise HTTPException(500, "Failed to add user to team")
+
+        # Send welcome email with credentials
+        email_sent = False
+        try:
+            import resend
+            resend.api_key = os.getenv("RESEND_API_KEY")
+
+            email_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 28px;">👥 Welcome to {team_name}!</h1>
+    </div>
+
+    <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px;">
+        <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
+
+        <p style="font-size: 16px; margin-bottom: 20px;">{ctx.email} has added you to their team "<strong>{team_name}</strong>" on AI Email Assistant.</p>
+
+        <p style="font-size: 16px; margin-bottom: 20px;">Your account has been created with the following credentials:</p>
+
+        <div style="background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">EMAIL</p>
+            <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">{email}</p>
+
+            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">PASSWORD</p>
+            <p style="margin: 0; font-size: 18px; font-family: 'Courier New', monospace; background: #f3f4f6; padding: 12px; border-radius: 6px; font-weight: 600; letter-spacing: 1px;">{password}</p>
+        </div>
+
+        <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                <strong>👥 Your Role:</strong> {role.title()}
+            </p>
+        </div>
+
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <p style="margin: 0; color: #92400e; font-size: 14px;">
+                <strong>⚠️ Important:</strong> Please save this password securely. For security reasons, we cannot recover it if lost.
+            </p>
+        </div>
+
+        <p style="font-size: 16px; margin-bottom: 15px;">Log in now to access your team's tools:</p>
+        <p style="text-align: center; margin: 20px 0;">
+            <a href="https://{request.url.hostname}/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Log In to Your Account</a>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+        <p style="font-size: 14px; color: #6b7280; margin: 0;">
+            If you didn't expect this email, please contact {ctx.email} or support.
+        </p>
+    </div>
+</body>
+</html>
+            """
+
+            resend.Emails.send({
+                "from": "AI Email Assistant <noreply@leadgenjay.com>",
+                "to": [email],
+                "subject": f"Welcome to {team_name} - Your Account Credentials",
+                "html": email_html
+            })
+
+            logger.info(f"Welcome email sent to {email}")
+            email_sent = True
+
+        except Exception as e:
+            logger.error(f"Failed to send welcome email to {email}: {e}")
+
+        return {
+            "success": True,
+            "message": f"Created account and added {email} to team",
+            "user_existed": False,
+            "role": role,
+            "password": password,
+            "email_sent": email_sent
+        }
 
 
 @app.get("/invitations/{invitation_id}")

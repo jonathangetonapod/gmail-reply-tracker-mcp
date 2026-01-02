@@ -1419,6 +1419,37 @@ class Database:
         logger.info(f"User {user_id} accepted invitation and joined team {team_id}")
         return True
 
+    def add_team_member(self, team_id: str, user_id: str, role: str = 'member') -> bool:
+        """
+        Add a user to a team with specified role.
+
+        Args:
+            team_id: Team ID
+            user_id: User ID to add
+            role: Role to assign (member, admin)
+
+        Returns:
+            True if successful
+        """
+        # Check if user already in team
+        existing = self.supabase.table('team_members').select('team_id').eq(
+            'team_id', team_id
+        ).eq('user_id', user_id).execute()
+
+        if existing.data:
+            logger.warning(f"User {user_id} already in team {team_id}")
+            return False
+
+        # Add user to team
+        self.supabase.table('team_members').insert({
+            'team_id': team_id,
+            'user_id': user_id,
+            'role': role
+        }).execute()
+
+        logger.info(f"Added user {user_id} to team {team_id} as {role}")
+        return True
+
     def remove_team_member(self, team_id: str, user_id: str, removed_by_user_id: str) -> bool:
         """
         Remove a member from a team.
