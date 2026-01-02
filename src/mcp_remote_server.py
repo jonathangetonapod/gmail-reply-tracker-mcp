@@ -2342,6 +2342,15 @@ async def stripe_webhook(request: Request):
         logger.info(f"DEBUG: Subscription data keys: {subscription.keys()}")
         logger.info(f"DEBUG: cancel_at_period_end = {subscription.get('cancel_at_period_end')}")
         logger.info(f"DEBUG: cancel_at = {subscription.get('cancel_at')}")
+        logger.info(f"DEBUG: billing_cycle_anchor = {subscription.get('billing_cycle_anchor')}")
+        logger.info(f"DEBUG: Has 'current_period_start'? {('current_period_start' in subscription)}")
+        logger.info(f"DEBUG: Has 'current_period_end'? {('current_period_end' in subscription)}")
+
+        # Check if period data is nested in 'plan' or 'items'
+        if subscription.get('plan'):
+            logger.info(f"DEBUG: plan keys = {subscription['plan'].keys() if isinstance(subscription['plan'], dict) else type(subscription['plan'])}")
+        if subscription.get('items'):
+            logger.info(f"DEBUG: items type = {type(subscription['items'])}")
 
         # Map Stripe status to our status
         status_map = {
