@@ -1933,32 +1933,46 @@ async def dashboard(
         <div class="tab-content" id="setup" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">⚙️ Connect to Claude Desktop</h2>
-                <p style="color: #718096; margin-bottom: 25px;">Add this configuration to Claude Desktop to use your tools</p>
+                <p style="color: #718096; margin-bottom: 25px;">Add this remote MCP server to Claude Desktop</p>
 
-                <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #f59e0b;">
-                    <strong style="color: #92400e;">📝 Setup Instructions:</strong>
-                    <ol style="margin: 10px 0 0 20px; color: #92400e; line-height: 1.8;">
-                        <li>Copy the configuration below</li>
-                        <li>Open Claude Desktop → Settings → Developer → Edit Config</li>
-                        <li>Paste the configuration</li>
+                <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f59e0b;">
+                    <strong style="color: #92400e; font-size: 16px;">📝 Setup Instructions:</strong>
+                    <ol style="margin: 12px 0 0 20px; color: #92400e; line-height: 1.9; font-size: 15px;">
+                        <li>Open <strong>Claude Desktop</strong></li>
+                        <li>Go to <strong>Settings → Developer → MCP Servers</strong></li>
+                        <li>Click <strong>"Add Server"</strong></li>
+                        <li>Enter the name and URL below</li>
+                        <li>Click <strong>"Save"</strong></li>
                         <li>Restart Claude Desktop</li>
-                        <li>Start chatting - your tools are ready!</li>
+                        <li>Your tools are ready! Try: <em>"Check my emails"</em></li>
                     </ol>
                 </div>
 
-                <h3 style="color: #1a202c; margin-bottom: 10px;">Claude Desktop Configuration</h3>
-                <pre style="background: #1a202c; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; font-family: 'Monaco', 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin-bottom: 30px;">{{
-  "mcpServers": {{
-    "gmail-tools": {{
-      "url": "https://{request.url.hostname}/mcp?session_token={session_token}"
-    }}
-  }}
-}}</pre>
+                <div style="display: grid; gap: 20px; margin-bottom: 30px;">
+                    <div>
+                        <h3 style="color: #1a202c; margin-bottom: 10px; font-size: 16px;">📌 Server Name</h3>
+                        <input type="text" value="AI Email Assistant" readonly onclick="this.select()" style="width: 100%; padding: 14px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600;">
+                        <p style="color: #9ca3af; font-size: 12px; margin-top: 6px;">Click to select and copy</p>
+                    </div>
 
-                <h3 style="color: #1a202c; margin-bottom: 10px;">Your Session Token</h3>
-                <p style="color: #718096; font-size: 14px; margin-bottom: 10px;">Keep this token secure - it provides access to your tools</p>
-                <input type="text" value="{session_token}" readonly onclick="this.select()" style="width: 100%; padding: 12px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-family: monospace; font-size: 13px; cursor: pointer;">
-                <p style="color: #9ca3af; font-size: 12px; margin-top: 8px;">Click to select and copy</p>
+                    <div>
+                        <h3 style="color: #1a202c; margin-bottom: 10px; font-size: 16px;">🔗 Server URL</h3>
+                        <input type="text" value="https://{request.url.hostname}/mcp?session_token={session_token}" readonly onclick="this.select()" style="width: 100%; padding: 14px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-family: monospace; font-size: 12px; cursor: pointer; word-break: break-all;">
+                        <p style="color: #9ca3af; font-size: 12px; margin-top: 6px;">Click to select and copy</p>
+                    </div>
+                </div>
+
+                <div style="background: #e0f2fe; padding: 20px; border-radius: 8px; border-left: 4px solid #0284c7;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <div style="font-size: 24px;">💡</div>
+                        <div>
+                            <strong style="color: #075985; font-size: 15px;">Keep Your Session Token Secure</strong>
+                            <p style="color: #0c4a6e; margin: 8px 0 0 0; font-size: 14px; line-height: 1.6;">
+                                This URL contains your personal session token. Anyone with this URL can access your tools. Don't share it publicly or commit it to version control.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
