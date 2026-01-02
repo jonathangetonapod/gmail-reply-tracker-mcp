@@ -798,10 +798,31 @@ app = FastAPI(
 )
 
 
+# Build secure CORS allowed origins list
+allowed_origins = [
+    "http://localhost:8080",
+    "http://localhost:8000",
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:8000",
+]
+
+# Add Railway deployment URL if available
+railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+if railway_domain:
+    allowed_origins.append(f"https://{railway_domain}")
+
+# Add custom allowed origins from environment (comma-separated)
+custom_origins = os.getenv("ALLOWED_ORIGINS", "")
+if custom_origins:
+    allowed_origins.extend([origin.strip() for origin in custom_origins.split(",") if origin.strip()])
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 # Add CORS middleware (CRITICAL for web-based MCP clients)
+# SECURITY: Never use allow_origins=["*"] with allow_credentials=True
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
     allow_headers=["*"],
