@@ -440,6 +440,7 @@ async def handle_jsonrpc_request(
             # Filter by user's enabled tool categories (if applicable)
             if ctx:
                 enabled_categories = ctx.enabled_tool_categories
+                logger.info(f"DEBUG enabled_tool_categories: {enabled_categories}, active_subscriptions: {ctx.active_subscriptions}")
                 if enabled_categories is not None:  # None = show all, [] or [...] = filter
                     # Filter tools by enabled categories
                     if enabled_categories == []:
@@ -447,25 +448,41 @@ async def handle_jsonrpc_request(
                         tools = []
                     else:
                         # Filter to only enabled categories
+                        logger.info(f"DEBUG Before enabled_categories filter: {len(tools)} tools")
                         filtered_tools = []
                         for tool in tools:
                             category = get_tool_category(tool['name'])
                             if category is None or category in enabled_categories:
                                 filtered_tools.append(tool)
                         tools = filtered_tools
+                        logger.info(f"DEBUG After enabled_categories filter: {len(tools)} tools")
 
                 # Filter by active subscriptions (payment enforcement)
                 active_subscriptions = ctx.active_subscriptions
                 if active_subscriptions is not None and len(active_subscriptions) > 0:
                     # User has some subscriptions - only show subscribed categories
+                    logger.info(f"DEBUG Before subscription filter: {len(tools)} tools")
+                    # DEBUG: Show sample tool names
+                    sample_tools = [t['name'] for t in tools[:15]]
+                    logger.info(f"DEBUG Sample tools going into subscription filter: {sample_tools}")
                     subscription_filtered_tools = []
+                    # DEBUG: Track categorization
+                    categorized = {}
+                    uncategorized = []
                     for tool in tools:
                         category = get_tool_category(tool['name'])
+                        if category:
+                            categorized[category] = categorized.get(category, 0) + 1
+                        else:
+                            uncategorized.append(tool['name'])
                         # ONLY allow tools that match subscribed categories (no uncategorized tools)
                         if category is not None and category in active_subscriptions:
                             subscription_filtered_tools.append(tool)
                     tools = subscription_filtered_tools
                     logger.info(f"Filtered to subscribed categories: {active_subscriptions}, showing {len(tools)} tools")
+                    logger.info(f"DEBUG categorization: {categorized}")
+                    if uncategorized:
+                        logger.info(f"DEBUG uncategorized tools: {uncategorized[:10]}")
                 elif active_subscriptions == []:
                     # User has no active subscriptions - show no tools
                     tools = []
