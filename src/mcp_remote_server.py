@@ -2338,6 +2338,11 @@ async def stripe_webhook(request: Request):
         subscription_id = subscription['id']
         status = subscription['status']
 
+        # Debug: Log the subscription object to see what Stripe is sending
+        logger.info(f"DEBUG: Subscription data keys: {subscription.keys()}")
+        logger.info(f"DEBUG: cancel_at_period_end = {subscription.get('cancel_at_period_end')}")
+        logger.info(f"DEBUG: cancel_at = {subscription.get('cancel_at')}")
+
         # Map Stripe status to our status
         status_map = {
             'active': 'active',
@@ -2506,6 +2511,9 @@ async def sync_subscriptions(session_token: Optional[str] = Query(None)):
         cancel_at = None
         if sub.get('cancel_at'):
             cancel_at = datetime.fromtimestamp(sub['cancel_at'])
+
+        # Debug logging
+        logger.info(f"DEBUG sync: sub {sub['id']} - cancel_at_period_end={cancel_at_period_end}, cancel_at={cancel_at}")
 
         server.database.update_subscription_status(
             stripe_subscription_id=sub['id'],
