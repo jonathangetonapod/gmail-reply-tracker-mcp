@@ -411,6 +411,8 @@ async def handle_jsonrpc_request(
                 }
                 tools.append(tool_schema)
 
+            logger.info(f"tools/list called - total tools before filtering: {len(tools)}, ctx exists: {ctx is not None}")
+
             # Helper function to map tool names to categories
             def get_tool_category(tool_name):
                 """Determine which category a tool belongs to based on its name."""

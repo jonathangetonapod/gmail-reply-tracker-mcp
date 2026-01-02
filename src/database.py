@@ -769,15 +769,19 @@ class Database:
         """
         Get list of active tool categories for a user.
 
+        Includes subscriptions with status 'active' or 'incomplete' (pending payment).
+        Tools are available immediately when added, even before invoice payment.
+        Only truly locked statuses are 'past_due', 'unpaid', 'cancelled'.
+
         Args:
             user_id: User ID
 
         Returns:
-            List of category names with active subscriptions
+            List of category names with active/accessible subscriptions
         """
         result = self.supabase.table('subscriptions').select('tool_category').eq(
             'user_id', user_id
-        ).eq('status', 'active').execute()
+        ).in_('status', ['active', 'incomplete']).execute()
 
         return [sub['tool_category'] for sub in result.data]
 
