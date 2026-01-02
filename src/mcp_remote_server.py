@@ -7668,9 +7668,9 @@ async def stripe_webhook(request: Request):
             # Create subscription in database for each category
             if is_team_subscription and team_id:
                 # Team subscription
-                # Note: user_id is NULL to avoid unique constraint conflicts with personal subscriptions
+                # Note: Use team_id as user_id to avoid unique constraint conflicts with personal subscriptions
                 server.database.supabase.table('subscriptions').insert({
-                    'user_id': None,  # NULL for team subscriptions
+                    'user_id': team_id,  # Use team_id to satisfy NOT NULL constraint and avoid user conflicts
                     'team_id': team_id,
                     'is_team_subscription': True,
                     'tool_category': category,
@@ -10912,10 +10912,10 @@ async def admin_grant_team_subscription_single(
         raise HTTPException(400, f"Team already has {category} subscription")
 
     # Create free subscription (no Stripe)
-    # Note: user_id is NULL for team subscriptions to avoid unique constraint conflicts
-    # (a user can have both personal AND team subscriptions for the same category)
+    # Note: Use team_id as user_id for team subscriptions to avoid unique constraint conflicts
+    # This allows users to have both personal AND team subscriptions for the same category
     server.database.supabase.table('subscriptions').insert({
-        'user_id': None,  # NULL for team subscriptions
+        'user_id': team_id,  # Use team_id to satisfy NOT NULL constraint and avoid user conflicts
         'team_id': team_id,
         'is_team_subscription': True,
         'tool_category': category,
@@ -10974,9 +10974,9 @@ async def admin_grant_team_subscription(
             continue
 
         # Create free subscription (no Stripe)
-        # Note: user_id is NULL for team subscriptions to avoid unique constraint conflicts
+        # Note: Use team_id as user_id to avoid unique constraint conflicts
         server.database.supabase.table('subscriptions').insert({
-            'user_id': None,  # NULL for team subscriptions
+            'user_id': team_id,  # Use team_id to satisfy NOT NULL constraint and avoid user conflicts
             'team_id': team_id,
             'is_team_subscription': True,
             'tool_category': category,
