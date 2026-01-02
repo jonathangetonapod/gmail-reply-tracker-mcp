@@ -911,7 +911,7 @@ class Database:
             user_id: User ID
 
         Returns:
-            Dict with user subscription info (active subs, MRR, Stripe customer ID)
+            Dict with user subscription info (active subs, MRR, Stripe customer ID, incomplete subs)
         """
         # Get active subscriptions
         result = self.supabase.table('subscriptions').select('*').eq(
@@ -921,6 +921,14 @@ class Database:
         active_subs = result.data
         subscription_count = len(active_subs)
         user_mrr = subscription_count * 5
+
+        # Get incomplete/unpaid subscriptions (awaiting payment)
+        incomplete_result = self.supabase.table('subscriptions').select('*').eq(
+            'user_id', user_id
+        ).in_('status', ['incomplete', 'incomplete_expired', 'past_due', 'unpaid']).execute()
+
+        incomplete_subs = incomplete_result.data
+        incomplete_categories = [sub['tool_category'] for sub in incomplete_subs]
 
         # Get Stripe customer ID
         stripe_customer_id = self.get_stripe_customer_id(user_id) if subscription_count > 0 else None
@@ -933,7 +941,9 @@ class Database:
             'mrr': user_mrr,
             'stripe_customer_id': stripe_customer_id,
             'categories': categories,
-            'is_paying': subscription_count > 0
+            'is_paying': subscription_count > 0,
+            'incomplete_subscriptions': incomplete_subs,
+            'incomplete_categories': incomplete_categories
         }
 
     def get_all_user_subscriptions(self) -> Dict[str, Dict[str, Any]]:

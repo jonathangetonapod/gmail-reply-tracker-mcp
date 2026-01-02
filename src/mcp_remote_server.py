@@ -6413,6 +6413,24 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 </div>''' if subscription_info['stripe_customer_id'] else ''}
             </div>
 
+            {f'''<div class="card" style="background: #fff3cd; border: 2px solid #ffc107;">
+                <div style="display: flex; align-items: start; gap: 12px;">
+                    <div style="font-size: 32px;">⚠️</div>
+                    <div style="flex: 1;">
+                        <h2 style="color: #856404; margin-bottom: 8px;"><span>🔒</span> Payment Required</h2>
+                        <p style="color: #856404; font-size: 14px; margin-bottom: 12px; font-weight: 500;">
+                            The following tools are LOCKED until the user pays their invoice:
+                        </p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            {"".join([f'<span style="background: #856404; color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;">{cat.title()}</span>' for cat in subscription_info['incomplete_categories']])}
+                        </div>
+                        <p style="color: #856404; font-size: 13px; margin-top: 12px; font-weight: 500;">
+                            💡 User must pay the Stripe invoice before accessing these tools. Once paid, they'll activate automatically.
+                        </p>
+                    </div>
+                </div>
+            </div>''' if subscription_info.get('incomplete_categories') else ''}
+
             <div class="card">
                 <h2><span>⚙️</span> Manage Subscriptions</h2>
                 <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 16px;">Add or remove tool categories for this user</p>
