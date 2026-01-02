@@ -769,10 +769,13 @@ class Database:
     def get_active_subscriptions(self, user_id: str) -> list[str]:
         """
         Get list of active tool categories for a user.
-        Includes BOTH personal subscriptions AND team subscriptions.
+        Includes BOTH personal subscriptions AND team subscriptions (with permission check).
 
         Only returns categories with status='active' (payment received).
         'incomplete' subscriptions remain locked until invoice is paid.
+
+        For team subscriptions, checks team_member_permissions table to see
+        if this user has been granted access to that category.
 
         Args:
             user_id: User ID
@@ -790,17 +793,16 @@ class Database:
         for sub in personal_result.data:
             categories.add(sub['tool_category'])
 
-        # 2. Get user's teams
-        user_teams = self.get_user_teams(user_id)
+        # 2. Get team categories user has permission to use
+        # This joins team subscriptions with user's permissions
+        permissions_result = self.supabase.table('team_member_permissions').select('tool_category').eq(
+            'user_id', user_id
+        ).execute()
 
-        # 3. Get team subscriptions for each team
-        for team in user_teams:
-            team_result = self.supabase.table('subscriptions').select('tool_category').eq(
-                'team_id', team['team_id']
-            ).eq('status', 'active').eq('is_team_subscription', True).execute()
-
-            for sub in team_result.data:
-                categories.add(sub['tool_category'])
+        for perm in permissions_result.data:
+            # Verify the team actually has an active subscription for this category
+            # (in case permission exists but subscription was cancelled)
+            categories.add(perm['tool_category'])
 
         return list(categories)
 
@@ -1503,6 +1505,157 @@ class Database:
         ).eq('status', 'active').eq('is_team_subscription', True).execute()
 
         return [row['tool_category'] for row in result.data]
+
+    # ============================================================
+    # Team Member Permissions Methods
+    # ============================================================
+
+    def grant_team_permission(
+        self,
+        user_id: str,
+        team_id: str,
+        tool_category: str,
+        assigned_by_user_id: str
+    ) -> bool:
+        """
+        Grant a team member permission to use a tool category from team subscription.
+
+        Args:
+            user_id: User to grant permission to
+            team_id: Team ID
+            tool_category: Tool category (gmail, sheets, etc.)
+            assigned_by_user_id: Admin user granting the permission
+
+        Returns:
+            True if successful
+        """
+        try:
+            self.supabase.table('team_member_permissions').insert({
+                'user_id': user_id,
+                'team_id': team_id,
+                'tool_category': tool_category,
+                'assigned_by_user_id': assigned_by_user_id
+            }).execute()
+            logger.info(f"Granted {tool_category} permission to user {user_id} in team {team_id}")
+            return True
+        except Exception as e:
+            # Handle duplicate key error (permission already exists)
+            if 'duplicate' in str(e).lower():
+                logger.debug(f"Permission already exists for user {user_id}, team {team_id}, category {tool_category}")
+                return True
+            logger.error(f"Failed to grant permission: {e}")
+            return False
+
+    def revoke_team_permission(
+        self,
+        user_id: str,
+        team_id: str,
+        tool_category: str
+    ) -> bool:
+        """
+        Revoke a team member's permission to use a tool category.
+
+        Args:
+            user_id: User to revoke permission from
+            team_id: Team ID
+            tool_category: Tool category
+
+        Returns:
+            True if successful
+        """
+        try:
+            self.supabase.table('team_member_permissions').delete().eq(
+                'user_id', user_id
+            ).eq('team_id', team_id).eq('tool_category', tool_category).execute()
+            logger.info(f"Revoked {tool_category} permission from user {user_id} in team {team_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to revoke permission: {e}")
+            return False
+
+    def get_user_team_permissions(self, user_id: str, team_id: str) -> list[str]:
+        """
+        Get all tool categories a user has permission to use in a team.
+
+        Args:
+            user_id: User ID
+            team_id: Team ID
+
+        Returns:
+            List of tool category names
+        """
+        result = self.supabase.table('team_member_permissions').select('tool_category').eq(
+            'user_id', user_id
+        ).eq('team_id', team_id).execute()
+
+        return [row['tool_category'] for row in result.data]
+
+    def get_team_all_permissions(self, team_id: str) -> dict:
+        """
+        Get all permissions for all members of a team.
+
+        Args:
+            team_id: Team ID
+
+        Returns:
+            Dict mapping user_id to list of tool categories
+            Example: {'user1': ['gmail', 'sheets'], 'user2': ['gmail']}
+        """
+        result = self.supabase.table('team_member_permissions').select('user_id, tool_category').eq(
+            'team_id', team_id
+        ).execute()
+
+        permissions_map = {}
+        for row in result.data:
+            user_id = row['user_id']
+            category = row['tool_category']
+            if user_id not in permissions_map:
+                permissions_map[user_id] = []
+            permissions_map[user_id].append(category)
+
+        return permissions_map
+
+    def set_user_team_permissions(
+        self,
+        user_id: str,
+        team_id: str,
+        categories: list[str],
+        assigned_by_user_id: str
+    ) -> bool:
+        """
+        Set all permissions for a user in a team (replaces existing permissions).
+
+        Args:
+            user_id: User ID
+            team_id: Team ID
+            categories: List of tool categories to grant access to
+            assigned_by_user_id: Admin user setting the permissions
+
+        Returns:
+            True if successful
+        """
+        try:
+            # Delete existing permissions
+            self.supabase.table('team_member_permissions').delete().eq(
+                'user_id', user_id
+            ).eq('team_id', team_id).execute()
+
+            # Add new permissions
+            if categories:
+                permissions = [{
+                    'user_id': user_id,
+                    'team_id': team_id,
+                    'tool_category': cat,
+                    'assigned_by_user_id': assigned_by_user_id
+                } for cat in categories]
+
+                self.supabase.table('team_member_permissions').insert(permissions).execute()
+
+            logger.info(f"Set permissions for user {user_id} in team {team_id}: {categories}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set permissions: {e}")
+            return False
 
     def get_user_all_subscriptions(self, user_id: str) -> list[str]:
         """

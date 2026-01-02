@@ -5799,6 +5799,20 @@ async def team_settings_page(
     subs_result = server.database.supabase.table('subscriptions').select('*').eq('team_id', team_id).eq('is_team_subscription', True).execute()
     team_subscriptions = subs_result.data if subs_result.data else []
 
+    # Get team subscription categories
+    team_subscription_categories = [sub['tool_category'] for sub in team_subscriptions if sub['status'] == 'active']
+
+    # Get permissions for all team members
+    permissions_map = server.database.get_team_all_permissions(team_id)
+
+    # Get personal subscriptions for each member (to show what they have)
+    member_personal_subs = {}
+    for member in members:
+        personal_subs_result = server.database.supabase.table('subscriptions').select('tool_category').eq(
+            'user_id', member['user_id']
+        ).eq('status', 'active').is_('team_id', 'null').execute()
+        member_personal_subs[member['user_id']] = [sub['tool_category'] for sub in personal_subs_result.data]
+
     return HTMLResponse(f"""
 <!DOCTYPE html>
 <html>
@@ -6037,7 +6051,53 @@ async def team_settings_page(
         </div>
 
         <!-- Add New Member -->
-        {'<div class="section"><h2><span>➕</span> Add Team Member</h2><p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Add a member directly - account will be created if needed</p><form class="add-member-form" onsubmit="addMember(event)"><div style="display: flex; flex-direction: column; gap: 16px;"><div style="display: flex; gap: 12px;"><div style="flex: 1;"><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Email Address</label><input type="email" id="add-member-email" placeholder="member@example.com" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"></div><div style="min-width: 140px;"><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Role</label><select id="add-member-role" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;"><option value="member">Member</option><option value="admin">Admin</option></select></div></div><div><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Password</label><div style="display: flex; gap: 16px; margin-bottom: 12px;"><label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="password-method" value="auto" checked onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;"><span style="font-size: 14px; color: #374151;">Auto-generate password</span></label><label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="password-method" value="manual" onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;"><span style="font-size: 14px; color: #374151;">Set password manually</span></label></div><div id="manual-password-container" style="display: none;"><input type="password" id="add-member-password" placeholder="Enter password (min 8 characters)" minlength="8" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;"><p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Password will be emailed to the user</p></div></div><div><button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Add Member</button></div></div></form></div>' if is_admin else ''}
+        {f'''
+        <div class="section">
+            <h2><span>➕</span> Add Team Member</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Add a member directly - account will be created if needed</p>
+            <form class="add-member-form" onsubmit="addMember(event)">
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <div style="display: flex; gap: 12px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Email Address</label>
+                            <input type="email" id="add-member-email" placeholder="member@example.com" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div style="min-width: 140px;">
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Role</label>
+                            <select id="add-member-role" required style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;">
+                                <option value="member">Member</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Password</label>
+                        <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="password-method" value="auto" checked onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;">
+                                <span style="font-size: 14px; color: #374151;">Auto-generate password</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="password-method" value="manual" onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;">
+                                <span style="font-size: 14px; color: #374151;">Set password manually</span>
+                            </label>
+                        </div>
+                        <div id="manual-password-container" style="display: none;">
+                            <input type="password" id="add-member-password" placeholder="Enter password (min 8 characters)" minlength="8" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                            <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Password will be emailed to the user</p>
+                        </div>
+                    </div>
+
+                    {('<div><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Grant Access to Tools</label><div style="background: #f9fafb; padding: 12px; border-radius: 6px; border: 2px solid #e2e8f0;"><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">' + ''.join([f'<label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" name="tool-permission" value="{cat}" checked class="tool-permission-checkbox" style="width: 16px; height: 16px; cursor: pointer;"><span style="font-size: 13px; color: #374151;">{cat.title()}</span></label>' for cat in team_subscription_categories]) + '</div></div>' + ('<p style="font-size: 12px; color: #6b7280; margin-top: 6px;">💡 Select which team tools this member can access</p>' if team_subscription_categories else '<p style="font-size: 12px; color: #f59e0b; margin-top: 6px;">⚠️ No team subscriptions yet - subscribe first to grant access</p>') + '</div>' if team_subscription_categories else '')}
+
+                    <div>
+                        <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Add Member</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        ''' if is_admin else ''}
 
         <!-- Pending Invitations -->
         {'<div class="section"><h2><span>⏳</span> Pending Invitations</h2>' + ('<div class="invitation-list">' + ''.join(['<div class="invitation-item"><div class="member-info"><div class="member-avatar">' + inv["email"][0].upper() + '</div><div class="member-details"><div class="member-email">' + inv["email"] + '</div><div class="member-role">Invited ' + inv["created_at"][:10] + ' • Expires ' + inv["expires_at"][:10] + '</div></div></div><button onclick="cancelInvitation(&apos;' + inv["invitation_id"] + '&apos;, &apos;' + inv["email"] + '&apos;)" class="btn btn-danger">Cancel</button></div>' for inv in invitations]) + '</div>' if invitations else '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No pending invitations</p></div>') + '</div>' if is_admin else ''}
@@ -6050,6 +6110,23 @@ async def team_settings_page(
             </h2>
             {'<div class="subscription-list">' + ''.join([f'<div class="subscription-item"><div class="member-info"><div class="member-details"><div class="member-email">{sub["tool_category"].title()}</div><div class="member-role">Status: {sub["status"].title()} • {sub.get("price_amount", 0) / 100:.2f}/mo</div></div></div></div>' for sub in team_subscriptions]) + '</div>' if team_subscriptions else '<div class="empty-state"><div class="empty-state-icon">📦</div><p>No active subscriptions</p><p style="margin-top: 8px; font-size: 13px;">Subscribe to tools to share access with your team</p></div>'}
         </div>
+
+        <!-- Tool Access Permissions -->
+        {f'''
+        <div class="section">
+            <h2>
+                <span>🔑</span>
+                Tool Access Permissions
+            </h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
+                Control which team members can access each subscribed tool category.
+            </p>
+
+            {('<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 6px; margin-bottom: 20px;"><p style="margin: 0; font-size: 13px; color: #92400e;"><strong>⚠️ No team subscriptions</strong> - Subscribe to tool categories first, then assign access to team members.</p></div>' if not team_subscription_categories else '')}
+
+            {('<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;"><thead><tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;"><th style="padding: 12px; text-align: left; font-weight: 600;">Member</th>' + ''.join([f'<th style="padding: 12px; text-align: center; font-weight: 600;">{cat.title()}</th>' for cat in team_subscription_categories]) + '<th style="padding: 12px; text-align: center; font-weight: 600;">Personal</th></tr></thead><tbody>' + ''.join([f'''<tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px;"><div style="display: flex; align-items: center; gap: 10px;"><div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px;">{m["email"][0].upper()}</div><div><div style="font-weight: 500; color: #1a202c;">{m["email"]}</div><div style="font-size: 12px; color: #6b7280;">{m["role"].title()}</div></div></div></td>''' + ''.join([f'''<td style="padding: 12px; text-align: center;"><input type="checkbox" class="permission-checkbox" data-user-id="{m["user_id"]}" data-category="{cat}" {"checked" if cat in permissions_map.get(m["user_id"], []) else ""} {"disabled" if not is_admin else ""} onchange="togglePermission(this)" style="width: 20px; height: 20px; cursor: {'pointer' if is_admin else 'not-allowed'};"></td>''' for cat in team_subscription_categories]) + f'''<td style="padding: 12px; text-align: center;"><div style="font-size: 11px; color: #6b7280;">{", ".join([c.title() for c in member_personal_subs.get(m["user_id"], [])]) if member_personal_subs.get(m["user_id"]) else "-"}</div></td></tr>''' for m in members]) + '</tbody></table></div>' if team_subscription_categories else '')}
+        </div>
+        ''' if is_admin else ''}
     </div>
 
     <script>
@@ -6116,6 +6193,13 @@ async def team_settings_page(
                 if (password) {{
                     payload.password = password;
                 }}
+            }}
+
+            // Collect selected tool permissions
+            const toolPermissions = Array.from(document.querySelectorAll('.tool-permission-checkbox:checked'))
+                .map(cb => cb.value);
+            if (toolPermissions.length > 0) {{
+                payload.tool_permissions = toolPermissions;
             }}
 
             // Show loading state
@@ -6202,6 +6286,48 @@ async def team_settings_page(
                 document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
                 document.getElementById('error-message').style.display = 'block';
                 document.getElementById('success-message').style.display = 'none';
+            }}
+        }}
+
+        async function togglePermission(checkbox) {{
+            const userId = checkbox.dataset.userId;
+            const category = checkbox.dataset.category;
+            const isGranting = checkbox.checked;
+            const sessionToken = '{session_token}';
+
+            try {{
+                const response = await fetch('/teams/{team_id}/permissions?session_token=' + sessionToken, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{
+                        user_id: userId,
+                        tool_category: category,
+                        grant: isGranting
+                    }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    const action = isGranting ? 'granted' : 'revoked';
+                    console.log(`Permission ${{action}} successfully`);
+                }} else {{
+                    // Revert checkbox on error
+                    checkbox.checked = !checkbox.checked;
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    setTimeout(() => {{
+                        document.getElementById('error-message').style.display = 'none';
+                    }}, 3000);
+                }}
+            }} catch (error) {{
+                // Revert checkbox on error
+                checkbox.checked = !checkbox.checked;
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+                setTimeout(() => {{
+                    document.getElementById('error-message').style.display = 'none';
+                }}, 3000);
             }}
         }}
 
@@ -6294,6 +6420,74 @@ async def remove_team_member_endpoint(
     except Exception as e:
         logger.error(f"Error removing team member: {e}")
         raise HTTPException(500, "Failed to remove member")
+
+
+@app.post("/teams/{team_id}/permissions")
+async def toggle_team_permission_endpoint(
+    request: Request,
+    team_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Grant or revoke a team member's permission to use a tool category."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session token
+    try:
+        ctx = await get_request_context(None, session_token)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Parse request body
+    body = await request.json()
+    user_id = body.get('user_id')
+    tool_category = body.get('tool_category')
+    grant = body.get('grant', True)
+
+    if not user_id or not tool_category:
+        raise HTTPException(400, "Missing user_id or tool_category")
+
+    # Check if requester is owner or admin
+    members = server.database.get_team_members(team_id)
+    requester_member = next((m for m in members if m['user_id'] == ctx.user_id), None)
+
+    if not requester_member or requester_member['role'] not in ['owner', 'admin']:
+        raise HTTPException(403, "Only team owners and admins can manage permissions")
+
+    # Verify user is a member of this team
+    target_member = next((m for m in members if m['user_id'] == user_id), None)
+    if not target_member:
+        raise HTTPException(404, "User is not a member of this team")
+
+    # Grant or revoke permission
+    try:
+        if grant:
+            success = server.database.grant_team_permission(
+                user_id=user_id,
+                team_id=team_id,
+                tool_category=tool_category,
+                assigned_by_user_id=ctx.user_id
+            )
+            action = "granted"
+        else:
+            success = server.database.revoke_team_permission(
+                user_id=user_id,
+                team_id=team_id,
+                tool_category=tool_category
+            )
+            action = "revoked"
+
+        if success:
+            return {
+                "success": True,
+                "message": f"Permission {action} successfully"
+            }
+        else:
+            raise HTTPException(500, f"Failed to {action.replace('ed', '')} permission")
+
+    except Exception as e:
+        logger.error(f"Error managing permission: {e}")
+        raise HTTPException(500, f"Failed to manage permission: {str(e)}")
 
 
 @app.delete("/invitations/{invitation_id}")
@@ -6432,6 +6626,7 @@ async def add_team_member(
         email = body.get('email', '').strip().lower()
         role = body.get('role', 'member').strip().lower()
         manual_password = body.get('password', '').strip()  # Optional manual password
+        tool_permissions = body.get('tool_permissions', [])  # List of tool categories to grant access to
 
         if not email:
             raise HTTPException(400, "Email is required")
@@ -6480,13 +6675,25 @@ async def add_team_member(
             # Add to team
             server.database.add_team_member(team_id, existing_user_id, role)
 
+            # Grant tool permissions
+            if tool_permissions:
+                for category in tool_permissions:
+                    server.database.grant_team_permission(
+                        user_id=existing_user_id,
+                        team_id=team_id,
+                        tool_category=category,
+                        assigned_by_user_id=ctx.user_id
+                    )
+                logger.info(f"Granted {len(tool_permissions)} tool permissions to {email}")
+
             logger.info(f"Added existing user {email} to team {team_id} as {role}")
 
             return {
                 "success": True,
                 "message": f"Added {email} to team",
                 "user_existed": True,
-                "role": role
+                "role": role,
+                "permissions_granted": len(tool_permissions)
             }
 
         else:
@@ -6535,6 +6742,17 @@ async def add_team_member(
                 server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
                 logger.error(f"Failed to add user to team, rolled back account creation: {e}")
                 raise HTTPException(500, "Failed to add user to team")
+
+            # Grant tool permissions
+            if tool_permissions:
+                for category in tool_permissions:
+                    server.database.grant_team_permission(
+                        user_id=user_id,
+                        team_id=team_id,
+                        tool_category=category,
+                        assigned_by_user_id=ctx.user_id
+                    )
+                logger.info(f"Granted {len(tool_permissions)} tool permissions to {email}")
 
             # Send welcome email with credentials
             email_sent = False
@@ -6616,7 +6834,8 @@ async def add_team_member(
                 "role": role,
                 "password": password if password_generated else None,  # Only return password if auto-generated
                 "password_generated": password_generated,
-                "email_sent": email_sent
+                "email_sent": email_sent,
+                "permissions_granted": len(tool_permissions)
             }
 
     except HTTPException:
