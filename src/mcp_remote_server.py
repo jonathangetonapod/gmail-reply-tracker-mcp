@@ -455,10 +455,13 @@ async def handle_jsonrpc_request(
                 if active_subscriptions is not None and len(active_subscriptions) > 0:
                     # User has some subscriptions - only show subscribed categories
                     subscription_filtered_tools = []
-                    # DEBUG: Log first 10 tool categorizations
-                    for i, tool in enumerate(tools[:10]):
+                    # DEBUG: Log ALL tool categorizations to find docs tools
+                    docs_tools = []
+                    for i, tool in enumerate(tools):
                         cat = get_tool_category(tool['name'])
-                        logger.info(f"DEBUG tool {i}: '{tool['name']}' -> category='{cat}'")
+                        if cat == 'docs':
+                            docs_tools.append(tool['name'])
+                    logger.info(f"DEBUG: Found {len(docs_tools)} docs tools: {docs_tools[:10]}")
 
                     for tool in tools:
                         category = get_tool_category(tool['name'])
