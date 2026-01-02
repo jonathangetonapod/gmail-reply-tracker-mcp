@@ -871,6 +871,14 @@ async def root():
             border: 2px solid rgba(255, 255, 255, 0.3);
         }
 
+        .cta-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
         .cta-button {
             display: inline-block;
             background: white;
@@ -887,6 +895,24 @@ async def root():
         .cta-button:hover {
             transform: translateY(-3px);
             box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .cta-button-secondary {
+            display: inline-block;
+            background: transparent;
+            color: white;
+            padding: 20px 50px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s;
+            border: 3px solid white;
+        }
+
+        .cta-button-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-3px);
         }
 
         /* Container */
@@ -1174,7 +1200,10 @@ async def root():
             <h1>84 AI Tools for Claude Desktop</h1>
             <p class="subtitle">Access Gmail, Google Calendar, Docs, Sheets, Fathom, Instantly & more—all without leaving Claude.</p>
             <div class="trial-badge">🎉 3-Day Free Trial • No Credit Card Required</div>
-            <a href="/setup/start" class="cta-button">Start Free Trial →</a>
+            <div class="cta-buttons">
+                <a href="/signup/start" class="cta-button">Sign Up Free →</a>
+                <a href="/login/start" class="cta-button-secondary">Log In</a>
+            </div>
         </div>
     </div>
 
@@ -1345,7 +1374,7 @@ async def root():
                     <li>No credit card required</li>
                     <li>Full access to test everything</li>
                 </ul>
-                <a href="/setup/start" class="plan-button">Start Free Trial</a>
+                <a href="/signup/start" class="plan-button">Start Free Trial</a>
             </div>
 
             <div class="pricing-card featured">
@@ -1358,7 +1387,7 @@ async def root():
                     <li>Cancel anytime</li>
                     <li>No contracts or commitments</li>
                 </ul>
-                <a href="/setup/start" class="plan-button">Get Started</a>
+                <a href="/signup/start" class="plan-button">Get Started</a>
             </div>
 
             <div class="pricing-card">
@@ -1371,7 +1400,7 @@ async def root():
                     <li>Best value for power users</li>
                     <li>Everything you need</li>
                 </ul>
-                <a href="/setup/start" class="plan-button">Start Free Trial</a>
+                <a href="/signup/start" class="plan-button">Start Free Trial</a>
             </div>
         </div>
     </div>
@@ -1380,7 +1409,10 @@ async def root():
     <div class="footer-cta">
         <h2>Ready to supercharge Claude Desktop?</h2>
         <p>Start your 3-day free trial. No credit card required.</p>
-        <a href="/setup/start" class="cta-button">Start Free Trial →</a>
+        <div class="cta-buttons">
+            <a href="/signup/start" class="cta-button">Sign Up Free →</a>
+            <a href="/login/start" class="cta-button-secondary">Log In</a>
+        </div>
     </div>
 </body>
 </html>
@@ -1731,6 +1763,208 @@ async def setup_start(request: Request):
         return HTMLResponse(content=error_html, status_code=500)
 
 
+@app.get("/signup/start")
+async def signup_start(request: Request):
+    """Initiate Google OAuth flow for new user signup."""
+    try:
+        # Get OAuth credentials from environment
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+        scopes = os.getenv("GMAIL_OAUTH_SCOPES", "").split(",")
+
+        if not client_id or not client_secret or not redirect_uri:
+            raise ValueError("OAuth environment variables not configured")
+
+        # Create OAuth flow
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [redirect_uri]
+                }
+            },
+            scopes=scopes
+        )
+        flow.redirect_uri = redirect_uri
+
+        # Generate authorization URL for signup (force consent)
+        auth_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent'  # Force consent for new users
+        )
+
+        # Store state for verification with flow type
+        oauth_states[state] = {
+            'timestamp': datetime.now(),
+            'flow': flow,
+            'flow_type': 'signup'  # Track that this is a signup flow
+        }
+
+        logger.info(f"Initiating signup OAuth flow with state: {state}")
+
+        # Redirect to Google authorization
+        return RedirectResponse(url=auth_url, status_code=302)
+
+    except Exception as e:
+        logger.error(f"OAuth signup initiation error: {e}")
+        return HTMLResponse(content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Signup Error</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }}
+        .container {{
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            text-align: center;
+        }}
+        h1 {{ color: #dc2626; margin-bottom: 20px; }}
+        p {{ color: #666; line-height: 1.6; }}
+        .error-details {{
+            background: #fee;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #991b1b;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❌ Signup Error</h1>
+        <p>We encountered an error while setting up your account.</p>
+        <div class="error-details">{str(e)}</div>
+        <p style="margin-top: 20px;">
+            <a href="/" style="color: #667eea; text-decoration: none; font-weight: 600;">← Back to Home</a>
+        </p>
+    </div>
+</body>
+</html>
+        """, status_code=500)
+
+
+@app.get("/login/start")
+async def login_start(request: Request):
+    """Initiate Google OAuth flow for returning user login."""
+    try:
+        # Get OAuth credentials from environment
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+        scopes = os.getenv("GMAIL_OAUTH_SCOPES", "").split(",")
+
+        if not client_id or not client_secret or not redirect_uri:
+            raise ValueError("OAuth environment variables not configured")
+
+        # Create OAuth flow
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [redirect_uri]
+                }
+            },
+            scopes=scopes
+        )
+        flow.redirect_uri = redirect_uri
+
+        # Generate authorization URL for login (allow account selection)
+        auth_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='select_account'  # Let user choose account for login
+        )
+
+        # Store state for verification with flow type
+        oauth_states[state] = {
+            'timestamp': datetime.now(),
+            'flow': flow,
+            'flow_type': 'login'  # Track that this is a login flow
+        }
+
+        logger.info(f"Initiating login OAuth flow with state: {state}")
+
+        # Redirect to Google authorization
+        return RedirectResponse(url=auth_url, status_code=302)
+
+    except Exception as e:
+        logger.error(f"OAuth login initiation error: {e}")
+        return HTMLResponse(content=f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Error</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }}
+        .container {{
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 500px;
+            text-align: center;
+        }}
+        h1 {{ color: #dc2626; margin-bottom: 20px; }}
+        p {{ color: #666; line-height: 1.6; }}
+        .error-details {{
+            background: #fee;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #991b1b;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❌ Login Error</h1>
+        <p>We encountered an error while logging you in.</p>
+        <div class="error-details">{str(e)}</div>
+        <p style="margin-top: 20px;">
+            <a href="/" style="color: #667eea; text-decoration: none; font-weight: 600;">← Back to Home</a>
+        </p>
+    </div>
+</body>
+</html>
+        """, status_code=500)
+
+
 @app.get("/setup/callback")
 async def setup_callback(
     request: Request,
@@ -1804,21 +2038,37 @@ async def setup_callback(
         # Retrieve flow from stored state
         oauth_data = oauth_states[state]
         flow = oauth_data['flow']
+        flow_type = oauth_data.get('flow_type', 'signup')  # Default to signup for backwards compatibility
 
         # Clean up used state
         del oauth_states[state]
 
         # Exchange authorization code for tokens
-        logger.info(f"Exchanging auth code for tokens (state: {state})")
+        logger.info(f"Exchanging auth code for tokens (state: {state}, flow_type: {flow_type})")
         flow.fetch_token(code=code)
         credentials = flow.credentials
 
-        # Get user's email from Gmail API
+        # Get user's email and name from Google APIs
         gmail_service = build('gmail', 'v1', credentials=credentials)
         profile = gmail_service.users().getProfile(userId='me').execute()
         email = profile['emailAddress']
 
-        logger.info(f"OAuth successful for user: {email}")
+        # Try to get user's name from People API
+        try:
+            from googleapiclient.discovery import build as build_service
+            people_service = build_service('people', 'v1', credentials=credentials)
+            person = people_service.people().get(
+                resourceName='people/me',
+                personFields='names'
+            ).execute()
+
+            names = person.get('names', [])
+            first_name = names[0].get('givenName', '') if names else ''
+        except Exception as e:
+            logger.warning(f"Could not fetch user name: {e}")
+            first_name = email.split('@')[0]  # Fallback to email username
+
+        logger.info(f"OAuth successful for user: {email} (name: {first_name})")
 
         # Prepare token data for database storage
         google_token = {
@@ -1841,15 +2091,18 @@ async def setup_callback(
             api_keys={}  # Empty initially, user will add via dashboard
         )
 
-        logger.info(f"User created/updated in database: {email} (ID: {user_data['user_id']})")
+        is_new_user = user_data.get('is_new_user', False)
+        login_count = user_data.get('login_count', 1)
+
+        logger.info(f"User created/updated in database: {email} (ID: {user_data['user_id']}, login_count: {login_count})")
 
         # Get server URL for Claude config (force HTTPS for Railway)
         server_url = f"https://{request.url.hostname}"
         session_token = user_data['session_token']
 
-        # Redirect to dashboard where user can subscribe
+        # Redirect to dashboard with welcome message type
         return RedirectResponse(
-            url=f"/dashboard?session_token={session_token}&welcome=true",
+            url=f"/dashboard?session_token={session_token}&is_new_user={is_new_user}&first_name={first_name}",
             status_code=303
         )
 
@@ -1926,7 +2179,9 @@ async def dashboard(
     request: Request,
     session_token: Optional[str] = Query(None),
     welcome: Optional[str] = Query(None),
-    subscription_success: Optional[str] = Query(None)
+    subscription_success: Optional[str] = Query(None),
+    is_new_user: Optional[str] = Query(None),
+    first_name: Optional[str] = Query(None)
 ):
     """Admin dashboard for managing API keys and subscriptions."""
     if not session_token:
@@ -2264,13 +2519,19 @@ async def dashboard(
 
         <!-- Welcome/Success Banners -->
         {f'''
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
+            <div style="font-size: 32px; margin-bottom: 10px;">🎉</div>
+            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome{f", {first_name}" if first_name else ""}! Your 3-day trial starts now!</h2>
+            <p style="margin: 0; font-size: 16px; opacity: 0.95;">All 84 tools are unlocked! Explore Gmail, Calendar, Docs, Sheets, Fathom, Instantly & more—completely free for 3 days.</p>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">💡 After your trial, free users get 10 tool calls per day. Subscribe for unlimited access!</p>
+        </div>
+        ''' if is_new_user == 'True' else (f'''
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
             <div style="font-size: 32px; margin-bottom: 10px;">👋</div>
-            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome to Your AI Email Assistant!</h2>
-            <p style="margin: 0; font-size: 16px; opacity: 0.95;">Subscribe to tool categories below to supercharge Claude with Gmail, Calendar, Docs & Sheets.</p>
-            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">💡 After subscribing, check the Setup tab to connect to Claude Desktop.</p>
+            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome back{f", {first_name}" if first_name else ""}!</h2>
+            <p style="margin: 0; font-size: 16px; opacity: 0.95;">Good to see you again. Manage your subscriptions below or check the Setup tab to connect to Claude Desktop.</p>
         </div>
-        ''' if welcome == 'true' else ''}
+        ''' if (is_new_user == 'False' or welcome == 'true') else '')}
 
         {f'''
         <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">

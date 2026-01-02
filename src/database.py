@@ -64,28 +64,35 @@ class Database:
         session_expiry = (datetime.now() + timedelta(days=90)).isoformat()
 
         # Check if user exists
-        result = self.supabase.table('users').select('user_id').eq('email', email).execute()
+        result = self.supabase.table('users').select('user_id, login_count').eq('email', email).execute()
 
         if result.data:
-            # Update existing user
+            # Update existing user (returning user)
             existing_user_id = result.data[0]['user_id']
+            current_login_count = result.data[0].get('login_count', 0)
+            new_login_count = current_login_count + 1
+
             self.supabase.table('users').update({
                 'encrypted_google_token': encrypted_google_token,
                 'encrypted_api_keys': encrypted_api_keys,
                 'session_token': session_token,
                 'session_expiry': session_expiry,
-                'last_login': datetime.now().isoformat()
+                'last_login': datetime.now().isoformat(),
+                'login_count': new_login_count
             }).eq('email', email).execute()
 
-            logger.info(f"Updated existing user: {email}")
+            logger.info(f"Updated existing user: {email} (login count: {new_login_count})")
             return {
                 "user_id": existing_user_id,
                 "session_token": session_token,
-                "email": email
+                "email": email,
+                "is_new_user": False,
+                "login_count": new_login_count
             }
         else:
             # Create new user with 3-day free trial
             trial_end_date = (datetime.now() + timedelta(days=3)).isoformat()
+            now = datetime.now().isoformat()
 
             self.supabase.table('users').insert({
                 'user_id': user_id,
@@ -95,7 +102,10 @@ class Database:
                 'session_token': session_token,
                 'session_expiry': session_expiry,
                 'trial_end_date': trial_end_date,
-                'is_trial_active': True
+                'is_trial_active': True,
+                'first_login_at': now,
+                'login_count': 1,
+                'last_login': now
             }).execute()
 
             logger.info(f"Created new user: {email} (3-day trial expires: {trial_end_date})")
@@ -103,7 +113,9 @@ class Database:
                 "user_id": user_id,
                 "session_token": session_token,
                 "email": email,
-                "trial_end_date": trial_end_date
+                "trial_end_date": trial_end_date,
+                "is_new_user": True,
+                "login_count": 1
             }
 
     def get_user_by_session(self, session_token: str) -> Optional[Dict[str, Any]]:
