@@ -9440,6 +9440,29 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                     <span class="info-value">{session_expiry}</span>
                 </div>
             </div>
+
+            <div class="card" style="border: 2px solid hsl(var(--destructive)); background: hsl(var(--destructive) / 0.02);">
+                <h2><span>⚠️</span> Danger Zone</h2>
+                <p style="color: hsl(var(--muted-foreground)); font-size: 14px; margin-bottom: 16px;">
+                    Permanent actions that cannot be undone. Use with extreme caution.
+                </p>
+                <div style="border: 2px solid hsl(var(--destructive)); border-radius: 8px; padding: 16px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; margin-bottom: 4px; color: hsl(var(--destructive));">Delete User Account</div>
+                            <div style="font-size: 13px; color: hsl(var(--muted-foreground));">
+                                Permanently delete this user, all their data, subscriptions, teams, and usage logs. This action cannot be undone.
+                            </div>
+                        </div>
+                        <button
+                            onclick="deleteUser('{user_id}')"
+                            style="padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: hsl(var(--destructive)); color: white; white-space: nowrap; margin-left: 20px;">
+                            🗑️ Delete User
+                        </button>
+                    </div>
+                </div>
+                <div id="delete-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
+            </div>
         </div>
 
         <div class="card">
@@ -9819,6 +9842,79 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                     setTimeout(() => {{
                         window.location.reload();
                     }}, 1000);
+                }} else {{
+                    messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--destructive))';
+                }}
+            }} catch (e) {{
+                messageDiv.textContent = `✗ Network error: ${{e.message}}`;
+                messageDiv.style.display = 'block';
+                messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
+                messageDiv.style.color = 'hsl(var(--destructive))';
+            }}
+        }}
+
+        async function deleteUser(userId) {{
+            const messageDiv = document.getElementById('delete-message');
+
+            // Double confirmation for safety
+            const userEmail = '{user_data['email']}';
+            const firstConfirm = confirm(
+                `⚠️ DANGER: Delete user ${{userEmail}}?\\n\\n` +
+                `This will PERMANENTLY delete:\\n` +
+                `- User account\\n` +
+                `- All subscriptions (and cancel in Stripe)\\n` +
+                `- All usage logs\\n` +
+                `- All team memberships\\n` +
+                `- All teams owned by this user\\n\\n` +
+                `This action CANNOT be undone!\\n\\n` +
+                `Click OK to continue to final confirmation.`
+            );
+
+            if (!firstConfirm) {{
+                return;
+            }}
+
+            // Second confirmation - type email to confirm
+            const typedEmail = prompt(
+                `⚠️ FINAL CONFIRMATION\\n\\n` +
+                `Type the user's email address to confirm deletion:\\n` +
+                `${{userEmail}}`
+            );
+
+            if (typedEmail !== userEmail) {{
+                messageDiv.textContent = '✗ Email does not match. Deletion cancelled.';
+                messageDiv.style.display = 'block';
+                messageDiv.style.background = 'hsl(var(--muted) / 0.1)';
+                messageDiv.style.color = 'hsl(var(--muted-foreground))';
+                return;
+            }}
+
+            // Show loading state
+            messageDiv.textContent = '⏳ Deleting user... This may take a moment.';
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = 'hsl(var(--muted) / 0.1)';
+            messageDiv.style.color = 'hsl(var(--muted-foreground))';
+
+            try {{
+                const response = await fetch(`/admin/user/${{userId}}?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                    method: 'DELETE'
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    messageDiv.textContent = `✓ User deleted successfully! Redirecting to admin dashboard...`;
+                    messageDiv.style.display = 'block';
+                    messageDiv.style.background = 'hsl(var(--success) / 0.1)';
+                    messageDiv.style.color = 'hsl(var(--success))';
+
+                    // Redirect to admin dashboard after 2 seconds
+                    setTimeout(() => {{
+                        window.location.href = '/admin?admin_password={os.getenv("ADMIN_PASSWORD")}';
+                    }}, 2000);
                 }} else {{
                     messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
                     messageDiv.style.display = 'block';
@@ -10329,6 +10425,114 @@ async def admin_toggle_subscription(
         raise
     except Exception as e:
         logger.error(f"Error toggling subscription: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal server error: {str(e)}")
+
+
+@app.delete("/admin/user/{user_id}")
+async def admin_delete_user(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Admin endpoint to permanently delete a user and all their data.
+
+    This will delete:
+    - User account
+    - All subscriptions (and cancel them in Stripe if applicable)
+    - All usage logs
+    - All team memberships
+    - All teams owned by this user
+    - All invitations sent/received
+    - Session data
+
+    This action CANNOT be undone.
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Get user data first
+        result = server.database.supabase.table('users').select('*').eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(404, "User not found")
+
+        user_data = result.data[0]
+        user_email = user_data['email']
+
+        logger.info(f"Admin initiating deletion of user {user_id} ({user_email})")
+
+        # 1. Cancel all Stripe subscriptions first
+        subscriptions = server.database.supabase.table('subscriptions').select('*').eq(
+            'user_id', user_id
+        ).execute()
+
+        stripe.api_key = server.config.stripe_secret_key
+        cancelled_stripe_subs = []
+
+        for sub in subscriptions.data:
+            if sub.get('stripe_subscription_id'):
+                try:
+                    stripe.Subscription.delete(sub['stripe_subscription_id'])
+                    cancelled_stripe_subs.append(sub['stripe_subscription_id'])
+                    logger.info(f"Cancelled Stripe subscription {sub['stripe_subscription_id']}")
+                except stripe.error.StripeError as e:
+                    logger.warning(f"Failed to cancel Stripe subscription {sub['stripe_subscription_id']}: {e}")
+
+        # 2. Delete from database tables (order matters due to foreign keys)
+
+        # Delete usage logs
+        server.database.supabase.table('usage_logs').delete().eq('user_id', user_id).execute()
+        logger.info(f"Deleted usage logs for user {user_id}")
+
+        # Delete team member permissions
+        server.database.supabase.table('team_member_permissions').delete().eq('user_id', user_id).execute()
+        logger.info(f"Deleted team member permissions for user {user_id}")
+
+        # Delete team memberships
+        server.database.supabase.table('team_members').delete().eq('user_id', user_id).execute()
+        logger.info(f"Deleted team memberships for user {user_id}")
+
+        # Delete teams owned by this user (cascade will handle team_members)
+        teams = server.database.supabase.table('teams').select('team_id').eq('owner_user_id', user_id).execute()
+        for team in teams.data:
+            server.database.supabase.table('teams').delete().eq('team_id', team['team_id']).execute()
+            logger.info(f"Deleted team {team['team_id']} owned by user {user_id}")
+
+        # Delete invitations (sent and received)
+        server.database.supabase.table('team_invitations').delete().eq('email', user_email).execute()
+        server.database.supabase.table('team_invitations').delete().eq('invited_by_user_id', user_id).execute()
+        logger.info(f"Deleted invitations for user {user_id}")
+
+        # Delete subscriptions
+        server.database.supabase.table('subscriptions').delete().eq('user_id', user_id).execute()
+        logger.info(f"Deleted subscriptions for user {user_id}")
+
+        # Finally, delete the user
+        server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
+        logger.info(f"Deleted user account {user_id} ({user_email})")
+
+        return JSONResponse({
+            "success": True,
+            "message": f"User {user_email} permanently deleted",
+            "details": {
+                "user_id": user_id,
+                "email": user_email,
+                "stripe_subscriptions_cancelled": len(cancelled_stripe_subs)
+            }
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"Internal server error: {str(e)}")
