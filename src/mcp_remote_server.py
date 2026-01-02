@@ -1485,6 +1485,7 @@ async def setup_callback(
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(
+    request: Request,
     session_token: Optional[str] = Query(None),
     welcome: Optional[str] = Query(None),
     subscription_success: Optional[str] = Query(None)
