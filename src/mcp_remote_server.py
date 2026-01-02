@@ -9466,9 +9466,51 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
         </div>
 
         <div class="card">
-            <h2><span>🔄</span> Recent Activity (Last 15)</h2>
-            <div class="timeline">
-                {activity_timeline if activity_timeline else '<p style="color: hsl(var(--muted-foreground)); text-align: center; padding: 20px;">No recent activity</p>'}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;"><span>📊</span> Diagnostics & Recent Activity</h2>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span id="live-status" style="display: none; color: hsl(var(--success)); font-size: 14px; font-weight: 600;">🟢 LIVE</span>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                        <input type="checkbox" id="live-toggle" onchange="toggleLiveUpdates()" style="cursor: pointer;">
+                        Live Updates
+                    </label>
+                    <button onclick="refreshActivity()" style="padding: 6px 12px; border: 2px solid hsl(var(--border)); background: white; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                        🔄 Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div id="activity-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; padding: 16px; background: hsl(var(--muted) / 0.3); border-radius: 8px;">
+                <div>
+                    <div style="font-size: 13px; color: hsl(var(--muted-foreground)); margin-bottom: 4px;">Total Requests</div>
+                    <div id="total-requests" style="font-size: 24px; font-weight: 700;">--</div>
+                </div>
+                <div>
+                    <div style="font-size: 13px; color: hsl(var(--muted-foreground)); margin-bottom: 4px;">Success Rate</div>
+                    <div id="success-rate" style="font-size: 24px; font-weight: 700; color: hsl(var(--success));">--</div>
+                </div>
+                <div>
+                    <div style="font-size: 13px; color: hsl(var(--muted-foreground)); margin-bottom: 4px;">Failed</div>
+                    <div id="error-count" style="font-size: 24px; font-weight: 700; color: hsl(var(--destructive));">--</div>
+                </div>
+                <div>
+                    <div style="font-size: 13px; color: hsl(var(--muted-foreground)); margin-bottom: 4px;">Last Updated</div>
+                    <div id="last-updated" style="font-size: 14px; font-weight: 600;">--</div>
+                </div>
+            </div>
+
+            <!-- Error Summary (only shown if errors exist) -->
+            <div id="error-summary-section" style="display: none; padding: 12px; background: hsl(var(--destructive) / 0.05); border: 1px solid hsl(var(--destructive) / 0.3); border-radius: 6px; margin-bottom: 16px;">
+                <div style="font-weight: 600; color: hsl(var(--destructive)); margin-bottom: 8px;">⚠️ Recent Errors:</div>
+                <div id="error-summary-content"></div>
+            </div>
+
+            <!-- Activity Timeline -->
+            <div style="max-height: 600px; overflow-y: auto; border: 1px solid hsl(var(--border)); border-radius: 8px; padding: 16px;">
+                <div id="activity-timeline" class="timeline">
+                    {activity_timeline if activity_timeline else '<p style="color: hsl(var(--muted-foreground)); text-align: center; padding: 20px;">No recent activity</p>'}
+                </div>
             </div>
         </div>
     </div>
@@ -9928,6 +9970,130 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 messageDiv.style.color = 'hsl(var(--destructive))';
             }}
         }}
+
+        // === Real-Time Activity Monitoring ===
+        let liveUpdateInterval = null;
+        const userId = '{user_id}';
+        const adminPassword = '{os.getenv("ADMIN_PASSWORD")}';
+
+        async function refreshActivity() {{
+            try {{
+                const response = await fetch(
+                    `/admin/user/${{userId}}/activity?admin_password=${{adminPassword}}&limit=50`
+                );
+
+                if (!response.ok) {{
+                    console.error('Failed to fetch activity');
+                    return;
+                }}
+
+                const data = await response.json();
+
+                // Update summary stats
+                document.getElementById('total-requests').textContent = data.total_logs;
+                const successRate = data.total_logs > 0
+                    ? Math.round((data.success_count / data.total_logs) * 100)
+                    : 0;
+                document.getElementById('success-rate').textContent = `${{successRate}}%`;
+                document.getElementById('error-count').textContent = data.error_count;
+
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('last-updated').textContent = now.toLocaleTimeString();
+
+                // Update error summary
+                if (data.error_count > 0 && Object.keys(data.error_summary).length > 0) {{
+                    const errorSection = document.getElementById('error-summary-section');
+                    const errorContent = document.getElementById('error-summary-content');
+
+                    let errorHTML = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+                    for (const [tool, count] of Object.entries(data.error_summary)) {{
+                        errorHTML += `<span style="padding: 4px 8px; background: hsl(var(--destructive) / 0.1); border-radius: 4px; font-size: 13px;"><code>${{tool}}</code>: ${{count}}× failed</span>`;
+                    }}
+                    errorHTML += '</div>';
+
+                    errorContent.innerHTML = errorHTML;
+                    errorSection.style.display = 'block';
+                }} else {{
+                    document.getElementById('error-summary-section').style.display = 'none';
+                }}
+
+                // Update activity timeline
+                const timeline = document.getElementById('activity-timeline');
+                if (data.logs.length === 0) {{
+                    timeline.innerHTML = '<p style="color: hsl(var(--muted-foreground)); text-align: center; padding: 20px;">No recent activity</p>';
+                    return;
+                }}
+
+                let timelineHTML = '';
+                data.logs.forEach(log => {{
+                    const timestamp = new Date(log.timestamp);
+                    const timeStr = timestamp.toLocaleString('en-US', {{
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }});
+
+                    const statusClass = log.success ? 'success' : 'destructive';
+                    const statusIcon = log.success ? '✓' : '✗';
+                    const durationStr = log.duration_ms ? ` (${{log.duration_ms}}ms)` : '';
+
+                    timelineHTML += `
+                        <div class="timeline-item">
+                            <div class="timeline-marker ${{statusClass}}"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <code>${{log.tool_name}}</code>
+                                    <span class="badge badge-${{statusClass}}">${{statusIcon}}</span>
+                                </div>
+                                <div class="timeline-time">${{timeStr}}${{durationStr}}</div>
+                                ${{log.error_message ? `<div class="timeline-error">${{log.error_message}}</div>` : ''}}
+                                ${{log.params_summary ? `<div style="font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 4px;">${{log.params_summary}}</div>` : ''}}
+                            </div>
+                        </div>
+                    `;
+                }});
+
+                timeline.innerHTML = timelineHTML;
+
+            }} catch (error) {{
+                console.error('Error refreshing activity:', error);
+            }}
+        }}
+
+        function toggleLiveUpdates() {{
+            const toggle = document.getElementById('live-toggle');
+            const liveStatus = document.getElementById('live-status');
+
+            if (toggle.checked) {{
+                // Start live updates
+                liveStatus.style.display = 'inline';
+                refreshActivity(); // Immediate refresh
+                liveUpdateInterval = setInterval(refreshActivity, 3000); // Every 3 seconds
+                console.log('Live updates enabled');
+            }} else {{
+                // Stop live updates
+                liveStatus.style.display = 'none';
+                if (liveUpdateInterval) {{
+                    clearInterval(liveUpdateInterval);
+                    liveUpdateInterval = null;
+                }}
+                console.log('Live updates disabled');
+            }}
+        }}
+
+        // Initial load of activity data
+        window.addEventListener('DOMContentLoaded', () => {{
+            refreshActivity();
+        }});
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {{
+            if (liveUpdateInterval) {{
+                clearInterval(liveUpdateInterval);
+            }}
+        }});
     </script>
 </body>
 </html>
@@ -10428,6 +10594,95 @@ async def admin_toggle_subscription(
         import traceback
         traceback.print_exc()
         raise HTTPException(500, f"Internal server error: {str(e)}")
+
+
+@app.get("/admin/user/{user_id}/activity")
+async def admin_get_user_activity(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None),
+    limit: int = Query(50)
+):
+    """
+    API endpoint for real-time user activity polling.
+    Returns recent usage logs as JSON for live updates.
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Get recent logs
+        recent_logs = server.database.supabase.table('usage_logs').select('*').eq(
+            'user_id', user_id
+        ).order('timestamp', desc=True).limit(limit).execute()
+
+        # Format logs for JSON response (sanitize sensitive data)
+        logs = []
+        for log in recent_logs.data:
+            # Sanitize request params - only show safe metadata
+            request_params = log.get('request_params', {})
+            sanitized_params = {}
+
+            # Only include non-sensitive parameter keys
+            safe_keys = ['limit', 'max_results', 'folder', 'label', 'count', 'days', 'format']
+            for key in safe_keys:
+                if key in request_params:
+                    sanitized_params[key] = request_params[key]
+
+            # For queries/searches, just show that they exist, not content
+            if 'query' in request_params:
+                sanitized_params['query'] = '<redacted>'
+            if 'search_term' in request_params:
+                sanitized_params['search_term'] = '<redacted>'
+            if 'email' in request_params:
+                sanitized_params['email'] = '<redacted>'
+
+            logs.append({
+                'timestamp': log['timestamp'],
+                'tool_name': log['tool_name'],
+                'success': log['success'],
+                'error_message': log.get('error_message'),
+                'duration_ms': log.get('duration_ms'),
+                'params_summary': f"{len(request_params)} params" if request_params else "no params"
+            })
+
+        # Get error summary
+        error_logs = [log for log in recent_logs.data if not log['success']]
+        error_summary = {}
+        for log in error_logs:
+            tool = log['tool_name']
+            error_summary[tool] = error_summary.get(tool, 0) + 1
+
+        # Get subscriptions
+        subscriptions = server.database.supabase.table('subscriptions').select('*').eq(
+            'user_id', user_id
+        ).eq('status', 'active').execute()
+        active_categories = [sub['tool_category'] for sub in subscriptions.data]
+
+        # Get API keys status
+        user_result = server.database.supabase.table('users').select('api_keys').eq('user_id', user_id).execute()
+        api_keys = user_result.data[0].get('api_keys', {}) if user_result.data else {}
+        api_keys_configured = {key: bool(value) for key, value in api_keys.items()}
+
+        return JSONResponse({
+            'logs': logs,
+            'total_logs': len(logs),
+            'success_count': len([log for log in logs if log['success']]),
+            'error_count': len([log for log in logs if not log['success']]),
+            'error_summary': error_summary,
+            'active_subscriptions': active_categories,
+            'api_keys_configured': api_keys_configured,
+            'timestamp': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching user activity: {e}")
+        raise HTTPException(500, str(e))
 
 
 @app.delete("/admin/user/{user_id}")
