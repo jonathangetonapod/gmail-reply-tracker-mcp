@@ -4033,6 +4033,9 @@ async def dashboard(
     all_subscriptions = server.database.get_user_subscriptions(ctx.user_id)
     subscription_details = {sub['tool_category']: sub for sub in all_subscriptions if sub['status'] == 'active'}
 
+    # Get cancelled subscriptions (for resume button)
+    cancelled_subscriptions = [sub['tool_category'] for sub in all_subscriptions if sub['status'] == 'cancelled']
+
     # Determine user tier
     if trial_status['is_trial']:
         user_tier = 'trial'
@@ -4376,6 +4379,28 @@ async def dashboard(
                 <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 12px 24px; background: #e2e8f0; color: #4a5568; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.2s; font-size: 15px;">💳 Manage Subscriptions in Stripe</a>
             </div>
 
+            <!-- Cancelled Subscriptions (with Resume button) -->
+            {f'''<div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
+                <h2 style="color: white; font-size: 1.5rem; margin-bottom: 20px;">⚠️ Cancelled Subscriptions ({len(cancelled_subscriptions)} {("category" if len(cancelled_subscriptions) == 1 else "categories")})</h2>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    {"".join([
+                        f'''<div style="background: white; color: #1a202c; padding: 15px 20px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 28px;">{category_info[cat]["emoji"]}</span>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 16px;">{category_info[cat]["name"]}</div>
+                                    <div style="font-size: 14px; color: #6b7280;">{category_info[cat]["tools"]} tools • $5/month</div>
+                                </div>
+                            </div>
+                            <button onclick="resumeSubscription('{cat}')" style="background: #10b981; color: white; padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">
+                                ↻ Resume
+                            </button>
+                        </div>'''
+                        for cat in cancelled_subscriptions
+                    ])}
+                </div>
+            </div>''' if cancelled_subscriptions else ''}
+
             <!-- Available Subscriptions -->
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">Subscribe to More Tools</h2>
@@ -4383,10 +4408,10 @@ async def dashboard(
 
                 <div id="subscription-cart" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     {''.join([f'''
-                        <label class="subscription-item" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid {"#10b981" if cat in active_subscriptions else "#e2e8f0"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions else "pointer"}; background: {"#f0fdf4" if cat in active_subscriptions else "white"}; transition: all 0.2s;">
+                        <label class="subscription-item" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid {"#10b981" if cat in active_subscriptions else "#e2e8f0"}; border-radius: 12px; cursor: {"not-allowed" if cat in active_subscriptions or cat in cancelled_subscriptions else "pointer"}; background: {"#f0fdf4" if cat in active_subscriptions else "white"}; opacity: {("0.6" if cat in cancelled_subscriptions else "1")}; transition: all 0.2s;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
                                 <span style="font-size: 36px;">{category_info[cat]["emoji"]}</span>
-                                {f'<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Subscribed</span>' if cat in active_subscriptions else '<input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">'}
+                                {f'<span style="background: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Subscribed</span>' if cat in active_subscriptions else (f'<span style="background: #fef3c7; color: #92400e; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⚠️ Cancelled</span>' if cat in cancelled_subscriptions else '<input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">')}
                             </div>
                             <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a202c;">{category_info[cat]["name"]}</h3>
                             <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280; flex: 1;">{category_info[cat]["desc"]}</p>
@@ -4394,7 +4419,7 @@ async def dashboard(
                                 <span style="font-size: 13px; color: #9ca3af;">{category_info[cat]["tools"]} tools</span>
                                 <span style="font-size: 16px; font-weight: 700; color: #667eea;">$5/mo</span>
                             </div>
-                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] and cat not in active_subscriptions else ''}
+                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] and cat not in active_subscriptions and cat not in cancelled_subscriptions else ''}
                         </label>
                     ''' for cat in all_categories if cat not in active_subscriptions])}
                 </div>
@@ -4536,9 +4561,39 @@ async def dashboard(
                 cartSummary.style.display = 'block';
                 cartTotal.textContent = cart.size * 5;
                 cartCount.textContent = cart.size;
-                cartItemsList.innerHTML = Array.from(cart).map(cat => `• ${{categoryNames[cat]}} - $5/mo`).join('<br>');
+                // Filter out any undefined category names
+                cartItemsList.innerHTML = Array.from(cart).filter(cat => categoryNames[cat]).map(cat => `• ${{categoryNames[cat]}} - $5/mo`).join('<br>');
             }} else {{
                 cartSummary.style.display = 'none';
+            }}
+        }}
+
+        // Resume subscription function
+        async function resumeSubscription(category) {{
+            if (!confirm(`Resume ${{categoryNames[category]}} subscription ($5/month)?`)) return;
+
+            try {{
+                const response = await fetch(`/resume-subscription?session_token={session_token}&category=${{category}}`, {{
+                    method: 'POST'
+                }});
+
+                const data = await response.json();
+
+                if (response.ok) {{
+                    if (data.checkout_url) {{
+                        // Redirect to Stripe Checkout for payment
+                        window.location.href = data.checkout_url;
+                    }} else {{
+                        // Free/admin subscription - just reload
+                        showToast(`${{categoryNames[category]}} subscription resumed!`, 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    }}
+                }} else {{
+                    showToast(data.message || data.error || 'Failed to resume subscription', 'error');
+                }}
+            }} catch (error) {{
+                showToast('Network error. Please try again.', 'error');
+                console.error('Resume error:', error);
             }}
         }}
 
@@ -4808,6 +4863,126 @@ async def subscribe_to_category(
             "error": f"Failed to create checkout session: {str(e)}",
             "status": "error"
         }, status_code=500)
+
+
+@app.post("/resume-subscription")
+async def resume_subscription(
+    category: str = Query(...),
+    session_token: Optional[str] = Query(None)
+):
+    """
+    Resume a cancelled subscription by reactivating it.
+
+    Args:
+        category: Tool category to resume (e.g., 'gmail', 'sheets')
+        session_token: User's session token
+
+    Returns:
+        JSON with success status
+    """
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Validate session and get user
+    try:
+        ctx = await create_request_context(server.database, session_token, server.config)
+    except HTTPException:
+        raise HTTPException(401, "Invalid or expired session token")
+
+    # Validate category
+    valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
+    if category not in valid_categories:
+        raise HTTPException(400, f"Invalid category '{category}'")
+
+    # Check if subscription exists and is cancelled
+    existing = server.database.supabase.table('subscriptions').select('*').eq(
+        'user_id', ctx.user_id
+    ).eq('tool_category', category).eq('status', 'cancelled').execute()
+
+    if not existing.data:
+        return JSONResponse({
+            "status": "not_found",
+            "message": f"No cancelled {category} subscription found to resume"
+        }, status_code=404)
+
+    subscription = existing.data[0]
+    stripe_subscription_id = subscription.get('stripe_subscription_id')
+
+    # Initialize Stripe
+    stripe.api_key = server.config.stripe_secret_key
+
+    # If it's a real Stripe subscription, reactivate it
+    if stripe_subscription_id and not stripe_subscription_id.startswith(('admin_', 'free_')):
+        try:
+            # Note: You cannot "resume" a cancelled Stripe subscription
+            # You need to create a new subscription
+            # So we'll delete the old cancelled record and redirect to subscribe flow
+
+            # Delete the cancelled subscription record
+            server.database.supabase.table('subscriptions').delete().eq(
+                'id', subscription['id']
+            ).execute()
+
+            logger.info(f"Deleted cancelled {category} subscription for user {ctx.user_id}, will create new one")
+
+            # Create new subscription via Stripe Checkout
+            stripe_customer_id = server.database.get_stripe_customer_id(ctx.user_id)
+
+            if not stripe_customer_id:
+                # Create new Stripe customer
+                customer = stripe.Customer.create(
+                    email=ctx.email,
+                    metadata={'user_id': ctx.user_id}
+                )
+                stripe_customer_id = customer.id
+                logger.info(f"Created Stripe customer {stripe_customer_id} for user {ctx.email}")
+
+            price_id = server.config.get_stripe_price_id(category)
+
+            # Get deployment URL for success/cancel redirects
+            deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", "http://localhost:8000"))
+            if not deployment_url.startswith("http"):
+                deployment_url = f"https://{deployment_url}"
+
+            # Create Checkout session
+            checkout_session = stripe.checkout.Session.create(
+                customer=stripe_customer_id,
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': price_id,
+                    'quantity': 1
+                }],
+                mode='subscription',
+                success_url=f"{deployment_url}/dashboard?session_token={session_token}&subscription_success=true",
+                cancel_url=f"{deployment_url}/dashboard?session_token={session_token}",
+                metadata={
+                    'user_id': ctx.user_id,
+                    'tool_categories': category
+                }
+            )
+
+            return JSONResponse({
+                "status": "success",
+                "message": f"Redirecting to payment for {category}",
+                "checkout_url": checkout_session.url
+            })
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Failed to create new Stripe subscription for {category}: {e}")
+            raise HTTPException(500, f"Failed to resume subscription: {str(e)}")
+    else:
+        # It's a free/admin subscription - just reactivate it
+        server.database.supabase.table('subscriptions').update({
+            'status': 'active',
+            'cancelled_at': None
+        }).eq('id', subscription['id']).execute()
+
+        logger.info(f"Reactivated free/admin {category} subscription for user {ctx.user_id}")
+
+        return JSONResponse({
+            "status": "success",
+            "message": f"Resumed {category} subscription"
+        })
 
 
 @app.post("/webhooks/stripe")
