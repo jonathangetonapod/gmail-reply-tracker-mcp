@@ -1572,8 +1572,12 @@ async def dashboard(
     user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
 
-    # Get active subscriptions
+    # Get active subscriptions (category names only)
     active_subscriptions = server.database.get_active_subscriptions(ctx.user_id)
+
+    # Get full subscription details (for showing cancellation info)
+    all_subscriptions = server.database.get_user_subscriptions(ctx.user_id)
+    subscription_details = {sub['tool_category']: sub for sub in all_subscriptions if sub['status'] == 'active'}
 
     # Get enabled tool categories
     enabled_categories = user.get('enabled_tool_categories')
@@ -1906,7 +1910,19 @@ async def dashboard(
         {f'''<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 2px solid #81c784;">
             <div style="font-size: 18px; font-weight: 700; color: #2e7d32; margin-bottom: 15px;">✅ Currently Active ({len(active_subscriptions)} {("category" if len(active_subscriptions) == 1 else "categories")})</div>
             <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                {"".join([f'<div style="background: white; color: #2e7d32; padding: 10px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);"><span style="font-size: 20px;">{category_info[cat]["emoji"]}</span><span>{category_info[cat]["name"]}</span><span style="background: #e8f5e9; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${5}/mo</span></div>' for cat in active_subscriptions])}
+                {"".join([
+                    f'''<div style="background: white; color: #2e7d32; padding: 10px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); position: relative;">
+                        <span style="font-size: 20px;">{category_info[cat]["emoji"]}</span>
+                        <span>{category_info[cat]["name"]}</span>
+                        <span style="background: #e8f5e9; padding: 2px 8px; border-radius: 10px; font-size: 12px;">${5}/mo</span>
+                        {
+                            f'<span style="background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 4px;">⚠️ Cancels {subscription_details[cat]["cancel_at"][:10] if subscription_details[cat].get("cancel_at") else "soon"}</span>'
+                            if subscription_details.get(cat, {}).get('cancel_at_period_end')
+                            else ''
+                        }
+                    </div>'''
+                    for cat in active_subscriptions
+                ])}
             </div>
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(46, 125, 50, 0.2); color: #2e7d32; font-size: 15px; font-weight: 600;">
                 Total: ${len(active_subscriptions) * 5}/month
@@ -2346,14 +2362,25 @@ async def stripe_webhook(request: Request):
             current_period_start = datetime.now()
             current_period_end = datetime.now() + timedelta(days=30)
 
+        # Extract cancellation info (if scheduled to cancel at period end)
+        cancel_at_period_end = subscription.get('cancel_at_period_end', False)
+        cancel_at = None
+        if subscription.get('cancel_at'):
+            cancel_at = datetime.fromtimestamp(subscription['cancel_at'])
+
         server.database.update_subscription_status(
             stripe_subscription_id=subscription_id,
             status=our_status,
             current_period_start=current_period_start,
-            current_period_end=current_period_end
+            current_period_end=current_period_end,
+            cancel_at_period_end=cancel_at_period_end,
+            cancel_at=cancel_at
         )
 
-        logger.info(f"Updated subscription {subscription_id} to status {our_status}")
+        if cancel_at_period_end:
+            logger.info(f"Updated subscription {subscription_id} to status {our_status} (cancels on {cancel_at})")
+        else:
+            logger.info(f"Updated subscription {subscription_id} to status {our_status}")
 
     elif event_type == 'customer.subscription.deleted':
         # Subscription cancelled
@@ -2474,14 +2501,25 @@ async def sync_subscriptions(session_token: Optional[str] = Query(None)):
             period_start = datetime.now()
             period_end = datetime.now() + timedelta(days=30)
 
+        # Extract cancellation info (if scheduled to cancel at period end)
+        cancel_at_period_end = sub.get('cancel_at_period_end', False)
+        cancel_at = None
+        if sub.get('cancel_at'):
+            cancel_at = datetime.fromtimestamp(sub['cancel_at'])
+
         server.database.update_subscription_status(
             stripe_subscription_id=sub['id'],
             status=our_status,
             current_period_start=period_start,
-            current_period_end=period_end
+            current_period_end=period_end,
+            cancel_at_period_end=cancel_at_period_end,
+            cancel_at=cancel_at
         )
         synced_count += 1
-        logger.info(f"Synced subscription {sub['id']} - status: {our_status}")
+        if cancel_at_period_end:
+            logger.info(f"Synced subscription {sub['id']} - status: {our_status} (cancels on {cancel_at})")
+        else:
+            logger.info(f"Synced subscription {sub['id']} - status: {our_status}")
 
     return JSONResponse({
         "status": "success",

@@ -602,7 +602,9 @@ class Database:
         status: str,
         current_period_start: Optional[datetime] = None,
         current_period_end: Optional[datetime] = None,
-        cancelled_at: Optional[datetime] = None
+        cancelled_at: Optional[datetime] = None,
+        cancel_at_period_end: Optional[bool] = None,
+        cancel_at: Optional[datetime] = None
     ):
         """
         Update subscription status (called by Stripe webhook).
@@ -613,6 +615,8 @@ class Database:
             current_period_start: Start of current billing period
             current_period_end: End of current billing period
             cancelled_at: Cancellation timestamp
+            cancel_at_period_end: Whether subscription is set to cancel at period end
+            cancel_at: When subscription will cancel (if scheduled)
         """
         update_data = {'status': status}
 
@@ -622,6 +626,10 @@ class Database:
             update_data['current_period_end'] = current_period_end.isoformat()
         if cancelled_at:
             update_data['cancelled_at'] = cancelled_at.isoformat()
+        if cancel_at_period_end is not None:
+            update_data['cancel_at_period_end'] = cancel_at_period_end
+        if cancel_at:
+            update_data['cancel_at'] = cancel_at.isoformat()
 
         self.supabase.table('subscriptions').update(update_data).eq(
             'stripe_subscription_id', stripe_subscription_id
