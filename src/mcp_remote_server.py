@@ -1166,6 +1166,158 @@ async def root():
             opacity: 0.95;
         }
 
+        /* See Possibilities Button */
+        .possibilities-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .possibilities-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+
+        .modal-header h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .modal-header p {
+            opacity: 0.95;
+            font-size: 1.1rem;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 28px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 40px;
+        }
+
+        .prompt-section {
+            margin-bottom: 35px;
+        }
+
+        .prompt-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .prompt-section h3 {
+            font-size: 1.4rem;
+            color: #1a202c;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .difficulty-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .difficulty-badge.basic {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .difficulty-badge.intermediate {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .difficulty-badge.advanced {
+            background: #ddd6fe;
+            color: #5b21b6;
+        }
+
+        .prompt-examples {
+            list-style: none;
+        }
+
+        .prompt-examples li {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #2d3748;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2.5rem;
@@ -1189,6 +1341,18 @@ async def root():
 
             .pricing-card.featured {
                 transform: scale(1);
+            }
+
+            .modal-content {
+                max-height: 95vh;
+            }
+
+            .modal-header {
+                padding: 20px;
+            }
+
+            .modal-body {
+                padding: 25px;
             }
         }
     </style>
@@ -1229,6 +1393,7 @@ async def root():
                     <li>Bulk operations and email analysis</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('gmail')">⭐ See the Possibilities</button>
             </div>
 
             <!-- Calendar Tools -->
@@ -1245,6 +1410,7 @@ async def root():
                     <li>List upcoming events and agendas</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('calendar')">⭐ See the Possibilities</button>
             </div>
 
             <!-- Google Docs -->
@@ -1261,6 +1427,7 @@ async def root():
                     <li>Export to PDF and other formats</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('docs')">⭐ See the Possibilities</button>
             </div>
 
             <!-- Google Sheets -->
@@ -1277,6 +1444,7 @@ async def root():
                     <li>Move, copy, and delete rows/columns</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('sheets')">⭐ See the Possibilities</button>
             </div>
 
             <!-- Fathom Tools -->
@@ -1293,6 +1461,7 @@ async def root():
                     <li>Analyze conversation insights</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('fathom')">⭐ See the Possibilities</button>
             </div>
 
             <!-- Instantly Tools -->
@@ -1309,6 +1478,7 @@ async def root():
                     <li>Automate follow-up sequences</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('instantly')">⭐ See the Possibilities</button>
             </div>
 
             <!-- Bison Tools -->
@@ -1323,6 +1493,7 @@ async def root():
                     <li>Custom insights generation</li>
                 </ul>
                 <div class="category-price">$5/month</div>
+                <button class="possibilities-button" onclick="showPossibilities('bison')">⭐ See the Possibilities</button>
             </div>
         </div>
     </div>
@@ -1414,6 +1585,324 @@ async def root():
             <a href="/login" class="cta-button-secondary">Log In</a>
         </div>
     </div>
+
+    <!-- Possibilities Modal -->
+    <div id="possibilitiesModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeModal()">×</button>
+                <h2 id="modalTitle"></h2>
+                <p id="modalSubtitle"></p>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be dynamically inserted -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const toolExamples = {
+            gmail: {
+                title: '📧 Gmail Possibilities',
+                subtitle: 'Real examples of what you can do with Gmail tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"Show me my unread emails"',
+                            '"Find all emails from john@example.com"',
+                            '"Mark all emails from newsletters as read"',
+                            '"Archive emails older than 30 days"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Find all emails about the \\\'Project Alpha\\\' and summarize the key decisions"',
+                            '"Search for emails with PDF attachments from last week and list them"',
+                            '"Find all emails I haven\\\'t replied to yet and help me draft responses"',
+                            '"Create a label called \\\'Urgent\\\' and move all emails with \\\'ASAP\\\' in the subject"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Analyze my inbox and identify recurring senders, then create labels for each category"',
+                            '"Find all emails about invoices, extract amounts and dates, and create a spreadsheet"',
+                            '"Search for action items in emails from this week and schedule calendar reminders"',
+                            '"Identify all unanswered customer emails and draft personalized responses based on context"'
+                        ]
+                    }
+                ]
+            },
+            calendar: {
+                title: '📅 Calendar Possibilities',
+                subtitle: 'Real examples of what you can do with Calendar tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"What\\\'s on my calendar today?"',
+                            '"Schedule a meeting tomorrow at 2pm called \\\'Team Sync\\\'"',
+                            '"Cancel my 3pm meeting"',
+                            '"Show me all events this week"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Find a 1-hour slot this week when both john@example.com and I are free"',
+                            '"Move all my Thursday meetings to Friday"',
+                            '"Set up a recurring weekly meeting every Monday at 10am with the team"',
+                            '"Show me how many hours of meetings I have this week vs next week"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Analyze my calendar and suggest which meetings I should decline to free up focus time"',
+                            '"Find all 1-on-1s I haven\\\'t had in 30+ days and suggest rescheduling them"',
+                            '"Create a meeting prep document for each meeting I have tomorrow with context from emails"',
+                            '"Block 2 hours every morning next week for deep work, avoiding any conflicts"'
+                        ]
+                    }
+                ]
+            },
+            docs: {
+                title: '📄 Google Docs Possibilities',
+                subtitle: 'Real examples of what you can do with Docs tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"Create a new document called \\\'Meeting Notes\\\'"',
+                            '"Read the content from my \\\'Project Plan\\\' doc"',
+                            '"Add a heading \\\'Next Steps\\\' to my current doc"',
+                            '"Share my \\\'Q4 Goals\\\' doc with sarah@example.com"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Create a project proposal template with sections for goals, timeline, and budget"',
+                            '"Find all my docs containing \\\'budget\\\' and extract the key numbers"',
+                            '"Convert my \\\'Sales Report\\\' doc to PDF and save it"',
+                            '"Create a table in my doc with columns for Task, Owner, and Deadline"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Create a meeting summary doc from yesterday\\\'s calendar events with action items from emails"',
+                            '"Find all my project docs, extract status updates, and create a consolidated dashboard"',
+                            '"Generate a weekly report by pulling data from my Sheets and formatting it nicely"',
+                            '"Create an onboarding guide by combining content from multiple existing docs"'
+                        ]
+                    }
+                ]
+            },
+            sheets: {
+                title: '📊 Google Sheets Possibilities',
+                subtitle: 'Real examples of what you can do with Sheets tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"Create a new sheet called \\\'Expense Tracker\\\'"',
+                            '"Read the data from my \\\'Sales Report\\\' sheet"',
+                            '"Add a row with today\\\'s date, \\\'Coffee\\\', and $5"',
+                            '"Sum all values in column B"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Create a pivot table showing total sales by region"',
+                            '"Filter my data to show only rows where Status is \\\'Pending\\\'"',
+                            '"Create a line chart showing monthly revenue trends"',
+                            '"Move rows where Amount > 1000 to a new sheet called \\\'Large Purchases\\\'"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Analyze my expense data and identify spending patterns, then create a budget forecast"',
+                            '"Pull data from multiple sheets, combine them, and create a consolidated dashboard"',
+                            '"Find duplicate entries in my customer list and merge them intelligently"',
+                            '"Build a automated expense report that categorizes transactions and calculates totals by category"'
+                        ]
+                    }
+                ]
+            },
+            fathom: {
+                title: '🎙️ Fathom Meetings Possibilities',
+                subtitle: 'Real examples of what you can do with Fathom tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"Show me my recent meeting recordings"',
+                            '"Get the transcript from yesterday\\\'s sales call"',
+                            '"What were the key points from my last meeting with John?"',
+                            '"Search for meetings where we discussed \\\'pricing\\\'"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Summarize all customer feedback from this week\\\'s meetings"',
+                            '"Extract action items from my last 3 meetings and create a task list"',
+                            '"Find all meetings where we discussed the Q4 roadmap and compile the decisions"',
+                            '"Compare what was discussed in our kickoff meeting vs status update meeting"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Analyze all sales calls from this month and identify common objections and how we handled them"',
+                            '"Create a comprehensive project status report by pulling key updates from all related meetings"',
+                            '"Find patterns in customer meetings - what topics come up most and what outcomes are successful"',
+                            '"Generate a weekly team summary: action items, decisions made, and open questions from all meetings"'
+                        ]
+                    }
+                ]
+            },
+            instantly: {
+                title: '✉️ Instantly Campaigns Possibilities',
+                subtitle: 'Real examples of what you can do with Instantly tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"Show me all my active campaigns"',
+                            '"How many leads are in my \\\'Q1 Outreach\\\' campaign?"',
+                            '"Add john@example.com to my campaign"',
+                            '"What\\\'s the open rate for my last campaign?"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Show me all leads who opened my email but didn\\\'t reply"',
+                            '"Pause all campaigns targeting the finance industry"',
+                            '"Compare performance of campaigns launched this month vs last month"',
+                            '"Find all leads with \\\'CEO\\\' in their title and add them to a new campaign"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Analyze which subject lines get the best open rates and suggest improvements for my next campaign"',
+                            '"Identify leads who are engaging but not converting, and draft personalized follow-ups"',
+                            '"Create a performance dashboard showing which campaigns, industries, and titles have the best ROI"',
+                            '"Find inactive leads from old campaigns and design a re-engagement sequence with updated messaging"'
+                        ]
+                    }
+                ]
+            },
+            bison: {
+                title: '🔍 Bison Analysis Possibilities',
+                subtitle: 'Real examples of what you can do with Bison tools',
+                sections: [
+                    {
+                        title: 'Basic Tasks',
+                        difficulty: 'basic',
+                        prompts: [
+                            '"Analyze this dataset and find basic statistics"',
+                            '"Show me trends in my sales data"',
+                            '"Identify outliers in this spreadsheet"',
+                            '"Compare performance between two time periods"'
+                        ]
+                    },
+                    {
+                        title: 'Intermediate Workflows',
+                        difficulty: 'intermediate',
+                        prompts: [
+                            '"Analyze customer behavior patterns and segment them into groups"',
+                            '"Find correlations between marketing spend and revenue"',
+                            '"Predict next quarter\\\'s sales based on historical data"',
+                            '"Identify which factors most impact customer churn"'
+                        ]
+                    },
+                    {
+                        title: 'Advanced Automation',
+                        difficulty: 'advanced',
+                        prompts: [
+                            '"Build a predictive model to forecast which leads are most likely to convert"',
+                            '"Analyze multi-source data (CRM, emails, meetings) to identify deal risk factors"',
+                            '"Create a recommendation engine for personalized product suggestions based on user behavior"',
+                            '"Perform cohort analysis to understand retention patterns and identify intervention opportunities"'
+                        ]
+                    }
+                ]
+            }
+        };
+
+        function showPossibilities(category) {
+            const data = toolExamples[category];
+            const modal = document.getElementById('possibilitiesModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const modalBody = document.getElementById('modalBody');
+
+            // Set header content
+            modalTitle.textContent = data.title;
+            modalSubtitle.textContent = data.subtitle;
+
+            // Build sections HTML
+            let sectionsHTML = '';
+            data.sections.forEach(section => {
+                sectionsHTML += `
+                    <div class="prompt-section">
+                        <h3>
+                            ${section.title}
+                            <span class="difficulty-badge ${section.difficulty}">${section.difficulty}</span>
+                        </h3>
+                        <ul class="prompt-examples">
+                            ${section.prompts.map(prompt => `<li>${prompt}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            });
+
+            modalBody.innerHTML = sectionsHTML;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(event) {
+            if (!event || event.target.classList.contains('modal-overlay') || event.target.classList.contains('modal-close')) {
+                const modal = document.getElementById('possibilitiesModal');
+                modal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
 </body>
 </html>
     """)
