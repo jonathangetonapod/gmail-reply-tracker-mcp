@@ -5256,6 +5256,9 @@ async def dashboard(
     </div>
 
     <script>
+        // Admin password from URL or use cookie-based auth
+        const adminPassword = new URLSearchParams(window.location.search).get('admin_password') || '';
+
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {{
             tab.addEventListener('click', () => {{
@@ -5295,7 +5298,8 @@ async def dashboard(
             adminToast.style.background = '#fbbf24';
 
             try {{
-                const response = await fetch('/admin/grant-personal?session_token={session_token}&admin_password=' + new URLSearchParams(window.location.search).get('admin_password'), {{
+                const url = '/admin/grant-personal?session_token={session_token}' + (adminPassword ? '&admin_password=' + adminPassword : '');
+                const response = await fetch(url, {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
                     body: JSON.stringify({{category: category}})
@@ -5311,7 +5315,7 @@ async def dashboard(
                     adminToast.style.background = '#ef4444';
                 }}
             }} catch (e) {{
-                adminToast.textContent = '✗ Network error';
+                adminToast.textContent = '✗ Network error: ' + e.message;
                 adminToast.style.background = '#ef4444';
             }}
 
@@ -5325,7 +5329,8 @@ async def dashboard(
             adminToast.style.background = '#fbbf24';
 
             try {{
-                const response = await fetch('/admin/grant-team?session_token={session_token}&admin_password=' + new URLSearchParams(window.location.search).get('admin_password'), {{
+                const url = '/admin/grant-team?session_token={session_token}' + (adminPassword ? '&admin_password=' + adminPassword : '');
+                const response = await fetch(url, {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
                     body: JSON.stringify({{team_id: teamId, category: category}})
@@ -5341,7 +5346,7 @@ async def dashboard(
                     adminToast.style.background = '#ef4444';
                 }}
             }} catch (e) {{
-                adminToast.textContent = '✗ Network error';
+                adminToast.textContent = '✗ Network error: ' + e.message;
                 adminToast.style.background = '#ef4444';
             }}
 
