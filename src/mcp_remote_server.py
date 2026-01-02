@@ -5742,13 +5742,17 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
     </div>
 
     <script>
+        // Store active categories for modal
+        const activeCategories = {active_categories};
+        const allCategories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison'];
+
         async function toggleSubscription(userId, category, isCurrentlyActive) {{
             const messageDiv = document.getElementById('subscription-message');
             const action = isCurrentlyActive ? 'remove' : 'add';
 
-            // If adding, show modal to choose free or paid
+            // If adding, show multi-select modal
             if (action === 'add') {{
-                showSubscriptionModal(userId, category);
+                showMultiSelectModal(userId, category);
                 return;
             }}
 
@@ -5792,21 +5796,44 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             }}
         }}
 
-        function showSubscriptionModal(userId, category) {{
+        function showMultiSelectModal(userId, initialCategory) {{
             const modal = document.createElement('div');
             modal.id = 'subscription-modal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
 
+            // Get unsubscribed categories
+            const unsubscribedCategories = allCategories.filter(cat => !activeCategories.includes(cat));
+
+            // Build checkboxes HTML
+            const categoryCheckboxes = unsubscribedCategories.map(cat => `
+                <label style="display: flex; align-items: center; padding: 12px; border: 2px solid hsl(var(--border)); border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: all 0.2s;" class="category-checkbox">
+                    <input type="checkbox" name="categories" value="${{cat}}" ${{cat === initialCategory ? 'checked' : ''}} onchange="updateTotal()" style="margin-right: 12px; width: 18px; height: 18px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">${{cat.charAt(0).toUpperCase() + cat.slice(1)}}</div>
+                        <div style="font-size: 13px; color: hsl(var(--muted-foreground));">$5/month</div>
+                    </div>
+                </label>
+            `).join('');
+
             modal.innerHTML = `
-                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
-                    <h2 style="margin: 0 0 20px 0;">Add ${{category.charAt(0).toUpperCase() + category.slice(1)}} Subscription</h2>
+                <div style="background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                    <h2 style="margin: 0 0 10px 0;">Add Subscriptions</h2>
+                    <p style="color: hsl(var(--muted-foreground)); margin: 0 0 20px 0; font-size: 14px;">Select one or more tool categories to add</p>
 
                     <div style="margin-bottom: 20px;">
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">Select Categories:</h3>
+                        <div id="category-checkboxes">
+                            ${{categoryCheckboxes}}
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">Billing Type:</h3>
                         <label style="display: flex; align-items: center; padding: 15px; border: 2px solid hsl(var(--border)); border-radius: 8px; cursor: pointer; margin-bottom: 12px;">
                             <input type="radio" name="subscription-type" value="paid" checked style="margin-right: 12px; width: 18px; height: 18px;">
                             <div>
-                                <div style="font-weight: 600; margin-bottom: 4px;">💳 Paid Subscription ($5/month)</div>
-                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Stripe will email an invoice - payment due in 30 days</div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">💳 Paid Subscription</div>
+                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Single invoice for all selected categories</div>
                             </div>
                         </label>
 
@@ -5814,20 +5841,79 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                             <input type="radio" name="subscription-type" value="free" style="margin-right: 12px; width: 18px; height: 18px;">
                             <div>
                                 <div style="font-weight: 600; margin-bottom: 4px;">🎁 Free Subscription (No Billing)</div>
-                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Complimentary access - no invoices or charges</div>
+                                <div style="font-size: 13px; color: hsl(var(--muted-foreground));">Complimentary access - no invoices</div>
                             </div>
                         </label>
                     </div>
 
+                    <div style="background: hsl(var(--muted) / 0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-weight: 600; font-size: 16px;">Total:</div>
+                            <div id="total-price" style="font-weight: 700; font-size: 20px; color: hsl(var(--primary));">$0/month</div>
+                        </div>
+                        <div id="invoice-note" style="font-size: 13px; color: hsl(var(--muted-foreground)); margin-top: 8px;">One invoice will be sent for all selected categories</div>
+                    </div>
+
                     <div style="display: flex; gap: 12px; justify-content: flex-end;">
                         <button onclick="closeSubscriptionModal()" style="padding: 10px 20px; border: 2px solid hsl(var(--border)); background: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Cancel</button>
-                        <button onclick="confirmAddSubscription('${{userId}}', '${{category}}')" style="padding: 10px 20px; border: none; background: hsl(var(--primary)); color: white; border-radius: 6px; cursor: pointer; font-weight: 600;">Add Subscription</button>
+                        <button id="confirm-button" onclick="confirmAddMultipleSubscriptions('${{userId}}')" disabled style="padding: 10px 20px; border: none; background: hsl(var(--muted)); color: white; border-radius: 6px; cursor: not-allowed; font-weight: 600;">Add Subscriptions</button>
                     </div>
                 </div>
             `;
 
             document.body.appendChild(modal);
             modal.onclick = (e) => {{ if (e.target === modal) closeSubscriptionModal(); }};
+
+            // Add checkbox styling on select
+            document.querySelectorAll('.category-checkbox').forEach(label => {{
+                const checkbox = label.querySelector('input[type="checkbox"]');
+                checkbox.addEventListener('change', () => {{
+                    if (checkbox.checked) {{
+                        label.style.borderColor = 'hsl(var(--primary))';
+                        label.style.background = 'hsl(var(--primary) / 0.05)';
+                    }} else {{
+                        label.style.borderColor = 'hsl(var(--border))';
+                        label.style.background = 'white';
+                    }}
+                }});
+                // Trigger initial state
+                if (checkbox.checked) {{
+                    label.style.borderColor = 'hsl(var(--primary))';
+                    label.style.background = 'hsl(var(--primary) / 0.05)';
+                }}
+            }});
+
+            updateTotal();
+        }}
+
+        function updateTotal() {{
+            const checkboxes = document.querySelectorAll('input[name="categories"]:checked');
+            const count = checkboxes.length;
+            const total = count * 5;
+            const isFree = document.querySelector('input[name="subscription-type"]:checked')?.value === 'free';
+
+            document.getElementById('total-price').textContent = isFree ? '$0 (Free)' : `$$${{total}}/month`;
+            document.getElementById('invoice-note').textContent = isFree
+                ? 'No invoice - complimentary access'
+                : count > 1
+                    ? `One invoice will be sent for all ${{count}} categories`
+                    : 'Invoice will be sent for this category';
+
+            const confirmButton = document.getElementById('confirm-button');
+            if (count > 0) {{
+                confirmButton.disabled = false;
+                confirmButton.style.background = 'hsl(var(--primary))';
+                confirmButton.style.cursor = 'pointer';
+            }} else {{
+                confirmButton.disabled = true;
+                confirmButton.style.background = 'hsl(var(--muted))';
+                confirmButton.style.cursor = 'not-allowed';
+            }}
+
+            // Update billing type radios to trigger total update
+            document.querySelectorAll('input[name="subscription-type"]').forEach(radio => {{
+                radio.onchange = updateTotal;
+            }});
         }}
 
         function closeSubscriptionModal() {{
@@ -5835,24 +5921,30 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
             if (modal) modal.remove();
         }}
 
-        async function confirmAddSubscription(userId, category) {{
+        async function confirmAddMultipleSubscriptions(userId) {{
+            const selectedCheckboxes = document.querySelectorAll('input[name="categories"]:checked');
+            const categories = Array.from(selectedCheckboxes).map(cb => cb.value);
             const isFree = document.querySelector('input[name="subscription-type"]:checked').value === 'free';
             const messageDiv = document.getElementById('subscription-message');
 
+            if (categories.length === 0) {{
+                alert('Please select at least one category');
+                return;
+            }}
+
             closeSubscriptionModal();
 
-            messageDiv.textContent = '⏳ Adding subscription...';
+            messageDiv.textContent = `⏳ Adding ${{categories.length}} subscription${{categories.length > 1 ? 's' : ''}}...`;
             messageDiv.style.display = 'block';
             messageDiv.style.background = 'hsl(var(--muted) / 0.1)';
             messageDiv.style.color = 'hsl(var(--muted-foreground))';
 
             try {{
-                const response = await fetch(`/admin/user/${{userId}}/subscription?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
+                const response = await fetch(`/admin/user/${{userId}}/subscriptions/batch?admin_password={os.getenv("ADMIN_PASSWORD")}`, {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
                     body: JSON.stringify({{
-                        action: 'add',
-                        category: category,
+                        categories: categories,
                         free: isFree
                     }})
                 }});
@@ -5863,9 +5955,9 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                     if (result.invoice_link) {{
                         // Show invoice link with copy button
                         messageDiv.innerHTML = `
-                            <div style="margin-bottom: 12px;">✓ Added ${{category}} subscription successfully!</div>
+                            <div style="margin-bottom: 12px;">✓ Added ${{categories.length}} subscription${{categories.length > 1 ? 's' : ''}} successfully!</div>
                             <div style="background: hsl(var(--muted) / 0.3); padding: 12px; border-radius: 6px; margin-top: 8px;">
-                                <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">📧 Invoice Link:</div>
+                                <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">📧 Invoice Link ($$${{categories.length * 5}}/month):</div>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <input type="text" value="${{result.invoice_link}}" readonly style="flex: 1; padding: 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; font-size: 12px; font-family: monospace;">
                                     <button onclick="copyInvoiceLink('${{result.invoice_link}}')" style="padding: 8px 16px; background: hsl(var(--primary)); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; white-space: nowrap;">📋 Copy</button>
@@ -5876,14 +5968,14 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                         messageDiv.style.background = 'hsl(var(--success) / 0.1)';
                         messageDiv.style.color = 'hsl(var(--success))';
                     }} else {{
-                        messageDiv.textContent = `✓ Added ${{category}} subscription successfully!${{isFree ? ' (Free - no billing)' : ''}}`;
+                        messageDiv.textContent = `✓ Added ${{categories.length}} subscription${{categories.length > 1 ? 's' : ''}} successfully!${{isFree ? ' (Free - no billing)' : ''}}`;
                         messageDiv.style.background = 'hsl(var(--success) / 0.1)';
                         messageDiv.style.color = 'hsl(var(--success))';
                     }}
 
                     setTimeout(() => {{
                         window.location.reload();
-                    }}, 3000);
+                    }}, 4000);
                 }} else {{
                     messageDiv.textContent = `✗ Error: ${{result.detail || result.message}}`;
                     messageDiv.style.background = 'hsl(var(--destructive) / 0.1)';
@@ -5961,6 +6053,195 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
 </body>
 </html>
         """, status_code=500)
+
+
+@app.post("/admin/user/{user_id}/subscriptions/batch")
+async def admin_add_batch_subscriptions(
+    request: Request,
+    user_id: str,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Admin endpoint to add multiple subscriptions at once with a single invoice.
+
+    Body: {
+        "categories": ["gmail", "calendar", "docs"],
+        "free": true/false (optional, default false)
+    }
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Parse request body
+        body = await request.json()
+        categories = body.get('categories', [])
+        is_free = body.get('free', False)
+
+        if not categories or not isinstance(categories, list):
+            raise HTTPException(400, "Invalid or empty categories list")
+
+        valid_categories = ['gmail', 'calendar', 'docs', 'sheets', 'fathom', 'instantly', 'bison']
+        for cat in categories:
+            if cat not in valid_categories:
+                raise HTTPException(400, f"Invalid category '{cat}'. Must be one of: {', '.join(valid_categories)}")
+
+        # Get user data
+        result = server.database.supabase.table('users').select('*').eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(404, "User not found")
+
+        user_data = result.data[0]
+
+        # Filter out already active subscriptions and remove cancelled ones
+        categories_to_add = []
+        for cat in categories:
+            existing = server.database.supabase.table('subscriptions').select('*').eq(
+                'user_id', user_id
+            ).eq('tool_category', cat).execute()
+
+            if existing.data:
+                subscription = existing.data[0]
+                if subscription['status'] == 'active':
+                    logger.info(f"Skipping {cat} - already has active subscription")
+                    continue
+                else:
+                    # Delete cancelled subscription to allow recreation
+                    server.database.supabase.table('subscriptions').delete().eq(
+                        'id', subscription['id']
+                    ).execute()
+                    logger.info(f"Deleted cancelled {cat} subscription for user {user_id}")
+
+            categories_to_add.append(cat)
+
+        if not categories_to_add:
+            return JSONResponse({
+                "status": "already_exists",
+                "message": "User already has active subscriptions for all selected categories"
+            })
+
+        # FREE SUBSCRIPTIONS - Create separate database records, no billing
+        if is_free:
+            import secrets
+            stripe.api_key = server.config.stripe_secret_key
+
+            # Get or create Stripe customer (for consistency)
+            stripe_customer_id = server.database.get_stripe_customer_id(user_id)
+            if not stripe_customer_id:
+                customer = stripe.Customer.create(
+                    email=user_data['email'],
+                    metadata={'user_id': user_id}
+                )
+                stripe_customer_id = customer.id
+
+            # Create separate free subscriptions for each category
+            for cat in categories_to_add:
+                fake_subscription_id = f"free_{secrets.token_urlsafe(16)}"
+                server.database.create_subscription(
+                    user_id=user_id,
+                    tool_category=cat,
+                    stripe_customer_id=stripe_customer_id,
+                    stripe_subscription_id=fake_subscription_id,
+                    status='active',
+                    current_period_start=datetime.now(),
+                    current_period_end=datetime.now() + timedelta(days=36500)  # 100 years
+                )
+
+            logger.info(f"Admin granted FREE subscriptions for user {user_id}: {', '.join(categories_to_add)}")
+
+            return JSONResponse({
+                "status": "success",
+                "message": f"Added {len(categories_to_add)} FREE subscription(s)",
+                "categories": categories_to_add,
+                "is_free": True,
+                "note": "Complimentary access with no billing"
+            })
+
+        # PAID SUBSCRIPTIONS - Create single Stripe subscription with multiple line items
+        stripe.api_key = server.config.stripe_secret_key
+
+        # Get or create Stripe customer
+        stripe_customer_id = server.database.get_stripe_customer_id(user_id)
+        if not stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=user_data['email'],
+                metadata={'user_id': user_id}
+            )
+            stripe_customer_id = customer.id
+            logger.info(f"Created Stripe customer {stripe_customer_id} for user {user_data['email']}")
+
+        # Build line items for all categories
+        line_items = []
+        for cat in categories_to_add:
+            try:
+                price_id = server.config.get_stripe_price_id(cat)
+                line_items.append({'price': price_id, 'quantity': 1})
+            except ValueError as e:
+                raise HTTPException(400, f"No Stripe price configured for {cat}: {str(e)}")
+
+        # Create ONE Stripe subscription with multiple line items
+        stripe_subscription = stripe.Subscription.create(
+            customer=stripe_customer_id,
+            items=line_items,
+            collection_method='send_invoice',
+            days_until_due=30,
+            metadata={
+                'user_id': user_id,
+                'categories': ','.join(categories_to_add),
+                'added_by': 'admin',
+                'batch_subscription': 'true'
+            }
+        )
+
+        # Create separate database records for each category, all linked to same Stripe subscription
+        for cat in categories_to_add:
+            server.database.create_subscription(
+                user_id=user_id,
+                tool_category=cat,
+                stripe_customer_id=stripe_customer_id,
+                stripe_subscription_id=stripe_subscription.id,  # Same subscription ID for all
+                status=stripe_subscription.status,
+                current_period_start=datetime.fromtimestamp(stripe_subscription.current_period_start),
+                current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end)
+            )
+
+        # Get the invoice link
+        invoice_link = None
+        try:
+            latest_invoice_id = stripe_subscription.latest_invoice
+            if latest_invoice_id:
+                invoice = stripe.Invoice.retrieve(latest_invoice_id)
+                invoice_link = invoice.hosted_invoice_url
+                logger.info(f"Invoice link: {invoice_link}")
+        except Exception as e:
+            logger.warning(f"Could not retrieve invoice link: {e}")
+
+        logger.info(f"Admin created batch Stripe subscription {stripe_subscription.id} for user {user_id}, categories: {', '.join(categories_to_add)}")
+
+        return JSONResponse({
+            "status": "success",
+            "message": f"Added {len(categories_to_add)} subscription(s) (Stripe ID: {stripe_subscription.id})",
+            "categories": categories_to_add,
+            "subscription_id": stripe_subscription.id,
+            "stripe_status": stripe_subscription.status,
+            "is_free": False,
+            "invoice_link": invoice_link,
+            "total_monthly": len(categories_to_add) * 5,
+            "note": f"One invoice will be sent for all {len(categories_to_add)} categories - payment due within 30 days"
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating batch subscriptions: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Internal server error: {str(e)}")
 
 
 @app.post("/admin/user/{user_id}/subscription")
