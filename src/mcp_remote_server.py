@@ -3933,23 +3933,39 @@ async def signup_form(request: Request, error: Optional[str] = Query(None)):
 
 @app.post("/signup")
 async def signup_submit(request: Request):
-    """Handle email/password signup submission."""
+    """Handle email/password signup submission (supports both form data and JSON)."""
     try:
-        # Parse form data
-        form_data = await request.form()
-        email = form_data.get('email', '').strip()
-        name = form_data.get('name', '').strip() or None
-        password = form_data.get('password', '')
-        confirm_password = form_data.get('confirm_password', '')
+        # Detect content type and parse accordingly
+        content_type = request.headers.get('content-type', '')
+        is_json = 'application/json' in content_type.lower()
+
+        if is_json:
+            # JSON request (from invitation page)
+            body = await request.json()
+            email = body.get('email', '').strip()
+            password = body.get('password', '')
+            name = body.get('name', '').strip() or None
+            confirm_password = password  # JSON doesn't need confirmation
+        else:
+            # Form data request (from signup page)
+            form_data = await request.form()
+            email = form_data.get('email', '').strip()
+            name = form_data.get('name', '').strip() or None
+            password = form_data.get('password', '')
+            confirm_password = form_data.get('confirm_password', '')
 
         # Validate inputs
         if not email or not password:
+            if is_json:
+                raise HTTPException(400, "Email and password are required")
             return RedirectResponse(
                 url=f"/signup?error=Email and password are required",
                 status_code=303
             )
 
         if password != confirm_password:
+            if is_json:
+                raise HTTPException(400, "Passwords do not match")
             return RedirectResponse(
                 url=f"/signup?error=Passwords do not match",
                 status_code=303
@@ -3967,6 +3983,8 @@ async def signup_submit(request: Request):
             )
         except ValueError as e:
             # Handle duplicate email or weak password
+            if is_json:
+                raise HTTPException(400, str(e))
             return RedirectResponse(
                 url=f"/signup?error={str(e)}",
                 status_code=303
@@ -3974,15 +3992,29 @@ async def signup_submit(request: Request):
 
         logger.info(f"New email/password signup: {email}")
 
-        # Redirect to dashboard with welcome message
-        first_name = name.split()[0] if name else email.split('@')[0]
-        return RedirectResponse(
-            url=f"/dashboard?session_token={user_data['session_token']}&is_new_user=True&first_name={first_name}",
-            status_code=303
-        )
+        # Return appropriate response
+        if is_json:
+            # JSON response (for invitation page)
+            return JSONResponse({
+                "success": True,
+                "session_token": user_data['session_token'],
+                "user_id": user_data['user_id'],
+                "email": user_data['email']
+            })
+        else:
+            # Redirect to dashboard with welcome message
+            first_name = name.split()[0] if name else email.split('@')[0]
+            return RedirectResponse(
+                url=f"/dashboard?session_token={user_data['session_token']}&is_new_user=True&first_name={first_name}",
+                status_code=303
+            )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Signup error: {e}")
+        if is_json:
+            raise HTTPException(500, "An error occurred. Please try again.")
         return RedirectResponse(
             url=f"/signup?error=An error occurred. Please try again.",
             status_code=303
@@ -5686,6 +5718,347 @@ async def accept_invitation_endpoint(
         "message": "You've joined the team!",
         "team_id": invitation['team_id']
     }
+
+
+@app.get("/invite/{invitation_id}", response_class=HTMLResponse)
+async def invitation_page(
+    request: Request,
+    invitation_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Invitation acceptance page - handles both logged in and logged out users."""
+
+    # Get invitation details
+    invitation = server.database.get_team_invitation(invitation_id)
+
+    if not invitation:
+        return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invitation Not Found</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }}
+        .card {{ background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; text-align: center; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="font-size: 64px; margin-bottom: 20px;">❌</div>
+        <h1 style="margin: 0 0 10px 0;">Invitation Not Found</h1>
+        <p style="color: #6b7280;">This invitation link is invalid or has been deleted.</p>
+    </div>
+</body>
+</html>
+        """, status_code=404)
+
+    # Check if expired or already used
+    from datetime import datetime
+    expires_at = datetime.fromisoformat(invitation['expires_at'].replace('Z', '+00:00'))
+    is_expired = datetime.now(expires_at.tzinfo) > expires_at
+    is_pending = invitation['status'] == 'pending'
+
+    if not is_pending or is_expired:
+        status_message = "expired" if is_expired else invitation['status']
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invitation {status_message.title()}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }}
+        .card {{ background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; text-align: center; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+        <h1 style="margin: 0 0 10px 0;">Invitation {status_message.title()}</h1>
+        <p style="color: #6b7280;">This invitation is no longer valid.</p>
+    </div>
+</body>
+</html>
+        """, status_code=400)
+
+    # Get team details
+    team_result = server.database.supabase.table('teams').select('*').eq('team_id', invitation['team_id']).execute()
+    if not team_result.data:
+        raise HTTPException(404, "Team not found")
+
+    team = team_result.data[0]
+
+    # Get inviter details
+    inviter_result = server.database.supabase.table('users').select('email').eq('user_id', invitation['invited_by_user_id']).execute()
+    inviter_email = inviter_result.data[0]['email'] if inviter_result.data else "Team owner"
+
+    # Check if user is logged in
+    is_logged_in = False
+    user_email = None
+    if session_token:
+        user = server.database.get_user_by_session(session_token)
+        if user:
+            is_logged_in = True
+            user_email = user['email']
+
+    # Check if invitation email matches logged in user
+    email_matches = is_logged_in and user_email.lower() == invitation['email'].lower()
+
+    return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Invitation - {{team['team_name']}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }}
+        .card {{
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 100%;
+        }}
+        h1 {{
+            margin: 0 0 10px 0;
+            color: #1a202c;
+            font-size: 28px;
+        }}
+        .team-badge {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }}
+        .info-box {{
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }}
+        .info-row {{
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }}
+        .info-row:last-child {{
+            margin-bottom: 0;
+        }}
+        .label {{
+            color: #6b7280;
+            font-size: 14px;
+        }}
+        .value {{
+            font-weight: 600;
+            color: #1a202c;
+        }}
+        .btn {{
+            display: block;
+            width: 100%;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+            margin-bottom: 12px;
+        }}
+        .btn-primary {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }}
+        .btn-primary:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }}
+        .btn-google {{
+            background: white;
+            color: #1a202c;
+            border: 2px solid #e2e8f0;
+        }}
+        .btn-google:hover {{
+            border-color: #667eea;
+        }}
+        .divider {{
+            text-align: center;
+            margin: 20px 0;
+            color: #9ca3af;
+            font-size: 14px;
+        }}
+        .form-group {{
+            margin-bottom: 16px;
+        }}
+        label {{
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }}
+        input {{
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }}
+        input:focus {{
+            outline: none;
+            border-color: #667eea;
+        }}
+        .alert {{
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }}
+        .alert-warning {{
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fbbf24;
+        }}
+        .alert-error {{
+            background: #fee;
+            color: #c00;
+            border: 1px solid #f88;
+            display: none;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">👥</div>
+            <span class="team-badge">Team Invitation</span>
+            <h1>Join {{team['team_name']}}</h1>
+            <p style="color: #6b7280; margin: 10px 0 0 0;">{{inviter_email}} has invited you to join their team</p>
+        </div>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="label">Invited to:</span>
+                <span class="value">{{invitation['email']}}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Expires:</span>
+                <span class="value">{{expires_at.strftime('%B %d, %Y')}}</span>
+            </div>
+        </div>
+
+        {'<div class="alert alert-warning">⚠️ You are logged in as ' + user_email + ', but this invitation is for ' + invitation["email"] + '. Please log out or use the correct account.</div>' if is_logged_in and not email_matches else ''}
+
+        <div id="error-message" class="alert alert-error"></div>
+
+        {'<button onclick="acceptInvitation()" class="btn btn-primary">✓ Accept Invitation & Join Team</button>' if email_matches else '''
+        <a href="/setup/start?redirect=/invite/{invitation_id}" class="btn btn-google">
+            <img src="https://www.google.com/favicon.ico" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 8px;">
+            Sign in with Google
+        </a>
+
+        <div class="divider">OR</div>
+
+        <form id="signup-form" onsubmit="handleSignup(event)">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" value="{invitation['email']}" readonly style="background: #f9fafb;">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Create a password" required minlength="8">
+            </div>
+            <button type="submit" class="btn btn-primary">Create Account & Accept Invitation</button>
+        </form>
+        '''}
+    </div>
+
+    <script>
+        async function acceptInvitation() {{
+            const sessionToken = '{session_token if session_token else ''}';
+
+            try {{
+                const response = await fetch('/invitations/{invitation_id}/accept?session_token=' + sessionToken, {{
+                    method: 'POST'
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    window.location.href = '/dashboard?session_token=' + sessionToken + '&welcome=true';
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+            }}
+        }}
+
+        async function handleSignup(event) {{
+            event.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {{
+                // First, create account via signup
+                const signupResponse = await fetch('/signup', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ email, password }})
+                }});
+
+                const signupResult = await signupResponse.json();
+
+                if (!signupResponse.ok) {{
+                    document.getElementById('error-message').textContent = '✗ ' + signupResult.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    return;
+                }}
+
+                // Now accept invitation with new session token
+                const sessionToken = signupResult.session_token;
+
+                const acceptResponse = await fetch('/invitations/{invitation_id}/accept?session_token=' + sessionToken, {{
+                    method: 'POST'
+                }});
+
+                const acceptResult = await acceptResponse.json();
+
+                if (acceptResponse.ok) {{
+                    window.location.href = '/dashboard?session_token=' + sessionToken + '&welcome=true';
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + acceptResult.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+            }}
+        }}
+    </script>
+</body>
+</html>
+    """)
 
 
 # ===========================================================================
