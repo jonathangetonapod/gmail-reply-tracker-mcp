@@ -714,7 +714,9 @@ class Database:
         stripe_subscription_id: str,
         status: str = 'active',
         current_period_start: Optional[datetime] = None,
-        current_period_end: Optional[datetime] = None
+        current_period_end: Optional[datetime] = None,
+        invoice_id: Optional[str] = None,
+        invoice_url: Optional[str] = None
     ):
         """
         Create a new subscription for a user.
@@ -727,8 +729,10 @@ class Database:
             status: Subscription status ('active', 'cancelled', 'past_due', 'unpaid')
             current_period_start: Start of current billing period
             current_period_end: End of current billing period
+            invoice_id: Stripe invoice ID (for pending invoices)
+            invoice_url: Hosted invoice URL (for pending invoices)
         """
-        self.supabase.table('subscriptions').insert({
+        subscription_data = {
             'user_id': user_id,
             'tool_category': tool_category,
             'stripe_customer_id': stripe_customer_id,
@@ -736,7 +740,15 @@ class Database:
             'status': status,
             'current_period_start': current_period_start.isoformat() if current_period_start else None,
             'current_period_end': current_period_end.isoformat() if current_period_end else None
-        }).execute()
+        }
+
+        # Add invoice details if provided
+        if invoice_id:
+            subscription_data['invoice_id'] = invoice_id
+        if invoice_url:
+            subscription_data['invoice_url'] = invoice_url
+
+        self.supabase.table('subscriptions').insert(subscription_data).execute()
 
         logger.info(f"Created subscription for user {user_id}, category {tool_category}")
 
@@ -911,7 +923,7 @@ class Database:
             user_id: User ID
 
         Returns:
-            Dict with user subscription info (active subs, MRR, Stripe customer ID, incomplete subs)
+            Dict with user subscription info (active subs, MRR, Stripe customer ID, incomplete subs grouped by invoice)
         """
         # Get active subscriptions
         result = self.supabase.table('subscriptions').select('*').eq(
@@ -928,7 +940,19 @@ class Database:
         ).in_('status', ['incomplete', 'incomplete_expired', 'past_due', 'unpaid']).execute()
 
         incomplete_subs = incomplete_result.data
-        incomplete_categories = [sub['tool_category'] for sub in incomplete_subs]
+
+        # Group incomplete subscriptions by invoice ID
+        pending_invoices = {}
+        for sub in incomplete_subs:
+            invoice_id = sub.get('invoice_id')
+            if invoice_id:
+                if invoice_id not in pending_invoices:
+                    pending_invoices[invoice_id] = {
+                        'invoice_id': invoice_id,
+                        'invoice_url': sub.get('invoice_url'),
+                        'categories': []
+                    }
+                pending_invoices[invoice_id]['categories'].append(sub['tool_category'])
 
         # Get Stripe customer ID
         stripe_customer_id = self.get_stripe_customer_id(user_id) if subscription_count > 0 else None
@@ -942,8 +966,7 @@ class Database:
             'stripe_customer_id': stripe_customer_id,
             'categories': categories,
             'is_paying': subscription_count > 0,
-            'incomplete_subscriptions': incomplete_subs,
-            'incomplete_categories': incomplete_categories
+            'pending_invoices': list(pending_invoices.values())  # List of invoices with their categories
         }
 
     def get_all_user_subscriptions(self) -> Dict[str, Dict[str, Any]]:

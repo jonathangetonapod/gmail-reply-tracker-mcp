@@ -6434,9 +6434,18 @@ async def admin_user_detail(request: Request, user_id: str, admin_password: Opti
                 </div>
                 <div id="subscription-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px;"></div>
 
-                {f'''<div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px 12px; margin-top: 16px; border-radius: 4px; font-size: 13px;">
-                    <span style="color: #856404;">🔒 <strong>Awaiting payment:</strong> {"".join([f'<span style="background: #856404; color: white; padding: 1px 6px; border-radius: 8px; font-size: 11px; font-weight: 600; margin: 0 4px;">{cat.title()}</span>' for cat in subscription_info['incomplete_categories']])}</span>
-                </div>''' if subscription_info.get('incomplete_categories') else ''}
+                {"".join([f'''<div style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 10px 12px; margin-top: 12px; border-radius: 4px; font-size: 13px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <span style="color: #856404;">🔒 <strong>Awaiting payment - Invoice pending:</strong></span>
+                            <div style="margin-top: 4px;">
+                                {"".join([f'<span style="background: #856404; color: white; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; margin-right: 6px;">{cat.title()}</span>' for cat in invoice['categories']])}
+                            </div>
+                        </div>
+                        <a href="{invoice['invoice_url']}" target="_blank" style="background: #856404; color: white; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; margin-left: 12px;">View Invoice</a>
+                    </div>
+                    <div style="color: #856404; font-size: 11px; margin-top: 6px; opacity: 0.8;">Invoice ID: {invoice['invoice_id']}</div>
+                </div>''' for invoice in subscription_info.get('pending_invoices', [])])}
             </div>
 
             <div class="card">
@@ -7012,7 +7021,9 @@ async def admin_add_batch_subscriptions(
                 stripe_subscription_id=stripe_subscription.id,  # Same subscription ID for all
                 status=db_status,  # Use 'incomplete' until invoice is paid
                 current_period_start=datetime.fromtimestamp(period_start) if period_start else datetime.now(),
-                current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30)
+                current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30),
+                invoice_id=latest_invoice_id if db_status == 'incomplete' else None,
+                invoice_url=invoice_link if db_status == 'incomplete' else None
             )
 
         logger.info(f"Admin created batch Stripe subscription {stripe_subscription.id} for user {user_id}, categories: {', '.join(categories_to_add)}")
@@ -7219,7 +7230,9 @@ async def admin_toggle_subscription(
                 stripe_subscription_id=stripe_subscription.id,
                 status=db_status,  # Use 'incomplete' until invoice is paid
                 current_period_start=datetime.fromtimestamp(period_start) if period_start else datetime.now(),
-                current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30)
+                current_period_end=datetime.fromtimestamp(period_end) if period_end else datetime.now() + timedelta(days=30),
+                invoice_id=latest_invoice_id if db_status == 'incomplete' else None,
+                invoice_url=invoice_link if db_status == 'incomplete' else None
             )
 
             logger.info(f"Admin created Stripe subscription {stripe_subscription.id} for user {user_id}, category {category}")
@@ -7253,7 +7266,7 @@ async def admin_toggle_subscription(
             stripe.api_key = server.config.stripe_secret_key
 
             # Cancel in Stripe if it's a real Stripe subscription
-            if stripe_subscription_id and not stripe_subscription_id.startswith('admin_'):
+            if stripe_subscription_id and not stripe_subscription_id.startswith(('admin_', 'free_')):
                 try:
                     # Cancel the Stripe subscription immediately
                     cancelled_subscription = stripe.Subscription.cancel(stripe_subscription_id)
@@ -7276,7 +7289,7 @@ async def admin_toggle_subscription(
                     logger.error(f"Failed to cancel Stripe subscription {stripe_subscription_id}: {e}")
                     raise HTTPException(500, f"Failed to cancel in Stripe: {str(e)}")
             else:
-                # No Stripe subscription (admin-granted or old data) - just update database
+                # No Stripe subscription (admin-granted/free or old data) - just update database
                 server.database.supabase.table('subscriptions').update({
                     'status': 'cancelled',
                     'cancelled_at': datetime.now().isoformat()
