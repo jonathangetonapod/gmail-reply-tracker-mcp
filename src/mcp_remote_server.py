@@ -4796,6 +4796,28 @@ async def dashboard(
         ).eq('status', 'active').eq('is_team_subscription', True).execute()
         team_subscriptions_map[team['team_id']] = [sub['tool_category'] for sub in team_subs_result.data]
 
+    # Get user's granted permissions for each team
+    team_permissions_map = {}
+    team_owner_emails = {}
+    if user_teams:
+        permissions_result = server.database.supabase.table('team_member_permissions').select('team_id, tool_category').eq(
+            'user_id', ctx.user_id
+        ).execute()
+        for perm in permissions_result.data:
+            team_id = perm['team_id']
+            if team_id not in team_permissions_map:
+                team_permissions_map[team_id] = []
+            team_permissions_map[team_id].append(perm['tool_category'])
+
+        # Get owner emails for each team
+        for team in user_teams:
+            team_data = server.database.supabase.table('teams').select('owner_user_id').eq('team_id', team['team_id']).execute()
+            if team_data.data:
+                owner_id = team_data.data[0]['owner_user_id']
+                owner_data = server.database.supabase.table('users').select('email').eq('user_id', owner_id).execute()
+                if owner_data.data:
+                    team_owner_emails[team['team_id']] = owner_data.data[0]['email']
+
     # Determine user tier
     if trial_status['is_trial']:
         user_tier = 'trial'
@@ -5062,7 +5084,7 @@ async def dashboard(
         ''' if is_new_user == 'True' else (f'''
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
             <div style="font-size: 32px; margin-bottom: 10px;">👋</div>
-            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome back{f", {first_name}" if first_name else ""}!</h2>
+            <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome back{f", {user.get('name', '') or first_name or ctx.email.split('@')[0]}" if not is_new_user == 'True' else ""}!</h2>
             <p style="margin: 0; font-size: 16px; opacity: 0.95;">Good to see you again. Manage your subscriptions below or check the Setup tab to connect to Claude Desktop.</p>
         </div>
         ''' if (is_new_user == 'False' or welcome == 'true') else '')}
@@ -5093,6 +5115,38 @@ async def dashboard(
             </div>
         </div>
         ''' if trial_status['is_trial'] and not active_subscriptions else ''}
+
+        <!-- Team Membership Banner -->
+        {f'''
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            <div style="display: flex; align-items: flex-start; gap: 20px;">
+                <div style="font-size: 48px;">👥</div>
+                <div style="flex: 1;">
+                    <h2 style="color: white; margin: 0 0 15px 0; font-size: 22px; font-weight: 700;">Team Membership</h2>
+                    {''.join([f"""
+                    <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div>
+                                <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">{team['team_name']}</div>
+                                <div style="font-size: 13px; opacity: 0.9;">
+                                    Role: <strong>{team['role'].title()}</strong> •
+                                    Owner: {team_owner_emails.get(team['team_id'], 'N/A')}
+                                </div>
+                            </div>
+                            <a href="/team/{team['team_id']}?session_token={session_token}" style="background: white; color: #059669; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px; white-space: nowrap;">View Team →</a>
+                        </div>
+                        <div style="font-size: 13px; opacity: 0.95;">
+                            <strong>Your Access:</strong> {', '.join(team_permissions_map.get(team['team_id'], [])) or 'No permissions granted yet'}
+                        </div>
+                    </div>
+                    """ for team in user_teams])}
+                    <div style="font-size: 13px; opacity: 0.9; margin-top: 10px;">
+                        💡 You have access to tools through your team membership{' ('+str(len(user_teams))+' teams)' if len(user_teams) > 1 else ''}.
+                    </div>
+                </div>
+            </div>
+        </div>
+        ''' if user_teams and not trial_status['is_trial'] else ''}
 
         <!-- Usage Counter -->
         <div style="background: {"linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" if usage_limit and daily_usage >= 8 else "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
