@@ -88,6 +88,54 @@ sessions: Dict[str, MCPSession] = {}
 oauth_states: Dict[str, Dict[str, Any]] = {}
 
 
+def validate_redirect_url(redirect: Optional[str]) -> str:
+    """
+    Validate and sanitize redirect URL for OAuth flow.
+
+    Security: Only allows internal paths, prevents open redirect vulnerabilities.
+
+    Args:
+        redirect: Redirect path from user input
+
+    Returns:
+        Validated redirect path or default '/dashboard'
+    """
+    # Default to dashboard if no redirect
+    if not redirect:
+        return '/dashboard'
+
+    # Strip whitespace
+    redirect = redirect.strip()
+
+    # Must start with '/' (internal path only)
+    if not redirect.startswith('/'):
+        logger.warning(f"Invalid redirect (not internal path): {redirect}")
+        return '/dashboard'
+
+    # Block protocol prefixes (http://, https://, //)
+    if redirect.startswith(('http://', 'https://', '//')):
+        logger.warning(f"Invalid redirect (protocol detected): {redirect}")
+        return '/dashboard'
+
+    # Whitelist allowed redirect patterns
+    allowed_patterns = [
+        '/dashboard',           # Default dashboard
+        '/invite/',             # Team invitation pages
+        '/settings',            # User settings
+        '/subscription'         # Subscription management
+    ]
+
+    # Check if redirect starts with any allowed pattern
+    is_allowed = any(redirect.startswith(pattern) for pattern in allowed_patterns)
+
+    if not is_allowed:
+        logger.warning(f"Invalid redirect (not whitelisted): {redirect}")
+        return '/dashboard'
+
+    logger.info(f"Validated redirect: {redirect}")
+    return redirect
+
+
 # ===========================================================================
 # RATE LIMITING (Security: Prevent brute force attacks)
 # ===========================================================================
@@ -3392,7 +3440,10 @@ async def mcp_messages_legacy(
 # ===========================================================================
 
 @app.get("/setup/start")
-async def setup_start(request: Request):
+async def setup_start(
+    request: Request,
+    redirect: Optional[str] = Query(None)
+):
     """Initiate Google OAuth flow for multi-tenant setup."""
     try:
         # Rate limiting: Prevent OAuth flow abuse
@@ -3445,7 +3496,8 @@ async def setup_start(request: Request):
         # Store state for verification (with timestamp for cleanup)
         oauth_states[state] = {
             'timestamp': datetime.now(),
-            'flow': flow
+            'flow': flow,
+            'redirect': redirect  # Store redirect path for post-OAuth navigation
         }
 
         logger.info(f"Initiating OAuth flow with state: {state}")
@@ -3505,7 +3557,10 @@ async def setup_start(request: Request):
 
 
 @app.get("/signup/start")
-async def signup_start(request: Request):
+async def signup_start(
+    request: Request,
+    redirect: Optional[str] = Query(None)
+):
     """Initiate Google OAuth flow for new user signup."""
     try:
         # Get OAuth credentials from environment
@@ -3543,7 +3598,8 @@ async def signup_start(request: Request):
         oauth_states[state] = {
             'timestamp': datetime.now(),
             'flow': flow,
-            'flow_type': 'signup'  # Track that this is a signup flow
+            'flow_type': 'signup',  # Track that this is a signup flow
+            'redirect': redirect  # Store redirect path for post-OAuth navigation
         }
 
         logger.info(f"Initiating signup OAuth flow with state: {state}")
@@ -3606,7 +3662,10 @@ async def signup_start(request: Request):
 
 
 @app.get("/login/start")
-async def login_start(request: Request):
+async def login_start(
+    request: Request,
+    redirect: Optional[str] = Query(None)
+):
     """Initiate Google OAuth flow for returning user login."""
     try:
         # Get OAuth credentials from environment
@@ -3644,7 +3703,8 @@ async def login_start(request: Request):
         oauth_states[state] = {
             'timestamp': datetime.now(),
             'flow': flow,
-            'flow_type': 'login'  # Track that this is a login flow
+            'flow_type': 'login',  # Track that this is a login flow
+            'redirect': redirect  # Store redirect path for post-OAuth navigation
         }
 
         logger.info(f"Initiating login OAuth flow with state: {state}")
@@ -4372,6 +4432,10 @@ async def setup_callback(
         flow = oauth_data['flow']
         flow_type = oauth_data.get('flow_type', 'signup')  # Default to signup for backwards compatibility
 
+        # Retrieve and validate redirect path
+        stored_redirect = oauth_data.get('redirect', '/dashboard')
+        validated_redirect = validate_redirect_url(stored_redirect)
+
         # Clean up used state
         del oauth_states[state]
 
@@ -4432,9 +4496,12 @@ async def setup_callback(
         server_url = f"https://{request.url.hostname}"
         session_token = user_data['session_token']
 
-        # Redirect to dashboard with welcome message type
+        # Redirect to stored destination (or dashboard if none)
+        # Preserve existing query parameters and add session info
+        redirect_url = validated_redirect
+        separator = '&' if '?' in redirect_url else '?'
         return RedirectResponse(
-            url=f"/dashboard?session_token={session_token}&is_new_user={is_new_user}&first_name={first_name}",
+            url=f"{redirect_url}{separator}session_token={session_token}&is_new_user={is_new_user}&first_name={first_name}",
             status_code=303
         )
 
