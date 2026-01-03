@@ -5368,15 +5368,43 @@ async def dashboard(
                     {('<button type="submit" class="btn" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">💾 Save API Keys</button>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 40px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 48px; margin-bottom: 10px;">🔒</div><p style="color: #6b7280;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>')}
                 </form>
                 ''' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else f'''
-                <div style="text-align: center; padding: 60px; background: #f9fafb; border-radius: 8px;">
-                    <div style="font-size: 64px; margin-bottom: 15px;">🔑</div>
-                    <h3 style="color: #1a202c; font-size: 20px; margin-bottom: 10px;">No API Keys Required</h3>
-                    <p style="color: #6b7280; font-size: 15px; max-width: 500px; margin: 0 auto 20px;">
-                        {'Your current subscriptions (Google Sheets, Docs, Gmail, or Calendar) use OAuth authentication and don\'t require API keys.' if active_subscriptions and not any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else 'Subscribe to Fathom, Instantly, or Bison tools to add API keys here.'}
-                    </p>
-                    <p style="color: #6b7280; font-size: 14px; max-width: 500px; margin: 0 auto;">
-                        <strong>💡 Note:</strong> API keys are only needed for third-party integrations like Fathom meeting recordings, Instantly campaigns, or EmailBison tools. If you subscribe to these services, you'll add your own API keys here.
-                    </p>
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 40px; border-radius: 12px; border: 2px dashed #0284c7;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="font-size: 64px; margin-bottom: 15px;">✨</div>
+                        <h3 style="color: #1a202c; font-size: 22px; margin-bottom: 12px; font-weight: 700;">You're All Set!</h3>
+                        <p style="color: #334155; font-size: 16px; max-width: 550px; margin: 0 auto; line-height: 1.6;">
+                            {f'Your <strong>{", ".join([cat.title() for cat in active_subscriptions])}</strong> tools use secure OAuth authentication - no API keys needed!' if active_subscriptions and not any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else 'No API keys to configure yet.'}
+                        </p>
+                    </div>
+
+                    <div style="background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                        <h4 style="color: #1a202c; font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 24px;">🔐</span>
+                            <span>How Authentication Works</span>
+                        </h4>
+                        <div style="color: #64748b; font-size: 14px; line-height: 1.7;">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #334155;">Google Services (Gmail, Calendar, Docs, Sheets):</strong><br>
+                                Use OAuth - you've already connected via Google sign-in. No extra keys needed!
+                            </div>
+                            <div>
+                                <strong style="color: #334155;">Third-Party Services (Fathom, Instantly, EmailBison):</strong><br>
+                                Require API keys from their platforms. You'll add them here when you subscribe.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
+                        <div style="display: flex; gap: 12px; align-items: start;">
+                            <span style="font-size: 24px;">💡</span>
+                            <div>
+                                <strong style="color: #92400e; font-size: 15px; display: block; margin-bottom: 6px;">Want to use third-party tools?</strong>
+                                <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
+                                    Head to the <strong>Subscriptions</strong> tab to add Fathom, Instantly, or EmailBison. Once subscribed, you'll add your API keys here to connect the services.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 '''}
             </div>
@@ -5438,6 +5466,7 @@ async def dashboard(
         document.querySelectorAll('.tab').forEach(tab => {{
             tab.addEventListener('click', () => {{
                 const tabName = tab.dataset.tab;
+                console.log('Tab clicked:', tabName);
 
                 // Update tabs
                 document.querySelectorAll('.tab').forEach(t => {{
@@ -5449,7 +5478,13 @@ async def dashboard(
 
                 // Update content
                 document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-                document.getElementById(tabName).style.display = 'block';
+                const tabContent = document.getElementById(tabName);
+                if (tabContent) {{
+                    console.log('Showing tab content for:', tabName);
+                    tabContent.style.display = 'block';
+                }} else {{
+                    console.error('Tab content not found for:', tabName);
+                }}
             }});
         }});
 
