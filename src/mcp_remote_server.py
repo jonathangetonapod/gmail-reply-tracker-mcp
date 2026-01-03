@@ -7396,9 +7396,10 @@ async def invitation_page(
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="password" placeholder="Create a password" required minlength="8">
+                <input type="password" id="password" placeholder="Enter your password" required minlength="8">
+                <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block;">Create a new password, or use your existing password if you already have an account.</small>
             </div>
-            <button type="submit" class="btn btn-primary">Create Account & Accept Invitation</button>
+            <button type="submit" class="btn btn-primary">Accept Invitation & Continue</button>
         </form>
         '''}
     </div>
@@ -7433,7 +7434,7 @@ async def invitation_page(
             const password = document.getElementById('password').value;
 
             try {{
-                // First, create account via signup
+                // First, try to create account via signup
                 const signupResponse = await fetch('/signup', {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
@@ -7442,15 +7443,38 @@ async def invitation_page(
 
                 const signupResult = await signupResponse.json();
 
+                let sessionToken = null;
+
                 if (!signupResponse.ok) {{
-                    document.getElementById('error-message').textContent = '✗ ' + signupResult.detail;
-                    document.getElementById('error-message').style.display = 'block';
-                    return;
+                    // If email is already registered, try login instead
+                    if (signupResult.detail && signupResult.detail.includes('already registered')) {{
+                        const loginResponse = await fetch('/login', {{
+                            method: 'POST',
+                            headers: {{'Content-Type': 'application/json'}},
+                            body: JSON.stringify({{ email, password }})
+                        }});
+
+                        const loginResult = await loginResponse.json();
+
+                        if (!loginResponse.ok) {{
+                            document.getElementById('error-message').textContent = '✗ Account exists but password is incorrect. Please use the correct password or reset it.';
+                            document.getElementById('error-message').style.display = 'block';
+                            return;
+                        }}
+
+                        sessionToken = loginResult.session_token;
+                    }} else {{
+                        // Other signup error
+                        document.getElementById('error-message').textContent = '✗ ' + signupResult.detail;
+                        document.getElementById('error-message').style.display = 'block';
+                        return;
+                    }}
+                }} else {{
+                    // Signup succeeded
+                    sessionToken = signupResult.session_token;
                 }}
 
-                // Now accept invitation with new session token
-                const sessionToken = signupResult.session_token;
-
+                // Now accept invitation with session token
                 const acceptResponse = await fetch('/invitations/{invitation_id}/accept?session_token=' + sessionToken, {{
                     method: 'POST'
                 }});
