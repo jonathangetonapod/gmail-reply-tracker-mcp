@@ -4914,13 +4914,15 @@ async def login_submit(request: Request):
 async def logout(session_token: Optional[str] = Query(None)):
     """Logout user by invalidating their session token."""
     from fastapi.responses import RedirectResponse
+    import secrets
 
     # Invalidate session token in database if provided
     if session_token:
         try:
-            # Clear the session token from the user record
+            # Set to a random invalid token (can't be null due to DB constraint)
+            invalid_token = f"logged_out_{secrets.token_urlsafe(16)}"
             server.database.supabase.table('users').update({
-                'session_token': None
+                'session_token': invalid_token
             }).eq('session_token', session_token).execute()
             logger.info(f"User logged out, session token invalidated")
         except Exception as e:
