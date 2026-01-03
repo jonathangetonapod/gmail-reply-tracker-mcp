@@ -579,12 +579,28 @@ async def handle_jsonrpc_request(
             # Use FastMCP's list_tools method
             tool_list = await server.mcp.list_tools()
 
+            # Current date context for time-sensitive tools
+            today = datetime.now()
+            date_context = f"[TODAY: {today.strftime('%Y-%m-%d')} ({today.strftime('%A')})] "
+
+            # Tools that need date context
+            date_sensitive_tools = {
+                'search_emails', 'get_unreplied_emails', 'get_email_thread',
+                'get_inbox_summary', 'get_unreplied_by_sender',
+                'list_calendar_events', 'create_calendar_event', 'list_past_calendar_events',
+                'quick_add_calendar_event', 'update_calendar_event'
+            }
+
             # Convert Tool objects to MCP protocol format
             tools = []
             for tool in tool_list:
+                description = tool.description or "No description available"
+                # Add date context to time-sensitive tools
+                if tool.name in date_sensitive_tools:
+                    description = date_context + description
                 tool_schema = {
                     "name": tool.name,
-                    "description": tool.description or "No description available",
+                    "description": description,
                     "inputSchema": tool.inputSchema
                 }
                 tools.append(tool_schema)
