@@ -4781,6 +4781,7 @@ async def dashboard(
 
     # Get user's teams (for team subscription option)
     user_teams = server.database.get_user_teams(ctx.user_id) if teams_enabled else []
+    logger.info(f"[DASHBOARD] User {ctx.email} - teams_enabled={teams_enabled}, user_teams={user_teams}")
 
     # Get personal subscriptions only (not team subscriptions)
     personal_subs_result = server.database.supabase.table('subscriptions').select('tool_category').eq(
@@ -5117,7 +5118,7 @@ async def dashboard(
         ''' if trial_status['is_trial'] and not active_subscriptions else ''}
 
         <!-- Team Membership Banner -->
-        {f'''
+        {logger.info(f"[DASHBOARD] Rendering banner - user_teams={bool(user_teams)}, count={len(user_teams) if user_teams else 0}") or ''}{f'''
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
             <div style="display: flex; align-items: flex-start; gap: 20px;">
                 <div style="font-size: 48px;">👥</div>
