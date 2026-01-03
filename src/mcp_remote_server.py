@@ -5367,7 +5367,16 @@ async def dashboard(
 
                     {('<button type="submit" class="btn" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">💾 Save API Keys</button>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 40px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 48px; margin-bottom: 10px;">🔒</div><p style="color: #6b7280;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>')}
                 </form>
-                ''' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 60px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 64px; margin-bottom: 15px;">🔒</div><p style="color: #6b7280; font-size: 16px;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>'}
+                ''' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else f'''
+                <div style="text-align: center; padding: 60px; background: #f9fafb; border-radius: 8px;">
+                    <div style="font-size: 64px; margin-bottom: 15px;">🔑</div>
+                    <h3 style="color: #1a202c; font-size: 20px; margin-bottom: 10px;">No API Keys Required</h3>
+                    <p style="color: #6b7280; font-size: 15px; max-width: 500px; margin: 0 auto 20px;">
+                        {'You currently have access through your team. No API keys are needed from you.' if user_teams and not personal_subscriptions else 'Subscribe to Fathom, Instantly, or Bison tools to add API keys here.'}
+                    </p>
+                    {f'<p style="color: #6b7280; font-size: 14px; max-width: 500px; margin: 0 auto;"><strong>Note:</strong> API keys are only required for certain third-party integrations (Fathom, Instantly, EmailBison). Your team owner manages API keys for team subscriptions.</p>' if user_teams else '<p style="color: #6b7280; font-size: 14px;">API keys are only needed for Fathom meeting recordings, Instantly campaigns, or EmailBison tools.</p>'}
+                </div>
+                '''}
             </div>
         </div>
 
