@@ -5925,6 +5925,11 @@ async def team_settings_page(
         ).eq('status', 'active').is_('team_id', 'null').execute()
         member_personal_subs[member['user_id']] = [sub['tool_category'] for sub in personal_subs_result.data]
 
+    # Build deployment URL for invitation links
+    deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", request.url.hostname))
+    if not deployment_url.startswith("http"):
+        deployment_url = f"https://{deployment_url}"
+
     return HTMLResponse(f"""
 <!DOCTYPE html>
 <html>
@@ -6212,7 +6217,19 @@ async def team_settings_page(
         ''' if is_admin else ''}
 
         <!-- Pending Invitations -->
-        {'<div class="section"><h2><span>⏳</span> Pending Invitations</h2>' + ('<div class="invitation-list">' + ''.join(['<div class="invitation-item"><div class="member-info"><div class="member-avatar">' + inv["email"][0].upper() + '</div><div class="member-details"><div class="member-email">' + inv["email"] + '</div><div class="member-role">Invited ' + inv["created_at"][:10] + ' • Expires ' + inv["expires_at"][:10] + '</div></div></div><button onclick="cancelInvitation(&apos;' + inv["invitation_id"] + '&apos;, &apos;' + inv["email"] + '&apos;)" class="btn btn-danger">Cancel</button></div>' for inv in invitations]) + '</div>' if invitations else '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No pending invitations</p></div>') + '</div>' if is_admin else ''}
+        {'<div class="section"><h2><span>⏳</span> Pending Invitations</h2>' + ('<div class="invitation-list">' + ''.join([f'''<div class="invitation-item">
+            <div class="member-info">
+                <div class="member-avatar">{inv["email"][0].upper()}</div>
+                <div class="member-details">
+                    <div class="member-email">{inv["email"]}</div>
+                    <div class="member-role">Invited {inv["created_at"][:10]} • Expires {inv["expires_at"][:10]}</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="copyInvitationLinkFromList('{deployment_url}/invite/{inv["invitation_id"]}')" class="btn" style="background: #667eea; color: white; padding: 8px 16px; font-size: 14px;">📋 Copy Link</button>
+                <button onclick="cancelInvitation('{inv["invitation_id"]}', '{inv["email"]}')" class="btn btn-danger">Cancel</button>
+            </div>
+        </div>''' for inv in invitations]) + '</div>' if invitations else '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No pending invitations</p></div>') + '</div>' if is_admin else ''}
 
         <!-- Team Subscriptions -->
         <div class="section">
@@ -6544,6 +6561,37 @@ async def team_settings_page(
                 setTimeout(() => {{
                     document.getElementById('copy-success').style.display = 'none';
                 }}, 3000);
+            }});
+        }}
+
+        function copyInvitationLinkFromList(url) {{
+            navigator.clipboard.writeText(url).then(() => {{
+                // Show temporary success message
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.style.background = '#10b981';
+                setTimeout(() => {{
+                    btn.innerHTML = originalText;
+                    btn.style.background = '#667eea';
+                }}, 2000);
+            }}).catch(err => {{
+                // Fallback for older browsers
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.style.background = '#10b981';
+                setTimeout(() => {{
+                    btn.innerHTML = originalText;
+                    btn.style.background = '#667eea';
+                }}, 2000);
             }});
         }}
 
