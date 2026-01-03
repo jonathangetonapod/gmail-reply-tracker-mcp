@@ -2092,49 +2092,74 @@ async def root():
     </div>
 
     <!-- Pricing -->
-    <div class="pricing-section">
+    <div class="pricing-section" id="pricing">
         <div class="section-header">
             <h2>Simple, Transparent Pricing</h2>
-            <p>Only pay for the categories you need. Cancel anytime.</p>
+            <p>Pay only for what you need. No hidden fees.</p>
         </div>
         <div class="pricing-cards">
             <div class="pricing-card">
                 <div class="plan-name">Free Trial</div>
                 <div class="plan-price">$0</div>
-                <div class="plan-period">First 3 days</div>
+                <div class="plan-period">for 3 days</div>
                 <ul class="plan-features">
                     <li>All 85 tools unlocked</li>
                     <li>All 7 categories included</li>
                     <li>No credit card required</li>
-                    <li>Full access to test everything</li>
+                    <li>Full access to everything</li>
                 </ul>
                 <a href="/signup" class="plan-button">Start Free Trial</a>
             </div>
 
-            <div class="pricing-card featured">
-                <div class="plan-name">Pay-As-You-Go</div>
+            <div class="pricing-card">
+                <div class="plan-name">Individual</div>
                 <div class="plan-price">$5</div>
-                <div class="plan-period">per category/month</div>
+                <div class="plan-period">per tool / month</div>
                 <ul class="plan-features">
-                    <li>Subscribe to 1+ categories</li>
-                    <li>Unlimited tool usage</li>
+                    <li>Choose only what you need</li>
+                    <li>Gmail, Calendar, Docs, Sheets</li>
+                    <li>Fathom, Instantly, Bison</li>
                     <li>Cancel anytime</li>
-                    <li>No contracts or commitments</li>
                 </ul>
                 <a href="/signup" class="plan-button">Get Started</a>
             </div>
 
-            <div class="pricing-card">
-                <div class="plan-name">Full Access</div>
-                <div class="plan-price">$35</div>
-                <div class="plan-period">per month</div>
+            <div class="pricing-card featured">
+                <div class="plan-name">Teams</div>
+                <div class="plan-price">$10</div>
+                <div class="plan-period">per month + tools</div>
                 <ul class="plan-features">
-                    <li>All 85 tools included</li>
-                    <li>All 7 categories unlocked</li>
-                    <li>Best value for power users</li>
-                    <li>Everything you need</li>
+                    <li style="font-weight: 700;">Up to 10 users included</li>
+                    <li style="font-weight: 700;">NOT per user - flat rate!</li>
+                    <li>+ $5/tool (shared by all)</li>
+                    <li>Admin controls access</li>
                 </ul>
-                <a href="/signup" class="plan-button">Start Free Trial</a>
+                <a href="/signup" class="plan-button">Create Team</a>
+            </div>
+        </div>
+
+        <!-- Teams Explainer -->
+        <div style="max-width: 700px; margin: 40px auto 0; background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 30px; border-radius: 16px; border: 2px solid #667eea30;">
+            <h3 style="margin: 0 0 15px 0; color: #1a202c; font-size: 1.25rem;">👥 Teams Pricing Example</h3>
+            <p style="color: #4a5568; margin-bottom: 20px; line-height: 1.7;">
+                <strong>One subscription, whole team gets access.</strong> No per-seat fees. Add up to 10 team members and everyone shares the same tools.
+            </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="background: white; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">Team + Gmail only</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #667eea;">$15<span style="font-size: 14px; font-weight: 400;">/mo</span></div>
+                    <div style="font-size: 12px; color: #9ca3af;">$1.50/person for 10 users</div>
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">Team + Google Suite</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #667eea;">$30<span style="font-size: 14px; font-weight: 400;">/mo</span></div>
+                    <div style="font-size: 12px; color: #9ca3af;">$3/person for 10 users</div>
+                </div>
+                <div style="background: white; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 5px;">Team + All 7 Tools</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #667eea;">$45<span style="font-size: 14px; font-weight: 400;">/mo</span></div>
+                    <div style="font-size: 12px; color: #9ca3af;">$4.50/person for 10 users</div>
+                </div>
             </div>
         </div>
     </div>
