@@ -5627,11 +5627,12 @@ async def dashboard(
             updateCart();
         }}
 
-        checkoutBtn.addEventListener('click', async () => {{
-            if (cart.size === 0) return;
-            const categories = Array.from(cart);
-            const selectedType = document.querySelector('input[name="subscription-type"]:checked');
-            const subscriptionType = selectedType ? selectedType.value : 'personal';
+        if (checkoutBtn) {{
+            checkoutBtn.addEventListener('click', async () => {{
+                if (cart.size === 0) return;
+                const categories = Array.from(cart);
+                const selectedType = document.querySelector('input[name="subscription-type"]:checked');
+                const subscriptionType = selectedType ? selectedType.value : 'personal';
 
             // Build payload
             const payload = {{ categories: categories }};
@@ -5659,7 +5660,8 @@ async def dashboard(
                 showToast('Network error. Please try again.', 'error');
                 console.error('Checkout error:', error);
             }}
-        }});
+            }});
+        }}
 
         // Initialize subscription type filtering on page load
         if (document.querySelector('input[name="subscription-type"]')) {{
