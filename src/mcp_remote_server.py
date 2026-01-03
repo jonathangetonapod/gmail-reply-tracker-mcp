@@ -5331,39 +5331,133 @@ async def dashboard(
     if not needs_google_auth:
         try:
             ctx = await get_request_context(None, session_token)
-        except HTTPException:
-            # Failed to create API clients even though tokens exist
-            return HTMLResponse("""
+        except HTTPException as e:
+            # Check if it's a scope issue (403) vs invalid session (401)
+            is_scope_issue = e.status_code == 403 or "scope" in str(e.detail).lower()
+
+            if is_scope_issue:
+                # Friendly "Reconnect Google" page for outdated tokens
+                return HTMLResponse(f"""
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Invalid Session</title>
+    <title>Reconnect Google - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
             padding: 20px;
-            background: #f5f5f5;
-        }
-        .card {
+        }}
+        .card {{
             background: white;
-            padding: 40px;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            text-align: center;
+        }}
+        .icon {{ font-size: 64px; margin-bottom: 20px; }}
+        h1 {{ color: #1a202c; margin-bottom: 15px; font-size: 28px; }}
+        p {{ color: #4a5568; line-height: 1.6; margin-bottom: 25px; }}
+        .btn {{
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 40px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 { color: #e53935; }
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        .btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }}
+        .note {{
+            margin-top: 25px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #718096;
+        }}
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>❌ Invalid or Expired Session Token</h1>
-        <p>Please complete the OAuth flow again at <a href="/setup/start">/setup/start</a></p>
+        <div class="icon">🔄</div>
+        <h1>Reconnect Your Google Account</h1>
+        <p>We've updated BridgeKit with new features that require refreshed permissions. Please reconnect your Google account to continue.</p>
+        <a href="/setup/start" class="btn">Reconnect Google →</a>
+        <div class="note">
+            <strong>Why is this happening?</strong><br>
+            We periodically update our app to add new features or improve security. This requires you to re-authorize access. Your data and settings are safe.
+        </div>
     </div>
 </body>
 </html>
-            """, status_code=401)
+                """, status_code=401)
+            else:
+                # Generic session error
+                return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Session Expired - BridgeKit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 500px;
+            text-align: center;
+        }
+        .icon { font-size: 64px; margin-bottom: 20px; }
+        h1 { color: #1a202c; margin-bottom: 15px; font-size: 28px; }
+        p { color: #4a5568; line-height: 1.6; margin-bottom: 25px; }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔒</div>
+        <h1>Session Expired</h1>
+        <p>Your session has expired. Please log in again to continue.</p>
+        <a href="/login" class="btn">Log In →</a>
+    </div>
+</body>
+</html>
+                """, status_code=401)
     else:
         # Create minimal context for email/password users (no API clients needed for dashboard)
         from dataclasses import dataclass
