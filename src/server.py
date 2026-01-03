@@ -394,6 +394,30 @@ async def search_emails(query: str, max_results: int = 20) -> str:
     try:
         initialize_clients()
 
+        # Auto-correct dates that are obviously wrong (year is off)
+        # Claude sometimes uses wrong year due to knowledge cutoff
+        import re
+        from datetime import datetime as dt
+        current_year = dt.now().year
+
+        def fix_date_year(match):
+            prefix = match.group(1)  # 'after:' or 'before:'
+            year = int(match.group(2))
+            month = match.group(3)
+            day = match.group(4)
+            # If year is more than 1 year in the past, assume it should be current/recent year
+            if current_year - year > 1:
+                # Adjust to the correct year (current year or last year depending on month)
+                corrected_year = current_year if int(month) <= dt.now().month else current_year - 1
+                logger.info(f"Auto-correcting date year: {year} -> {corrected_year}")
+                return f"{prefix}{corrected_year}/{month}/{day}"
+            return match.group(0)
+
+        original_query = query
+        query = re.sub(r'(after:|before:)(\d{4})/(\d{1,2})/(\d{1,2})', fix_date_year, query)
+        if query != original_query:
+            logger.info(f"Date-corrected query: '{original_query}' -> '{query}'")
+
         logger.info("Searching emails: query=%s, max_results=%d", query, max_results)
 
         # Search messages
