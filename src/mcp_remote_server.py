@@ -7152,10 +7152,11 @@ async def invitation_page(
     from datetime import datetime
     expires_at = datetime.fromisoformat(invitation['expires_at'].replace('Z', '+00:00'))
     is_expired = datetime.now(expires_at.tzinfo) > expires_at
-    is_pending = invitation['status'] == 'pending'
+    # Handle missing status field (default to 'pending' for backwards compatibility)
+    is_pending = invitation.get('status', 'pending') == 'pending'
 
     if not is_pending or is_expired:
-        status_message = "expired" if is_expired else invitation['status']
+        status_message = "expired" if is_expired else invitation.get('status', 'unknown')
         return HTMLResponse(f"""
 <!DOCTYPE html>
 <html>
