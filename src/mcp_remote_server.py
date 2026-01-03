@@ -7118,10 +7118,9 @@ async def accept_invitation_endpoint(
     if not session_token:
         raise HTTPException(401, "Missing session token - please log in first")
 
-    # Validate session token
-    try:
-        ctx = await get_request_context(None, session_token)
-    except HTTPException:
+    # Get user from session token (don't need full RequestContext with API clients)
+    user = server.database.get_user_by_session(session_token)
+    if not user:
         raise HTTPException(401, "Invalid or expired session token")
 
     # Get invitation
@@ -7130,8 +7129,8 @@ async def accept_invitation_endpoint(
     if not invitation:
         raise HTTPException(404, "Invitation not found")
 
-    if invitation['status'] != 'pending':
-        raise HTTPException(400, f"Invitation is {invitation['status']}")
+    if invitation.get('status', 'pending') != 'pending':
+        raise HTTPException(400, f"Invitation is {invitation.get('status', 'unknown')}")
 
     # Check if expired
     from datetime import datetime
@@ -7139,17 +7138,12 @@ async def accept_invitation_endpoint(
     if datetime.now(expires_at.tzinfo) > expires_at:
         raise HTTPException(400, "Invitation has expired")
 
-    # Get user email
-    user = server.database.get_user_by_session(session_token)
-    if not user:
-        raise HTTPException(401, "User not found")
-
     # Verify email matches invitation
     if user['email'].lower() != invitation['email'].lower():
         raise HTTPException(403, f"This invitation is for {invitation['email']}, but you're logged in as {user['email']}")
 
     # Accept invitation
-    success = server.database.accept_team_invitation(invitation_id, ctx.user_id)
+    success = server.database.accept_team_invitation(invitation_id, user['user_id'])
 
     if not success:
         raise HTTPException(500, "Failed to accept invitation")
