@@ -4666,6 +4666,14 @@ async def dashboard(
     api_keys = user.get('api_keys', {})
     teams_enabled = user.get('teams_enabled', False)
 
+    # Check if user has placeholder Google token (email/password account)
+    google_token = user.get('google_token', {})
+    needs_google_auth = (
+        google_token.get('type') == 'email_password' or
+        google_token.get('token') is None or
+        google_token.get('client_id') is None
+    )
+
     # Check if admin
     correct_admin_password = os.getenv("ADMIN_PASSWORD")
     cookie_admin_password = request.cookies.get("admin_session")
@@ -4937,6 +4945,26 @@ async def dashboard(
     </nav>
 
     <div class="container">
+        <!-- Google Authentication Required Banner -->
+        {f'''
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); animation: bannerSlideDown 0.5s ease-out;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-size: 48px;">🔐</div>
+                <div style="flex: 1;">
+                    <h2 style="color: white; margin: 0 0 10px 0; font-size: 22px; font-weight: 700;">Connect Your Google Account</h2>
+                    <p style="margin: 0 0 15px 0; font-size: 15px; opacity: 0.95;">
+                        To use Gmail, Calendar, Docs, and Sheets tools, you need to authenticate with Google.
+                        This is a one-time setup that gives Claude secure access to your Google Workspace.
+                    </p>
+                    <a href="/setup/start?redirect=/dashboard" style="display: inline-block; background: white; color: #dc2626; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: transform 0.2s;">
+                        <img src="https://www.google.com/favicon.ico" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 10px;">
+                        Connect Google Account →
+                    </a>
+                </div>
+            </div>
+        </div>
+        ''' if needs_google_auth else ''}
+
         <!-- Welcome/Success Banners -->
         {f'''
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
