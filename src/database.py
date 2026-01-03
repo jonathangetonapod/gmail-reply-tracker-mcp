@@ -1284,6 +1284,8 @@ class Database:
             'team_id, role, joined_at, teams(team_name, owner_user_id, created_at)'
         ).eq('user_id', user_id).execute()
 
+        logger.info(f"[GET_USER_TEAMS] user_id={user_id}, raw_result_count={len(result.data)}, raw_data={result.data}")
+
         teams = []
         for row in result.data:
             team_data = row.get('teams', {})
@@ -1296,6 +1298,7 @@ class Database:
                 'created_at': team_data.get('created_at')
             })
 
+        logger.info(f"[GET_USER_TEAMS] user_id={user_id}, teams_count={len(teams)}, teams={teams}")
         return teams
 
     def get_team_members(self, team_id: str) -> list[Dict[str, Any]]:
