@@ -4282,7 +4282,7 @@ async def login_form(request: Request, error: Optional[str] = Query(None)):
 
 @app.post("/login")
 async def login_submit(request: Request):
-    """Handle email/password login submission."""
+    """Handle email/password login submission (supports both form data and JSON)."""
     try:
         # Rate limiting: Prevent brute force attacks
         # Allow 5 login attempts per IP address per 15 minutes
@@ -4295,18 +4295,35 @@ async def login_submit(request: Request):
 
         if not allowed:
             logger.warning(f"Rate limit exceeded for login from IP {client_ip}")
+            content_type = request.headers.get('content-type', '')
+            is_json = 'application/json' in content_type.lower()
+
+            if is_json:
+                raise HTTPException(429, f"Too many login attempts. Please try again in {retry_after // 60} minutes.")
             return RedirectResponse(
                 url=f"/login?error=Too many login attempts. Please try again in {retry_after // 60} minutes.",
                 status_code=303
             )
 
-        # Parse form data
-        form_data = await request.form()
-        email = form_data.get('email', '').strip()
-        password = form_data.get('password', '')
+        # Detect content type and parse accordingly
+        content_type = request.headers.get('content-type', '')
+        is_json = 'application/json' in content_type.lower()
+
+        if is_json:
+            # JSON request (from invitation page)
+            body = await request.json()
+            email = body.get('email', '').strip()
+            password = body.get('password', '')
+        else:
+            # Form data request (from login page)
+            form_data = await request.form()
+            email = form_data.get('email', '').strip()
+            password = form_data.get('password', '')
 
         # Validate inputs
         if not email or not password:
+            if is_json:
+                raise HTTPException(400, "Email and password are required")
             return RedirectResponse(
                 url=f"/login?error=Email and password are required",
                 status_code=303
@@ -4319,6 +4336,8 @@ async def login_submit(request: Request):
         user_data = server.database.authenticate_email_password(email, password)
 
         if not user_data:
+            if is_json:
+                raise HTTPException(401, "Invalid email or password")
             return RedirectResponse(
                 url=f"/login?error=Invalid email or password",
                 status_code=303
@@ -4326,15 +4345,32 @@ async def login_submit(request: Request):
 
         logger.info(f"Successful email/password login: {email}")
 
-        # Redirect to dashboard with welcome message
-        first_name = email.split('@')[0]  # Fallback to email username
-        return RedirectResponse(
-            url=f"/dashboard?session_token={user_data['session_token']}&is_new_user=False&first_name={first_name}",
-            status_code=303
-        )
+        # Return appropriate response
+        if is_json:
+            # JSON response (for invitation page)
+            return JSONResponse({
+                "success": True,
+                "session_token": user_data['session_token'],
+                "user_id": user_data['user_id'],
+                "email": user_data['email']
+            })
+        else:
+            # Redirect to dashboard with welcome message
+            first_name = email.split('@')[0]  # Fallback to email username
+            return RedirectResponse(
+                url=f"/dashboard?session_token={user_data['session_token']}&is_new_user=False&first_name={first_name}",
+                status_code=303
+            )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Login error: {e}")
+        content_type = request.headers.get('content-type', '')
+        is_json = 'application/json' in content_type.lower()
+
+        if is_json:
+            raise HTTPException(500, "An error occurred. Please try again.")
         return RedirectResponse(
             url=f"/login?error=An error occurred. Please try again.",
             status_code=303
