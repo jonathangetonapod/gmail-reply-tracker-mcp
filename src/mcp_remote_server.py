@@ -8156,6 +8156,722 @@ async def admin_logout():
     return response
 
 
+@app.get("/admin/test-tools", response_class=HTMLResponse)
+async def admin_test_tools_page(
+    request: Request,
+    admin_password: Optional[str] = Query(None)
+):
+    """Tool testing playground for admin."""
+
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not authenticated:
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    try:
+        # Get all tools with metadata
+        tool_list = await server.mcp.list_tools()
+
+        # Categorize tools
+        categorized_tools = {
+            'gmail': [],
+            'calendar': [],
+            'sheets': [],
+            'docs': [],
+            'fathom': [],
+            'instantly': [],
+            'bison': [],
+            'other': []
+        }
+
+        for tool in tool_list:
+            # Determine category
+            tool_name_lower = tool.name.lower()
+            category = None
+
+            if 'sheet' in tool_name_lower:
+                category = 'sheets'
+            elif 'doc' in tool_name_lower:
+                category = 'docs'
+            elif any(x in tool_name_lower for x in ['email','gmail','label','draft','send','thread','inbox']):
+                category = 'gmail'
+            elif any(x in tool_name_lower for x in ['calendar','event','availability']):
+                category = 'calendar'
+            elif 'fathom' in tool_name_lower:
+                category = 'fathom'
+            elif 'bison' in tool_name_lower:
+                category = 'bison'
+            elif 'instantly' in tool_name_lower:
+                category = 'instantly'
+            else:
+                category = 'other'
+
+            categorized_tools[category].append({
+                'name': tool.name,
+                'description': tool.description or '',
+                'inputSchema': tool.inputSchema
+            })
+
+        # Convert to JSON for JavaScript
+        tools_json = json.dumps(categorized_tools)
+
+        # Get list of users for context testing
+        users = server.database.list_users()
+        users_list = [{'user_id': u['user_id'], 'email': u['email']} for u in users[:50]]  # Limit to 50
+        users_json = json.dumps(users_list)
+
+        return HTMLResponse(f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Testing Playground - Admin</title>
+    <style>
+        :root {{
+            --primary: 217 91% 60%;
+            --secondary: 217 10% 50%;
+            --success: 142 71% 45%;
+            --destructive: 0 84% 60%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215 16% 47%;
+            --card: 0 0% 100%;
+            --border: 214 32% 91%;
+        }}
+
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: hsl(var(--muted));
+            padding: 20px;
+        }}
+
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+
+        .header {{
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+
+        .header h1 {{
+            font-size: 28px;
+            margin-bottom: 8px;
+        }}
+
+        .header p {{
+            color: hsl(var(--muted-foreground));
+            font-size: 14px;
+        }}
+
+        .back-link {{
+            display: inline-block;
+            margin-bottom: 16px;
+            color: hsl(var(--primary));
+            text-decoration: none;
+            font-weight: 600;
+        }}
+
+        .back-link:hover {{
+            text-decoration: underline;
+        }}
+
+        .main-grid {{
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+        }}
+
+        .card {{
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+
+        .card h2 {{
+            font-size: 18px;
+            margin-bottom: 16px;
+        }}
+
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+
+        .form-label {{
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }}
+
+        .form-select, .form-input, .form-textarea {{
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid hsl(var(--border));
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }}
+
+        .form-select:focus, .form-input:focus, .form-textarea:focus {{
+            outline: none;
+            border-color: hsl(var(--primary));
+        }}
+
+        .form-textarea {{
+            font-family: 'Monaco', 'Courier New', monospace;
+            resize: vertical;
+            min-height: 100px;
+        }}
+
+        .btn {{
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }}
+
+        .btn-primary {{
+            background: hsl(var(--primary));
+            color: white;
+        }}
+
+        .btn-primary:hover {{
+            opacity: 0.9;
+        }}
+
+        .btn-primary:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+
+        .response-container {{
+            margin-top: 20px;
+            display: none;
+        }}
+
+        .response-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }}
+
+        .response-meta {{
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+        }}
+
+        .response-success {{
+            color: hsl(var(--success));
+            font-weight: 600;
+        }}
+
+        .response-error {{
+            color: hsl(var(--destructive));
+            font-weight: 600;
+        }}
+
+        .response-time {{
+            color: hsl(var(--muted-foreground));
+        }}
+
+        .response-body {{
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }}
+
+        .params-container {{
+            margin-top: 16px;
+        }}
+
+        .param-field {{
+            margin-bottom: 16px;
+        }}
+
+        .param-label {{
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .param-required {{
+            color: hsl(var(--destructive));
+            font-size: 12px;
+        }}
+
+        .param-type {{
+            color: hsl(var(--muted-foreground));
+            font-size: 12px;
+            font-weight: normal;
+        }}
+
+        .param-description {{
+            font-size: 12px;
+            color: hsl(var(--muted-foreground));
+            margin-top: 4px;
+        }}
+
+        .category-badge {{
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: hsl(var(--muted));
+            color: hsl(var(--muted-foreground));
+            margin-left: 8px;
+        }}
+
+        .tool-info {{
+            background: hsl(var(--muted) / 0.5);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 16px;
+        }}
+
+        .history-item {{
+            padding: 12px;
+            border: 1px solid hsl(var(--border));
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+
+        .history-item:hover {{
+            background: hsl(var(--muted) / 0.5);
+        }}
+
+        .history-tool {{
+            font-weight: 600;
+            margin-bottom: 4px;
+        }}
+
+        .history-time {{
+            color: hsl(var(--muted-foreground));
+            font-size: 12px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin?admin_password={correct_password}" class="back-link">← Back to Admin Dashboard</a>
+
+        <div class="header">
+            <h1>🧪 Tool Testing Playground</h1>
+            <p>Test any of the 85 MCP tools with custom parameters. Results are not logged to user activity.</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Left Panel: Tool Selection & Parameters -->
+            <div class="card">
+                <h2>Tool Configuration</h2>
+
+                <div class="form-group">
+                    <label class="form-label">Select Tool</label>
+                    <select id="tool-selector" class="form-select" onchange="loadToolParameters()">
+                        <option value="">-- Choose a tool --</option>
+                    </select>
+                </div>
+
+                <div id="tool-info" class="tool-info" style="display: none;"></div>
+
+                <div id="params-container" class="params-container" style="display: none;">
+                    <label class="form-label">Parameters</label>
+                    <div id="params-form"></div>
+                </div>
+
+                <div class="form-group" style="display: none;" id="user-context-group">
+                    <label class="form-label">Test with User Context (Optional)</label>
+                    <select id="user-selector" class="form-select">
+                        <option value="">-- No user context (single-user mode) --</option>
+                    </select>
+                </div>
+
+                <button id="test-btn" class="btn btn-primary" onclick="testTool()" disabled>
+                    🚀 Test Tool
+                </button>
+            </div>
+
+            <!-- Right Panel: Response & History -->
+            <div>
+                <div class="card">
+                    <h2>Response</h2>
+                    <div id="response-placeholder" style="text-align: center; padding: 40px; color: hsl(var(--muted-foreground));">
+                        Select a tool and click "Test Tool" to see results
+                    </div>
+                    <div id="response-container" class="response-container">
+                        <div class="response-header">
+                            <div class="response-meta">
+                                <span id="response-status"></span>
+                                <span id="response-time" class="response-time"></span>
+                            </div>
+                        </div>
+                        <pre id="response-body" class="response-body"></pre>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 24px;">
+                    <h2>Test History</h2>
+                    <div id="history-container" style="max-height: 300px; overflow-y: auto;">
+                        <p style="text-align: center; color: hsl(var(--muted-foreground)); padding: 20px;">
+                            No tests run yet
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tool data from backend
+        const toolsData = {tools_json};
+        const usersData = {users_json};
+        const adminPassword = "{correct_password}";
+
+        // State
+        let selectedTool = null;
+        let testHistory = [];
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {{
+            populateToolDropdown();
+            populateUserDropdown();
+        }});
+
+        function populateToolDropdown() {{
+            const selector = document.getElementById('tool-selector');
+
+            // Add tools by category
+            const categories = {{
+                'gmail': '📧 Gmail',
+                'calendar': '📅 Calendar',
+                'sheets': '📊 Sheets',
+                'docs': '📄 Docs',
+                'fathom': '📈 Fathom',
+                'instantly': '📨 Instantly',
+                'bison': '🦬 Bison',
+                'other': '🔧 Other'
+            }};
+
+            for (const [category, label] of Object.entries(categories)) {{
+                const tools = toolsData[category] || [];
+                if (tools.length === 0) continue;
+
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = `${{label}} (${{tools.length}} tools)`;
+
+                tools.forEach(tool => {{
+                    const option = document.createElement('option');
+                    option.value = tool.name;
+                    option.textContent = tool.name;
+                    option.dataset.category = category;
+                    option.dataset.description = tool.description;
+                    option.dataset.schema = JSON.stringify(tool.inputSchema);
+                    optgroup.appendChild(option);
+                }});
+
+                selector.appendChild(optgroup);
+            }}
+        }}
+
+        function populateUserDropdown() {{
+            const selector = document.getElementById('user-selector');
+
+            usersData.forEach(user => {{
+                const option = document.createElement('option');
+                option.value = user.user_id;
+                option.textContent = user.email;
+                selector.appendChild(option);
+            }});
+        }}
+
+        function loadToolParameters() {{
+            const selector = document.getElementById('tool-selector');
+            const selectedOption = selector.options[selector.selectedIndex];
+
+            if (!selectedOption.value) {{
+                document.getElementById('tool-info').style.display = 'none';
+                document.getElementById('params-container').style.display = 'none';
+                document.getElementById('test-btn').disabled = true;
+                return;
+            }}
+
+            // Get tool metadata
+            const toolName = selectedOption.value;
+            const category = selectedOption.dataset.category;
+            const description = selectedOption.dataset.description;
+            const schema = JSON.parse(selectedOption.dataset.schema);
+
+            selectedTool = {{
+                name: toolName,
+                category: category,
+                description: description,
+                schema: schema
+            }};
+
+            // Show tool info
+            const categoryEmojis = {{
+                'gmail': '📧', 'calendar': '📅', 'sheets': '📊',
+                'docs': '📄', 'fathom': '📈', 'instantly': '📨',
+                'bison': '🦬', 'other': '🔧'
+            }};
+
+            document.getElementById('tool-info').innerHTML = `
+                <strong>${{categoryEmojis[category]}} ${{toolName}}</strong>
+                <span class="category-badge">${{category}}</span>
+                <div style="margin-top: 8px;">${{description}}</div>
+            `;
+            document.getElementById('tool-info').style.display = 'block';
+
+            // Generate parameter form
+            generateParameterForm(schema);
+
+            document.getElementById('params-container').style.display = 'block';
+            document.getElementById('user-context-group').style.display = 'block';
+            document.getElementById('test-btn').disabled = false;
+        }}
+
+        function generateParameterForm(schema) {{
+            const container = document.getElementById('params-form');
+            container.innerHTML = '';
+
+            if (!schema || !schema.properties) {{
+                container.innerHTML = '<p style="color: hsl(var(--muted-foreground)); font-size: 13px;">No parameters required</p>';
+                return;
+            }}
+
+            const properties = schema.properties;
+            const required = schema.required || [];
+
+            for (const [paramName, paramDef] of Object.entries(properties)) {{
+                const isRequired = required.includes(paramName);
+                const paramType = paramDef.type || 'string';
+                const paramDesc = paramDef.description || '';
+                const paramDefault = paramDef.default;
+
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'param-field';
+
+                let inputHtml = '';
+                const inputId = `param-${{paramName}}`;
+
+                if (paramType === 'boolean') {{
+                    inputHtml = `
+                        <select id="${{inputId}}" class="form-input" ${{isRequired ? 'required' : ''}}>
+                            <option value="true" ${{paramDefault === true ? 'selected' : ''}}>true</option>
+                            <option value="false" ${{paramDefault === false ? 'selected' : ''}}>false</option>
+                        </select>
+                    `;
+                }} else if (paramType === 'integer' || paramType === 'number') {{
+                    inputHtml = `
+                        <input
+                            type="number"
+                            id="${{inputId}}"
+                            class="form-input"
+                            placeholder="Enter ${{paramType}}"
+                            value="${{paramDefault !== undefined ? paramDefault : ''}}"
+                            ${{isRequired ? 'required' : ''}}
+                        />
+                    `;
+                }} else if (paramDef.enum) {{
+                    inputHtml = `
+                        <select id="${{inputId}}" class="form-input" ${{isRequired ? 'required' : ''}}>
+                            <option value="">-- Select --</option>
+                            ${{paramDef.enum.map(val => `<option value="${{val}}" ${{paramDefault === val ? 'selected' : ''}}>${{val}}</option>`).join('')}}
+                        </select>
+                    `;
+                }} else {{
+                    // String or other types
+                    inputHtml = `
+                        <input
+                            type="text"
+                            id="${{inputId}}"
+                            class="form-input"
+                            placeholder="Enter ${{paramName}}"
+                            value="${{paramDefault !== undefined ? paramDefault : ''}}"
+                            ${{isRequired ? 'required' : ''}}
+                        />
+                    `;
+                }}
+
+                fieldDiv.innerHTML = `
+                    <div class="param-label">
+                        ${{paramName}}
+                        ${{isRequired ? '<span class="param-required">*required</span>' : ''}}
+                        <span class="param-type">(${{paramType}})</span>
+                    </div>
+                    ${{inputHtml}}
+                    ${{paramDesc ? `<div class="param-description">${{paramDesc}}</div>` : ''}}
+                `;
+
+                container.appendChild(fieldDiv);
+            }}
+        }}
+
+        async function testTool() {{
+            if (!selectedTool) return;
+
+            // Collect parameter values
+            const schema = selectedTool.schema;
+            const arguments = {{}};
+
+            if (schema && schema.properties) {{
+                for (const paramName of Object.keys(schema.properties)) {{
+                    const inputId = `param-${{paramName}}`;
+                    const input = document.getElementById(inputId);
+
+                    if (input && input.value) {{
+                        const paramType = schema.properties[paramName].type;
+
+                        if (paramType === 'integer') {{
+                            arguments[paramName] = parseInt(input.value, 10);
+                        }} else if (paramType === 'number') {{
+                            arguments[paramName] = parseFloat(input.value);
+                        }} else if (paramType === 'boolean') {{
+                            arguments[paramName] = input.value === 'true';
+                        }} else {{
+                            arguments[paramName] = input.value;
+                        }}
+                    }}
+                }}
+            }}
+
+            // Get user context if selected
+            const userSelector = document.getElementById('user-selector');
+            const userId = userSelector.value || null;
+
+            // Disable button
+            const testBtn = document.getElementById('test-btn');
+            testBtn.disabled = true;
+            testBtn.textContent = '⏳ Testing...';
+
+            // Hide placeholder, show response container
+            document.getElementById('response-placeholder').style.display = 'none';
+            document.getElementById('response-container').style.display = 'block';
+
+            try {{
+                const response = await fetch(`/admin/test-tool?admin_password=${{adminPassword}}`, {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{
+                        tool_name: selectedTool.name,
+                        arguments: arguments,
+                        user_id: userId
+                    }})
+                }});
+
+                const result = await response.json();
+
+                // Display response
+                if (result.success) {{
+                    document.getElementById('response-status').innerHTML = '<span class="response-success">✓ Success</span>';
+                    document.getElementById('response-time').textContent = `${{result.response_time_ms}}ms`;
+                    document.getElementById('response-body').textContent = JSON.stringify(result.result, null, 2);
+                }} else {{
+                    document.getElementById('response-status').innerHTML = '<span class="response-error">✗ Error</span>';
+                    document.getElementById('response-time').textContent = '';
+                    document.getElementById('response-body').textContent = JSON.stringify({{
+                        error: result.error,
+                        error_type: result.error_type,
+                        stack_trace: result.stack_trace
+                    }}, null, 2);
+                }}
+
+                // Add to history
+                addToHistory({{
+                    tool: selectedTool.name,
+                    arguments: arguments,
+                    success: result.success,
+                    time: result.response_time_ms,
+                    timestamp: new Date().toLocaleTimeString()
+                }});
+
+            }} catch (error) {{
+                document.getElementById('response-status').innerHTML = '<span class="response-error">✗ Network Error</span>';
+                document.getElementById('response-time').textContent = '';
+                document.getElementById('response-body').textContent = `Error: ${{error.message}}`;
+            }} finally {{
+                testBtn.disabled = false;
+                testBtn.textContent = '🚀 Test Tool';
+            }}
+        }}
+
+        function addToHistory(entry) {{
+            testHistory.unshift(entry);
+            if (testHistory.length > 10) testHistory.pop();  // Keep last 10
+
+            const container = document.getElementById('history-container');
+            container.innerHTML = testHistory.map(item => `
+                <div class="history-item" onclick='rerunTest(${{JSON.stringify(item.arguments)}}, "${{item.tool}}")'>
+                    <div class="history-tool">
+                        ${{item.success ? '✓' : '✗'}} ${{item.tool}}
+                        ${{item.time ? `<span style="color: hsl(var(--muted-foreground)); font-weight: normal;">(${{item.time}}ms)</span>` : ''}}
+                    </div>
+                    <div class="history-time">${{item.timestamp}}</div>
+                </div>
+            `).join('');
+        }}
+
+        function rerunTest(args, toolName) {{
+            // Select the tool
+            const selector = document.getElementById('tool-selector');
+            selector.value = toolName;
+            loadToolParameters();
+
+            // Fill in parameters
+            setTimeout(() => {{
+                for (const [paramName, paramValue] of Object.entries(args)) {{
+                    const input = document.getElementById(`param-${{paramName}}`);
+                    if (input) {{
+                        input.value = paramValue;
+                    }}
+                }}
+            }}, 100);
+        }}
+    </script>
+</body>
+</html>
+        """)
+
+    except Exception as e:
+        logger.error(f"Error loading test tools page: {e}")
+        raise HTTPException(500, str(e))
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, admin_password: Optional[str] = Query(None)):
     """Admin dashboard for managing users and viewing analytics."""
@@ -8697,6 +9413,23 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
                     {activity_html if activity_html else '<tr><td colspan="4" style="padding: 20px; text-align: center; color: hsl(var(--muted-foreground));">No activity yet</td></tr>'}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Developer Tools -->
+        <div class="section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white;">
+            <h2 style="color: white;"><span>🧪</span> Developer Tools</h2>
+            <div style="margin-top: 20px;">
+                <a href="/admin/test-tools?admin_password={correct_password}"
+                   style="display: flex; align-items: center; justify-content: space-between; padding: 20px; background: rgba(255,255,255,0.15); border-radius: var(--radius); text-decoration: none; color: white; transition: all 0.2s; backdrop-filter: blur(10px);"
+                   onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';"
+                   onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <div>
+                        <div style="font-weight: 700; font-size: 18px; margin-bottom: 6px;">🧪 Tool Testing Playground</div>
+                        <div style="opacity: 0.9; font-size: 14px;">Test any of the 85 MCP tools with custom parameters. Perfect for debugging and development.</div>
+                    </div>
+                    <div style="font-size: 24px; opacity: 0.7;">→</div>
+                </a>
+            </div>
         </div>
 
         <div style="text-align: center; margin-top: 32px;">
@@ -10746,6 +11479,114 @@ async def admin_get_user_activity(
     except Exception as e:
         logger.error(f"Error fetching user activity: {e}")
         raise HTTPException(500, str(e))
+
+
+@app.post("/admin/test-tool")
+async def admin_test_tool(
+    request: Request,
+    admin_password: Optional[str] = Query(None)
+):
+    """
+    Execute a tool for testing purposes.
+
+    Body:
+    {
+        "tool_name": "search_emails",
+        "arguments": {"query": "from:test@example.com", "max_results": 10},
+        "user_id": "optional_user_id"  # If provided, tests with that user's context
+    }
+
+    Returns:
+    {
+        "success": true,
+        "result": {...},
+        "response_time_ms": 243,
+        "timestamp": "2025-01-02T18:00:00Z"
+    }
+    """
+    # Check admin authentication
+    correct_password = os.getenv("ADMIN_PASSWORD")
+    cookie_password = request.cookies.get("admin_session")
+    authenticated = (cookie_password == correct_password) or (admin_password == correct_password)
+
+    if not correct_password or not authenticated:
+        raise HTTPException(401, "Unauthorized")
+
+    try:
+        # Parse request body
+        body = await request.json()
+        tool_name = body.get("tool_name")
+        arguments = body.get("arguments", {})
+        user_id = body.get("user_id")  # Optional: test with specific user context
+
+        if not tool_name:
+            raise HTTPException(400, "Missing tool_name")
+
+        # Track execution time
+        import time
+        start_time = time.time()
+
+        # Execute tool
+        if user_id:
+            # Test with specific user's context
+            session_result = server.database.supabase.table('users').select('session_token').eq(
+                'user_id', user_id
+            ).execute()
+
+            if not session_result.data:
+                raise HTTPException(404, f"User {user_id} not found")
+
+            # Create request context for this user
+            from request_context import create_request_context
+            ctx = await create_request_context(
+                database=server.database,
+                session_token=session_result.data[0]['session_token'],
+                config=server.config
+            )
+
+            # Execute with user context
+            response = await execute_tool_with_context(
+                tool_name=tool_name,
+                arguments=arguments,
+                ctx=ctx,
+                request_id=f"test-{int(time.time() * 1000)}"
+            )
+
+            # Extract result from MCP response
+            result = response.get("result", {}).get("content", [{}])[0].get("text", "")
+        else:
+            # Test without user context (single-user mode)
+            result = await execute_tool(tool_name, arguments)
+
+        # Calculate response time
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        # Parse result if it's JSON string
+        try:
+            result_parsed = json.loads(result) if isinstance(result, str) else result
+        except:
+            result_parsed = result
+
+        return JSONResponse({
+            "success": True,
+            "result": result_parsed,
+            "response_time_ms": elapsed_ms,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"Tool test failed: {e}")
+
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "stack_trace": traceback.format_exc(),
+            "timestamp": datetime.now().isoformat()
+        }, status_code=500)
 
 
 @app.delete("/admin/user/{user_id}")
