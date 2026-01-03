@@ -4872,6 +4872,66 @@ async def dashboard(
     else:
         api_keys_message = 'No API keys to configure yet.'
 
+    # Pre-compute API Keys tab content to avoid nested f-string issues
+    has_api_key_subscriptions = any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison'])
+
+    if has_api_key_subscriptions:
+        # Show form for API key input
+        fathom_input = f'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="{api_keys.get("fathom", "")}" placeholder="Your Fathom API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Fathom meeting recording tools</p></div>' if 'fathom' in active_subscriptions else ''
+        instantly_input = f'<div class="form-group"><label for="instantly_key">Instantly API Key</label><input type="text" id="instantly_key" name="instantly_key" value="{api_keys.get("instantly", "")}" placeholder="Your Instantly.ai API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Instantly campaign management tools</p></div>' if 'instantly' in active_subscriptions else ''
+        bison_input = f'<div class="form-group"><label for="bison_key">Bison API Key</label><input type="text" id="bison_key" name="bison_key" value="{api_keys.get("bison", "")}" placeholder="Your EmailBison API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for EmailBison campaign tools</p></div>' if 'bison' in active_subscriptions else ''
+
+        api_keys_content = f'''
+        <form id="api-keys-form">
+            {fathom_input}
+            {instantly_input}
+            {bison_input}
+            <button type="submit" class="btn" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">💾 Save API Keys</button>
+        </form>
+        '''
+    else:
+        # Show empty state with OAuth explanation
+        api_keys_content = f'''
+        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 40px; border-radius: 12px; border: 2px dashed #0284c7;">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="font-size: 64px; margin-bottom: 15px;">✨</div>
+                <h3 style="color: #1a202c; font-size: 22px; margin-bottom: 12px; font-weight: 700;">You're All Set!</h3>
+                <p style="color: #334155; font-size: 16px; max-width: 550px; margin: 0 auto; line-height: 1.6;">
+                    {api_keys_message}
+                </p>
+            </div>
+
+            <div style="background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <h4 style="color: #1a202c; font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 24px;">🔐</span>
+                    <span>How Authentication Works</span>
+                </h4>
+                <div style="color: #64748b; font-size: 14px; line-height: 1.7;">
+                    <div style="margin-bottom: 12px;">
+                        <strong style="color: #334155;">Google Services (Gmail, Calendar, Docs, Sheets):</strong><br>
+                        Use OAuth - you've already connected via Google sign-in. No extra keys needed!
+                    </div>
+                    <div>
+                        <strong style="color: #334155;">Third-Party Services (Fathom, Instantly, EmailBison):</strong><br>
+                        Require API keys from their platforms. You'll add them here when you subscribe.
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
+                <div style="display: flex; gap: 12px; align-items: start;">
+                    <span style="font-size: 24px;">💡</span>
+                    <div>
+                        <strong style="color: #92400e; font-size: 15px; display: block; margin-bottom: 6px;">Want to use third-party tools?</strong>
+                        <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
+                            Head to the <strong>Subscriptions</strong> tab to add Fathom, Instantly, or EmailBison. Once subscribed, you'll add your API keys here to connect the services.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        '''
+
     # Render dashboard HTML
     return HTMLResponse(f"""
 <!DOCTYPE html>
@@ -5359,64 +5419,17 @@ async def dashboard(
             </div>
         </div>''' if teams_enabled else ''}
 
-        {f'''<!-- Tab Content: API Keys -->
+        <!-- Tab Content: API Keys -->
         <div class="tab-content" id="api-keys" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">🔑 API Keys</h2>
                 <p style="color: #718096; margin-bottom: 30px;">Add API keys for third-party services you've subscribed to</p>
 
-                {f"""
-                <form id="api-keys-form">
-                    {'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="' + api_keys.get('fathom', '') + '" placeholder="Your Fathom API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Fathom meeting recording tools</p></div>' if 'fathom' in active_subscriptions else ''}
-                    {'<div class="form-group"><label for="instantly_key">Instantly API Key</label><input type="text" id="instantly_key" name="instantly_key" value="' + api_keys.get('instantly', '') + '" placeholder="Your Instantly.ai API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Instantly campaign management tools</p></div>' if 'instantly' in active_subscriptions else ''}
-                    {'<div class="form-group"><label for="bison_key">Bison API Key</label><input type="text" id="bison_key" name="bison_key" value="' + api_keys.get('bison', '') + '" placeholder="Your EmailBison API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for EmailBison campaign tools</p></div>' if 'bison' in active_subscriptions else ''}
-
-                    {('<button type="submit" class="btn" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">💾 Save API Keys</button>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 40px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 48px; margin-bottom: 10px;">🔒</div><p style="color: #6b7280;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>')}
-                </form>
-                """ if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else f"""
-                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 40px; border-radius: 12px; border: 2px dashed #0284c7;">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <div style="font-size: 64px; margin-bottom: 15px;">✨</div>
-                        <h3 style="color: #1a202c; font-size: 22px; margin-bottom: 12px; font-weight: 700;">You're All Set!</h3>
-                        <p style="color: #334155; font-size: 16px; max-width: 550px; margin: 0 auto; line-height: 1.6;">
-                            {api_keys_message}
-                        </p>
-                    </div>
-
-                    <div style="background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                        <h4 style="color: #1a202c; font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 24px;">🔐</span>
-                            <span>How Authentication Works</span>
-                        </h4>
-                        <div style="color: #64748b; font-size: 14px; line-height: 1.7;">
-                            <div style="margin-bottom: 12px;">
-                                <strong style="color: #334155;">Google Services (Gmail, Calendar, Docs, Sheets):</strong><br>
-                                Use OAuth - you've already connected via Google sign-in. No extra keys needed!
-                            </div>
-                            <div>
-                                <strong style="color: #334155;">Third-Party Services (Fathom, Instantly, EmailBison):</strong><br>
-                                Require API keys from their platforms. You'll add them here when you subscribe.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b;">
-                        <div style="display: flex; gap: 12px; align-items: start;">
-                            <span style="font-size: 24px;">💡</span>
-                            <div>
-                                <strong style="color: #92400e; font-size: 15px; display: block; margin-bottom: 6px;">Want to use third-party tools?</strong>
-                                <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
-                                    Head to the <strong>Subscriptions</strong> tab to add Fathom, Instantly, or EmailBison. Once subscribed, you'll add your API keys here to connect the services.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                """}
+                {api_keys_content}
             </div>
-        </div>'''}
+        </div>
 
-        {f'''<!-- Tab Content: Setup -->
+        <!-- Tab Content: Setup -->
         <div class="tab-content" id="setup" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">⚙️ Connect to Claude Desktop</h2>
@@ -5461,7 +5474,7 @@ async def dashboard(
                     </div>
                 </div>
             </div>
-        </div>'''}
+        </div>
     </div>
 
     <script>
