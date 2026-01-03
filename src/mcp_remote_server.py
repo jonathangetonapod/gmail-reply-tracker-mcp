@@ -5991,9 +5991,23 @@ async def team_settings_page(
 </html>
         """, status_code=401)
 
-    # Validate session token
+    # Validate session token (lightweight - no API clients needed for viewing team page)
     try:
-        ctx = await get_request_context(None, session_token)
+        user = server.database.get_user_by_session(session_token)
+        if not user:
+            raise HTTPException(401, "Invalid session")
+
+        # Check session expiry
+        session_expiry = user.get('session_expiry')
+        if session_expiry:
+            if isinstance(session_expiry, str):
+                from dateutil import parser
+                session_expiry = parser.parse(session_expiry)
+            if datetime.now(timezone.utc) > session_expiry:
+                raise HTTPException(401, "Session expired")
+
+        user_id = user['user_id']
+        user_email = user['email']
     except HTTPException:
         return HTMLResponse("""
 <!DOCTYPE html>
@@ -6018,7 +6032,7 @@ async def team_settings_page(
 
     # Check if user is a member of this team
     members = server.database.get_team_members(team_id)
-    user_member = next((m for m in members if m['user_id'] == ctx.user_id), None)
+    user_member = next((m for m in members if m['user_id'] == user_id), None)
 
     if not user_member:
         return HTMLResponse("""
@@ -6040,7 +6054,7 @@ async def team_settings_page(
     owner_email = owner_result.data[0]['email'] if owner_result.data else "Unknown"
 
     # Check if current user is owner or admin
-    is_owner = ctx.user_id == team['owner_user_id']
+    is_owner = user_id == team['owner_user_id']
     is_admin = user_member['role'] in ['owner', 'admin']
 
     # Get pending invitations
