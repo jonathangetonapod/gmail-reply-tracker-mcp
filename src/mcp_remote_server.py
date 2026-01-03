@@ -6330,30 +6330,43 @@ async def team_settings_page(
                 const result = await response.json();
 
                 if (response.ok) {{
-                    let message = result.user_existed
-                        ? `✓ Added ${{email}} to team as ${{role}}`
-                        : `✓ Created account and added ${{email}} as ${{role}}`;
+                    // Check if invitation was created (user didn't exist)
+                    if (result.invitation_created && result.invitation_url) {{
+                        // Show modal with copyable invitation link
+                        showInvitationModal(email, result.invitation_url);
+                        document.getElementById('add-member-email').value = '';
+                        document.getElementById('add-member-password').value = '';
+                        document.querySelector('input[name="password-method"][value="auto"]').checked = true;
+                        togglePasswordMethod();
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
+                    }} else {{
+                        // User already existed - just added to team
+                        let message = result.user_existed
+                            ? `✓ Added ${{email}} to team as ${{role}}`
+                            : `✓ Created account and added ${{email}} as ${{role}}`;
 
-                    if (!result.user_existed) {{
-                        if (result.password_generated) {{
-                            // Auto-generated password
-                            message += result.email_sent
-                                ? '\\n📧 Auto-generated password emailed to user'
-                                : '\\n⚠️ Email failed - password: ' + result.password;
-                        }} else {{
-                            // Manual password
-                            message += result.email_sent
-                                ? '\\n📧 Login credentials emailed to user'
-                                : '\\n⚠️ Email failed - please share the password with the user manually';
+                        if (!result.user_existed) {{
+                            if (result.password_generated) {{
+                                // Auto-generated password
+                                message += result.email_sent
+                                    ? '\\n📧 Auto-generated password emailed to user'
+                                    : '\\n⚠️ Email failed - password: ' + result.password;
+                            }} else {{
+                                // Manual password
+                                message += result.email_sent
+                                    ? '\\n📧 Login credentials emailed to user'
+                                    : '\\n⚠️ Email failed - please share the password with the user manually';
+                            }}
                         }}
-                    }}
 
-                    alert(message);
-                    document.getElementById('add-member-email').value = '';
-                    document.getElementById('add-member-password').value = '';
-                    document.querySelector('input[name="password-method"][value="auto"]').checked = true;
-                    togglePasswordMethod();
-                    window.location.reload();
+                        alert(message);
+                        document.getElementById('add-member-email').value = '';
+                        document.getElementById('add-member-password').value = '';
+                        document.querySelector('input[name="password-method"][value="auto"]').checked = true;
+                        togglePasswordMethod();
+                        window.location.reload();
+                    }}
                 }} else {{
                     document.getElementById('error-message').textContent = '✗ ' + result.detail;
                     document.getElementById('error-message').style.display = 'block';
@@ -6473,6 +6486,73 @@ async def team_settings_page(
                 document.getElementById('success-message').style.display = 'none';
             }}
         }}
+    </script>
+
+    <!-- Invitation Link Modal -->
+    <div id="invitation-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <h2 style="margin: 0 0 20px 0; color: #1a202c; font-size: 22px;">📨 Invitation Link Created</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">
+                Email sent to <strong id="invited-email"></strong>. You can also copy this link and share it manually:
+            </p>
+            <div style="background: #f9fafb; border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+                <input type="text" id="invitation-link" readonly style="flex: 1; background: transparent; border: none; font-family: monospace; font-size: 13px; color: #374151; outline: none;">
+                <button onclick="copyInvitationLink()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap; font-size: 14px;">
+                    📋 Copy
+                </button>
+            </div>
+            <div id="copy-success" style="display: none; background: #d1fae5; color: #065f46; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; text-align: center;">
+                ✓ Link copied to clipboard!
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button onclick="closeInvitationModal()" style="background: #e2e8f0; color: #374151; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Close
+                </button>
+                <button onclick="closeInvitationModal(); window.location.reload();" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showInvitationModal(email, invitationUrl) {{
+            document.getElementById('invited-email').textContent = email;
+            document.getElementById('invitation-link').value = invitationUrl;
+            document.getElementById('invitation-modal').style.display = 'flex';
+            document.getElementById('copy-success').style.display = 'none';
+        }}
+
+        function closeInvitationModal() {{
+            document.getElementById('invitation-modal').style.display = 'none';
+        }}
+
+        function copyInvitationLink() {{
+            const linkInput = document.getElementById('invitation-link');
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999); // For mobile
+
+            navigator.clipboard.writeText(linkInput.value).then(() => {{
+                document.getElementById('copy-success').style.display = 'block';
+                setTimeout(() => {{
+                    document.getElementById('copy-success').style.display = 'none';
+                }}, 3000);
+            }}).catch(err => {{
+                // Fallback for older browsers
+                document.execCommand('copy');
+                document.getElementById('copy-success').style.display = 'block';
+                setTimeout(() => {{
+                    document.getElementById('copy-success').style.display = 'none';
+                }}, 3000);
+            }});
+        }}
+
+        // Close modal on backdrop click
+        document.getElementById('invitation-modal').addEventListener('click', (e) => {{
+            if (e.target.id === 'invitation-modal') {{
+                closeInvitationModal();
+            }}
+        }});
     </script>
 </body>
 </html>
