@@ -6842,18 +6842,19 @@ async def add_team_member(
     session_token: Optional[str] = Query(None)
 ):
     """
-    Add a team member (sends invitation if user doesn't exist).
+    Add a team member by creating an invitation.
 
     Behavior:
-    - If user exists: Adds them to the team immediately
-    - If user doesn't exist: Creates an invitation (requires OAuth to complete)
+    - Always creates a pending invitation (whether user exists or not)
+    - User must accept the invitation to join the team
+    - Provides visibility into pending invitations before team membership
 
-    This system requires Google OAuth authentication, so new users must
-    accept an invitation and authenticate via Google to create their account.
+    This ensures consistent behavior for all team additions and prevents
+    users from being added without their explicit consent.
 
     Request body:
-    - email: Email address of the user to add
-    - role: Role to assign (member or admin) [optional, default: member]
+    - email: Email address of the user to invite
+    - role: Role to assign when accepted (member or admin) [optional, default: member]
     - tool_permissions: List of tool categories to grant access [optional]
     """
     try:
@@ -6905,11 +6906,10 @@ async def add_team_member(
 
         team_name = team.data[0]['team_name']
 
-        # Check if user already exists
+        # Check if user already exists and is already a team member
         existing_user = server.database.supabase.table('users').select('*').eq('email', email).execute()
 
         if existing_user.data:
-            # User exists - just add to team
             existing_user_id = existing_user.data[0]['user_id']
 
             # Check if already a team member
@@ -6917,69 +6917,18 @@ async def add_team_member(
             if any(m['user_id'] == existing_user_id for m in members):
                 raise HTTPException(400, "User is already a team member")
 
-            # Add to team
-            server.database.add_team_member(team_id, existing_user_id, role)
+        # Always create invitation (whether user exists or not)
+        # This ensures consistent behavior and gives visibility into pending invitations
 
-            # Grant tool permissions
-            if tool_permissions:
-                for category in tool_permissions:
-                    server.database.grant_team_permission(
-                        user_id=existing_user_id,
-                        team_id=team_id,
-                        tool_category=category,
-                        assigned_by_user_id=ctx.user_id
-                    )
-                logger.info(f"Granted {len(tool_permissions)} tool permissions to {email}")
+        # Check if invitation already exists
+        existing_invitation = server.database.supabase.table('team_invitations').select('*').eq(
+            'team_id', team_id
+        ).eq('email', email).eq('status', 'pending').execute()
 
-            logger.info(f"Added existing user {email} to team {team_id} as {role}")
-
-            return {
-                "success": True,
-                "message": f"Added {email} to team",
-                "user_existed": True,
-                "role": role,
-                "permissions_granted": len(tool_permissions)
-            }
-
-        else:
-            # User doesn't exist - create invitation instead
-            # This system requires Google OAuth, so we can't create accounts directly
-
-            # Check if invitation already exists
-            existing_invitation = server.database.supabase.table('team_invitations').select('*').eq(
-                'team_id', team_id
-            ).eq('email', email).eq('status', 'pending').execute()
-
-            if existing_invitation.data:
-                # Return existing invitation
-                invitation = existing_invitation.data[0]
-                logger.info(f"Returning existing invitation {invitation['invitation_id']} for {email}")
-
-                # Build invitation URL
-                deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", request.url.hostname))
-                if not deployment_url.startswith("http"):
-                    deployment_url = f"https://{deployment_url}"
-
-                invitation_url = f"{deployment_url}/invite/{invitation['invitation_id']}"
-
-                return {
-                    "success": True,
-                    "message": f"Invitation already exists for {email}",
-                    "user_existed": False,
-                    "invitation_exists": True,
-                    "invitation_id": invitation['invitation_id'],
-                    "invitation_url": invitation_url,
-                    "role": role
-                }
-
-            # Create new invitation
-            invitation = server.database.invite_team_member(
-                team_id=team_id,
-                email=email,
-                invited_by_user_id=ctx.user_id
-            )
-
-            logger.info(f"Created invitation {invitation['invitation_id']} for {email} to team {team_id}")
+        if existing_invitation.data:
+            # Return existing invitation
+            invitation = existing_invitation.data[0]
+            logger.info(f"Returning existing invitation {invitation['invitation_id']} for {email}")
 
             # Build invitation URL
             deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", request.url.hostname))
@@ -6988,17 +6937,43 @@ async def add_team_member(
 
             invitation_url = f"{deployment_url}/invite/{invitation['invitation_id']}"
 
-            # Note: Tool permissions will be granted after the user accepts the invitation
-            # For now, just store them in the response for the frontend to display
-            pending_permissions = tool_permissions if tool_permissions else []
+            return {
+                "success": True,
+                "message": f"Invitation already exists for {email}",
+                "user_existed": existing_user.data is not None,
+                "invitation_exists": True,
+                "invitation_id": invitation['invitation_id'],
+                "invitation_url": invitation_url,
+                "role": role
+            }
 
-            # Send invitation email
-            email_sent = False
-            try:
-                import resend
-                resend.api_key = os.getenv("RESEND_API_KEY")
+        # Create new invitation
+        invitation = server.database.invite_team_member(
+            team_id=team_id,
+            email=email,
+            invited_by_user_id=ctx.user_id
+        )
 
-                email_html = f"""
+        logger.info(f"Created invitation {invitation['invitation_id']} for {email} to team {team_id}")
+
+        # Build invitation URL
+        deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", request.url.hostname))
+        if not deployment_url.startswith("http"):
+            deployment_url = f"https://{deployment_url}"
+
+        invitation_url = f"{deployment_url}/invite/{invitation['invitation_id']}"
+
+        # Note: Tool permissions will be granted after the user accepts the invitation
+        # For now, just store them in the response for the frontend to display
+        pending_permissions = tool_permissions if tool_permissions else []
+
+        # Send invitation email
+        email_sent = False
+        try:
+            import resend
+            resend.api_key = os.getenv("RESEND_API_KEY")
+
+            email_html = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -7041,32 +7016,32 @@ async def add_team_member(
     </div>
 </body>
 </html>
-                """
+            """
 
-                resend.Emails.send({
-                    "from": "AI Email Assistant <noreply@leadgenjay.com>",
-                    "to": [email],
-                    "subject": f"You're invited to join {team_name}",
-                    "html": email_html
-                })
+            resend.Emails.send({
+                "from": "AI Email Assistant <noreply@leadgenjay.com>",
+                "to": [email],
+                "subject": f"You're invited to join {team_name}",
+                "html": email_html
+            })
 
-                logger.info(f"Invitation email sent to {email}")
-                email_sent = True
+            logger.info(f"Invitation email sent to {email}")
+            email_sent = True
 
-            except Exception as e:
-                logger.error(f"Failed to send invitation email to {email}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to send invitation email to {email}: {e}")
 
-            return {
-                "success": True,
-                "message": f"Invitation sent to {email}",
-                "user_existed": False,
-                "invitation_created": True,
-                "invitation_id": invitation['invitation_id'],
-                "invitation_url": invitation_url,
-                "role": role,
-                "email_sent": email_sent,
-                "pending_permissions": pending_permissions
-            }
+        return {
+            "success": True,
+            "message": f"Invitation sent to {email}",
+            "user_existed": existing_user.data is not None,
+            "invitation_created": True,
+            "invitation_id": invitation['invitation_id'],
+            "invitation_url": invitation_url,
+            "role": role,
+            "email_sent": email_sent,
+            "pending_permissions": pending_permissions
+        }
 
     except HTTPException:
         raise
