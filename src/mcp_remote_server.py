@@ -4779,8 +4779,9 @@ async def dashboard(
     # Get cancelled subscriptions (for resume button)
     cancelled_subscriptions = [sub['tool_category'] for sub in all_subscriptions if sub['status'] == 'cancelled']
 
-    # Get user's teams (for team subscription option)
-    user_teams = server.database.get_user_teams(ctx.user_id) if teams_enabled else []
+    # Get user's teams - ALWAYS query for teams they're members of
+    # The teams_enabled flag only controls whether they can CREATE new teams
+    user_teams = server.database.get_user_teams(ctx.user_id)
     logger.info(f"[DASHBOARD] User {ctx.email} - teams_enabled={teams_enabled}, user_teams={user_teams}")
 
     # Get personal subscriptions only (not team subscriptions)
