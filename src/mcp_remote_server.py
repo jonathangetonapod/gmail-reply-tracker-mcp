@@ -7412,7 +7412,7 @@ async def invitation_page(
 
         <div id="error-message" class="alert alert-error"></div>
 
-        {'<button onclick="acceptInvitation()" class="btn btn-primary">✓ Accept Invitation & Join Team</button>' if email_matches else '''
+        {'<button onclick="acceptInvitation()" class="btn btn-primary">✓ Accept Invitation & Join Team</button>' if email_matches else f'''
         <a href="/setup/start?redirect=/invite/{invitation_id}" class="btn btn-google">
             <img src="https://www.google.com/favicon.ico" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 8px;">
             Sign in with Google
