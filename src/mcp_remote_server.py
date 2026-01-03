@@ -4661,10 +4661,9 @@ async def dashboard(
 </html>
         """, status_code=401)
 
-    # Validate session token
-    try:
-        ctx = await get_request_context(None, session_token)
-    except HTTPException:
+    # Get user from database first (without creating API clients yet)
+    user = server.database.get_user_by_session(session_token)
+    if not user:
         return HTMLResponse("""
 <!DOCTYPE html>
 <html>
@@ -4697,8 +4696,6 @@ async def dashboard(
 </html>
         """, status_code=401)
 
-    # Get current API keys
-    user = server.database.get_user_by_session(session_token)
     api_keys = user.get('api_keys', {})
     teams_enabled = user.get('teams_enabled', False)
 
@@ -4709,6 +4706,59 @@ async def dashboard(
         google_token.get('token') is None or
         google_token.get('client_id') is None
     )
+
+    # Only create full request context if user has valid Google tokens
+    # Dashboard doesn't need API clients, just user info
+    if not needs_google_auth:
+        try:
+            ctx = await get_request_context(None, session_token)
+        except HTTPException:
+            # Failed to create API clients even though tokens exist
+            return HTMLResponse("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invalid Session</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #e53935; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>❌ Invalid or Expired Session Token</h1>
+        <p>Please complete the OAuth flow again at <a href="/setup/start">/setup/start</a></p>
+    </div>
+</body>
+</html>
+            """, status_code=401)
+    else:
+        # Create minimal context for email/password users (no API clients needed for dashboard)
+        from dataclasses import dataclass
+        @dataclass
+        class MinimalContext:
+            user_id: str
+            email: str
+            session_token: str
+
+        ctx = MinimalContext(
+            user_id=user['user_id'],
+            email=user['email'],
+            session_token=session_token
+        )
 
     # Check if admin
     correct_admin_password = os.getenv("ADMIN_PASSWORD")
