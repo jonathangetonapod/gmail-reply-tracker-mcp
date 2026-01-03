@@ -570,7 +570,8 @@ async def handle_jsonrpc_request(
                     "serverInfo": {
                         "name": server.config.server_name,
                         "version": "1.0.0"
-                    }
+                    },
+                    "instructions": f"Today's date is {datetime.now().strftime('%Y-%m-%d')} ({datetime.now().strftime('%A, %B %d, %Y')}). Use this date for any date calculations when searching emails, creating calendar events, or other time-sensitive operations."
                 }
             }
 
