@@ -4883,6 +4883,48 @@ async def dashboard(
     else:
         api_keys_tip = '''Head to the <strong>Subscriptions</strong> tab to add Fathom, Instantly, or EmailBison. Once subscribed, you'll add your API keys here to connect the services.'''
 
+    # Pre-compute Tool Access Overview for team members
+    if is_team_member_only:
+        # Combine all team subscriptions and permissions across all teams
+        all_team_subs = set()
+        all_user_permissions = set()
+        for team in user_teams:
+            team_id = team['team_id']
+            all_team_subs.update(team_subscriptions_map.get(team_id, []))
+            all_user_permissions.update(team_permissions_map.get(team_id, []))
+
+        tool_cards = []
+        for cat in all_categories:
+            info = category_info[cat]
+            if cat in all_user_permissions:
+                # ACTIVE - user has access
+                badge_html = '<span style="font-size: 12px; padding: 4px 12px; border-radius: 12px; background: #d1fae5; color: #065f46; font-weight: 600;">✓ You have access</span>'
+                card_style = 'border-color: #10b981; background: #f0fdf4;'
+            elif cat in all_team_subs:
+                # AVAILABLE - team has it but user doesn't have permission
+                badge_html = '<span style="font-size: 12px; padding: 4px 12px; border-radius: 12px; background: #fef3c7; color: #92400e; font-weight: 600;">🔒 Ask admin for access</span>'
+                card_style = 'border-color: #f59e0b; background: #fffbeb; opacity: 0.85;'
+            else:
+                # NOT SUBSCRIBED - team doesn't have it
+                badge_html = '<span style="font-size: 12px; padding: 4px 12px; border-radius: 12px; background: #f3f4f6; color: #6b7280; font-weight: 500;">Not subscribed</span>'
+                card_style = 'border-color: #e5e7eb; background: #f9fafb; opacity: 0.65;'
+
+            tool_cards.append(f'''
+            <div style="padding: 20px; border: 2px solid; border-radius: 12px; {card_style}">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <span style="font-size: 36px;">{info["emoji"]}</span>
+                    {badge_html}
+                </div>
+                <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a202c;">{info["name"]}</h3>
+                <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280;">{info["desc"]}</p>
+                <div style="font-size: 13px; color: #9ca3af;">{info["tools"]} tools</div>
+            </div>
+            ''')
+
+        tool_cards_html = ''.join(tool_cards)
+    else:
+        tool_cards_html = ''
+
     if has_api_key_subscriptions:
         # Show form for API key input
         fathom_input = f'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="{api_keys.get("fathom", "")}" placeholder="Your Fathom API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Fathom meeting recording tools</p></div>' if 'fathom' in active_subscriptions else ''
@@ -5386,6 +5428,26 @@ async def dashboard(
                 </div>
             </div>
         </div>''') if personal_subscriptions or not user_teams else ''}
+
+            {f'''<!-- Tool Access Overview for Team Members -->
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">🔧 Tool Access Overview</h2>
+                <p style="color: #718096; margin-bottom: 25px;">See all available tool categories and your current access level</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                    {tool_cards_html}
+                </div>
+
+                <div style="margin-top: 25px; padding: 20px; background: #f0f9ff; border-radius: 10px; border-left: 4px solid #0284c7;">
+                    <div style="display: flex; gap: 12px; align-items: start;">
+                        <span style="font-size: 20px;">💡</span>
+                        <div style="font-size: 14px; color: #0c4a6e; line-height: 1.6;">
+                            <strong>Need access to more tools?</strong> Contact your team admin to subscribe to additional categories or grant you access to existing ones.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ''' if is_team_member_only else ''}
         </div>
 
         {f'''<!-- Tab Content: Teams -->
