@@ -125,8 +125,8 @@ class Config:
                 token_path = project_root / token_path
 
         oauth_scopes_str = os.getenv(
-            "GMAIL_OAUTH_SCOPES",
-            "https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/userinfo.email"
+            "GOOGLE_OAUTH_SCOPES",
+            "https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/gmail.compose,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/userinfo.email"
         )
         oauth_scopes = [s.strip() for s in oauth_scopes_str.split(",")]
 

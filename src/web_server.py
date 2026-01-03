@@ -467,7 +467,7 @@ SETUP_LANDING_HTML = """
                         </ul>
                         <p style="margin-top: 12px;"><strong>What We Access:</strong></p>
                         <ul>
-                            <li>Gmail: Read, send, and modify (gmail.modify scope)</li>
+                            <li>Gmail: Read emails and send/compose (gmail.readonly + gmail.compose)</li>
                             <li>Calendar: Full access to create/edit events</li>
                             <li>Google Docs: Create, read, and edit documents (documents scope)</li>
                             <li>Google Sheets: Create, read, and edit spreadsheets (spreadsheets scope)</li>
