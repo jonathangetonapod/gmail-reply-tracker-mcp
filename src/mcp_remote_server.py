@@ -6686,14 +6686,19 @@ async def add_team_member(
     session_token: Optional[str] = Query(None)
 ):
     """
-    Add a team member directly (creates account if needed).
+    Add a team member (sends invitation if user doesn't exist).
 
-    This is different from invitations - the owner/admin creates the account
-    immediately with a generated password, no acceptance needed.
+    Behavior:
+    - If user exists: Adds them to the team immediately
+    - If user doesn't exist: Creates an invitation (requires OAuth to complete)
+
+    This system requires Google OAuth authentication, so new users must
+    accept an invitation and authenticate via Google to create their account.
 
     Request body:
     - email: Email address of the user to add
-    - role: Role to assign (member or admin)
+    - role: Role to assign (member or admin) [optional, default: member]
+    - tool_permissions: List of tool categories to grant access [optional]
     """
     try:
         if not session_token:
@@ -6781,64 +6786,57 @@ async def add_team_member(
             }
 
         else:
-            # User doesn't exist - create new account
-            import bcrypt
-            import string
+            # User doesn't exist - create invitation instead
+            # This system requires Google OAuth, so we can't create accounts directly
 
-            # Generate user ID
-            user_id = secrets.token_urlsafe(16)
+            # Check if invitation already exists
+            existing_invitation = server.database.supabase.table('team_invitations').select('*').eq(
+                'team_id', team_id
+            ).eq('email', email).eq('status', 'pending').execute()
 
-            # Use manual password if provided, otherwise generate one
-            if manual_password:
-                password = manual_password
-                password_generated = False
-            else:
-                # Auto-generate secure random password
-                alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-                password = ''.join(secrets.choice(alphabet) for _ in range(12))
-                password_generated = True
+            if existing_invitation.data:
+                # Return existing invitation
+                invitation = existing_invitation.data[0]
+                logger.info(f"Returning existing invitation {invitation['invitation_id']} for {email}")
 
-            # Hash password
-            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
+                # Build invitation URL
+                deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", request.url.hostname))
+                if not deployment_url.startswith("http"):
+                    deployment_url = f"https://{deployment_url}"
 
-            # Create user account
-            try:
-                server.database.supabase.table('users').insert({
-                    'user_id': user_id,
-                    'email': email,
-                    'password_hash': password_hash.decode('utf-8'),
-                    'created_at': datetime.now().isoformat(),
-                    'teams_enabled': True  # Enable teams by default for team members
-                }).execute()
+                invitation_url = f"{deployment_url}/invite/{invitation['invitation_id']}"
 
-                logger.info(f"Created new user account for {email}")
+                return {
+                    "success": True,
+                    "message": f"Invitation already exists for {email}",
+                    "user_existed": False,
+                    "invitation_exists": True,
+                    "invitation_id": invitation['invitation_id'],
+                    "invitation_url": invitation_url,
+                    "role": role
+                }
 
-            except Exception as e:
-                logger.error(f"Failed to create user account for {email}: {e}")
-                raise HTTPException(500, "Failed to create user account")
+            # Create new invitation
+            invitation = server.database.invite_team_member(
+                team_id=team_id,
+                email=email,
+                invited_by_user_id=ctx.user_id
+            )
 
-            # Add to team
-            try:
-                server.database.add_team_member(team_id, user_id, role)
-                logger.info(f"Added new user {email} to team {team_id} as {role}")
-            except Exception as e:
-                # Rollback - delete the user account
-                server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
-                logger.error(f"Failed to add user to team, rolled back account creation: {e}")
-                raise HTTPException(500, "Failed to add user to team")
+            logger.info(f"Created invitation {invitation['invitation_id']} for {email} to team {team_id}")
 
-            # Grant tool permissions
-            if tool_permissions:
-                for category in tool_permissions:
-                    server.database.grant_team_permission(
-                        user_id=user_id,
-                        team_id=team_id,
-                        tool_category=category,
-                        assigned_by_user_id=ctx.user_id
-                    )
-                logger.info(f"Granted {len(tool_permissions)} tool permissions to {email}")
+            # Build invitation URL
+            deployment_url = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("DEPLOYMENT_URL", request.url.hostname))
+            if not deployment_url.startswith("http"):
+                deployment_url = f"https://{deployment_url}"
 
-            # Send welcome email with credentials
+            invitation_url = f"{deployment_url}/invite/{invitation['invitation_id']}"
+
+            # Note: Tool permissions will be granted after the user accepts the invitation
+            # For now, just store them in the response for the frontend to display
+            pending_permissions = tool_permissions if tool_permissions else []
+
+            # Send invitation email
             email_sent = False
             try:
                 import resend
@@ -6853,23 +6851,15 @@ async def add_team_member(
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">👥 Welcome to {team_name}!</h1>
+        <h1 style="color: white; margin: 0; font-size: 28px;">👥 You're invited to {team_name}!</h1>
     </div>
 
     <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px;">
         <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
 
-        <p style="font-size: 16px; margin-bottom: 20px;">{ctx.email} has added you to their team "<strong>{team_name}</strong>" on AI Email Assistant.</p>
+        <p style="font-size: 16px; margin-bottom: 20px;">{ctx.email} has invited you to join their team "<strong>{team_name}</strong>" on the AI Email Assistant MCP server.</p>
 
-        <p style="font-size: 16px; margin-bottom: 20px;">Your account has been created with the following credentials:</p>
-
-        <div style="background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">EMAIL</p>
-            <p style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;">{email}</p>
-
-            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">PASSWORD</p>
-            <p style="margin: 0; font-size: 18px; font-family: 'Courier New', monospace; background: #f3f4f6; padding: 12px; border-radius: 6px; font-weight: 600; letter-spacing: 1px;">{password}</p>
-        </div>
+        <p style="font-size: 16px; margin-bottom: 20px;">This gives you access to powerful AI tools for Gmail, Calendar, Docs, Sheets, and more through Claude.</p>
 
         <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
             <p style="margin: 0; color: #1e40af; font-size: 14px;">
@@ -6877,21 +6867,20 @@ async def add_team_member(
             </p>
         </div>
 
+        <p style="text-align: center; margin: 30px 0;">
+            <a href="{invitation_url}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Accept Invitation</a>
+        </p>
+
         <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0;">
             <p style="margin: 0; color: #92400e; font-size: 14px;">
-                <strong>⚠️ Important:</strong> Please save this password securely. For security reasons, we cannot recover it if lost.
+                <strong>⚠️ Note:</strong> This invitation will expire in 7 days. Click the button above to accept and create your account.
             </p>
         </div>
-
-        <p style="font-size: 16px; margin-bottom: 15px;">Log in now to access your team's tools:</p>
-        <p style="text-align: center; margin: 20px 0;">
-            <a href="https://{request.url.hostname}/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Log In to Your Account</a>
-        </p>
 
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
 
         <p style="font-size: 14px; color: #6b7280; margin: 0;">
-            If you didn't expect this email, please contact {ctx.email} or support.
+            If you didn't expect this invitation, you can safely ignore this email.
         </p>
     </div>
 </body>
@@ -6901,25 +6890,26 @@ async def add_team_member(
                 resend.Emails.send({
                     "from": "AI Email Assistant <noreply@leadgenjay.com>",
                     "to": [email],
-                    "subject": f"Welcome to {team_name} - Your Account Credentials",
+                    "subject": f"You're invited to join {team_name}",
                     "html": email_html
                 })
 
-                logger.info(f"Welcome email sent to {email}")
+                logger.info(f"Invitation email sent to {email}")
                 email_sent = True
 
             except Exception as e:
-                logger.error(f"Failed to send welcome email to {email}: {e}")
+                logger.error(f"Failed to send invitation email to {email}: {e}")
 
             return {
                 "success": True,
-                "message": f"Created account and added {email} to team",
+                "message": f"Invitation sent to {email}",
                 "user_existed": False,
+                "invitation_created": True,
+                "invitation_id": invitation['invitation_id'],
+                "invitation_url": invitation_url,
                 "role": role,
-                "password": password if password_generated else None,  # Only return password if auto-generated
-                "password_generated": password_generated,
                 "email_sent": email_sent,
-                "permissions_granted": len(tool_permissions)
+                "pending_permissions": pending_permissions
             }
 
     except HTTPException:
