@@ -977,8 +977,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="LeadGenJay MCP Remote Server",
-    description="Remote MCP server exposing 82+ tools for Gmail, Calendar, Docs, Sheets, and more",
+    title="BridgeKit API",
+    description="BridgeKit - Professional integration platform for Gmail, Calendar, Docs, Sheets, Fathom, Instantly, and more",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -1047,8 +1047,8 @@ async def root():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Most Powerful MCP Server for Claude Desktop | 85 Tools Across Gmail, Calendar, Docs & More</title>
-    <meta name="description" content="Transform Claude Desktop into your complete workspace. 84 enterprise-grade tools with multi-tenant security, per-user OAuth, and instant setup. Free 3-day trial.">
+    <title>BridgeKit - Connect Your Productivity Tools | Gmail, Calendar, Docs, Sheets & More</title>
+    <meta name="description" content="BridgeKit is a professional integration platform connecting 7+ productivity tools. Secure OAuth, encrypted credentials, user-controlled access. Free 3-day trial.">
     <style>
         * {
             margin: 0;
@@ -1812,26 +1812,26 @@ async def root():
     <!-- Hero Section -->
     <div class="hero">
         <div class="hero-content">
-            <div class="hero-badge">🚀 The Most Advanced MCP Server for Claude Desktop</div>
-            <h1>Turn Claude into Your <span class="highlight">Complete Workspace</span></h1>
-            <p class="subtitle">The only MCP server with enterprise-grade security, multi-tenant architecture, and 85 production-ready tools across Gmail, Calendar, Docs, Sheets, Fathom, Instantly, and Bison.</p>
+            <div class="hero-badge">🔗 Professional Integration Platform for Productivity Tools</div>
+            <h1>BridgeKit: <span class="highlight">Connect Everything</span></h1>
+            <p class="subtitle">A secure integration platform connecting Gmail, Calendar, Docs, Sheets, Fathom, Instantly, and Bison. User-controlled access with encrypted credentials and enterprise-grade security.</p>
 
             <div class="hero-stats">
                 <div class="stat">
-                    <span class="stat-number">84</span>
-                    <span class="stat-label">Production Tools</span>
+                    <span class="stat-number">7+</span>
+                    <span class="stat-label">Platforms Connected</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-number">7</span>
-                    <span class="stat-label">Tool Categories</span>
+                    <span class="stat-number">85</span>
+                    <span class="stat-label">Integration Tools</span>
                 </div>
                 <div class="stat">
                     <span class="stat-number">30s</span>
                     <span class="stat-label">Setup Time</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-number">100%</span>
-                    <span class="stat-label">Secure</span>
+                    <span class="stat-number">256-bit</span>
+                    <span class="stat-label">Encryption</span>
                 </div>
             </div>
 
@@ -1846,30 +1846,30 @@ async def root():
     <!-- Problem/Solution Section -->
     <div class="problem-solution">
         <div class="container">
-            <h2>Stop Context Switching. Start Shipping.</h2>
+            <h2>One Platform. All Your Tools. You're in Control.</h2>
 
             <div class="comparison">
                 <div class="comparison-card problem">
-                    <h3>😫 Without Our Platform</h3>
+                    <h3>😫 Without BridgeKit</h3>
                     <ul>
-                        <li>Switching between 7+ different tools constantly</li>
-                        <li>Losing context every time you switch apps</li>
-                        <li>Copy-pasting information back and forth</li>
-                        <li>Waiting for AI to "re-understand" your workflow</li>
-                        <li>Managing multiple logins and credentials</li>
-                        <li>Security risks from sharing sensitive data</li>
+                        <li>Juggling 7+ different tools and interfaces</li>
+                        <li>Manual copy-pasting between platforms</li>
+                        <li>Multiple logins and scattered credentials</li>
+                        <li>No unified view of your workspace</li>
+                        <li>Security risks from third-party integrations</li>
+                        <li>Limited control over data access</li>
                     </ul>
                 </div>
 
                 <div class="comparison-card solution">
-                    <h3>🚀 With Our Platform</h3>
+                    <h3>🚀 With BridgeKit</h3>
                     <ul>
-                        <li>Everything happens inside Claude Desktop</li>
-                        <li>AI maintains full context across all tools</li>
-                        <li>Natural language commands for everything</li>
-                        <li>Instant access to emails, docs, calendars, and more</li>
-                        <li>Secure OAuth with per-user credential isolation</li>
-                        <li>Enterprise-grade security built-in</li>
+                        <li>Unified access to all your productivity tools</li>
+                        <li>You control exactly what data is accessed</li>
+                        <li>Secure OAuth - your credentials, your control</li>
+                        <li>Per-user isolation - your data stays yours</li>
+                        <li>Encrypted credential storage (256-bit)</li>
+                        <li>Revoke access anytime with one click</li>
                     </ul>
                 </div>
             </div>
@@ -1879,56 +1879,56 @@ async def root():
     <!-- Enterprise Features Section -->
     <div class="enterprise-features">
         <div class="container">
-            <h2>Built Different</h2>
-            <p class="subtitle-text">Enterprise-grade architecture that other MCP servers can't match</p>
+            <h2>Security & Privacy First</h2>
+            <p class="subtitle-text">Enterprise-grade architecture with user control at every level</p>
 
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">🔒</div>
-                    <h3>Multi-Tenant Security</h3>
-                    <p>True per-user credential isolation. Your data never touches other users. Bank-grade encryption for all stored tokens.</p>
+                    <h3>Per-User Data Isolation</h3>
+                    <p>Your data is completely isolated from other users. Each account has its own encrypted credential storage.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🎯</div>
-                    <h3>Per-User OAuth</h3>
-                    <p>Every user authenticates with their own Google account. No shared credentials. Full control over permissions.</p>
+                    <h3>You Own Your Credentials</h3>
+                    <p>OAuth 2.0 authentication means you grant access directly. We never see your passwords. Revoke anytime.</p>
                 </div>
 
                 <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>30-Second Setup</h3>
-                    <p>One-click OAuth, copy-paste URL into Claude Desktop, done. No command line. No configuration files. Just works.</p>
+                    <div class="feature-icon">🔐</div>
+                    <h3>256-bit Encryption</h3>
+                    <p>All stored credentials encrypted with Fernet (AES-128-CBC). Your tokens are secure at rest and in transit.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🛡️</div>
-                    <h3>Rate Limiting</h3>
+                    <h3>Rate Limiting & Protection</h3>
                     <p>Built-in protection against brute force attacks. Sliding window rate limiting on all authentication endpoints.</p>
                 </div>
 
                 <div class="feature-card">
+                    <div class="feature-icon">👁️</div>
+                    <h3>User-Initiated Access Only</h3>
+                    <p>We only access your data when you explicitly request it. No background scanning. No automated reading.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🗑️</div>
+                    <h3>Delete Anytime</h3>
+                    <p>Remove your account and all associated data instantly. We don't retain your data after deletion.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Transparent Access Logs</h3>
+                    <p>See exactly what data was accessed and when. Full visibility into every integration operation.</p>
+                </div>
+
+                <div class="feature-card">
                     <div class="feature-icon">🌐</div>
-                    <h3>Secure CORS</h3>
+                    <h3>Secure CORS Policy</h3>
                     <p>Whitelist-only origin policy prevents CSRF attacks. Your credentials are safe from malicious sites.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <h3>Stripe-Verified Webhooks</h3>
-                    <p>Signature verification on all payment webhooks. Impossible to bypass payment or forge subscriptions.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Usage Analytics</h3>
-                    <p>Track tool usage, monitor performance, and understand your workflows. Built-in dashboard for all metrics.</p>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h3>Auto-Scaling Ready</h3>
-                    <p>Deployed on Railway with automatic scaling. Handles thousands of concurrent users without breaking a sweat.</p>
                 </div>
             </div>
         </div>
@@ -1937,8 +1937,8 @@ async def root():
     <!-- Tool Categories Section -->
     <div class="container">
         <div class="section-header">
-            <h2>All 85 Tools, Organized by Category</h2>
-            <p>Pick and choose the categories you need. Only pay for what you use.</p>
+            <h2>7+ Platforms, 85 Integration Tools</h2>
+            <p>Connect the platforms you need. You choose what to access.</p>
         </div>
 
         <div class="tool-categories">
@@ -2064,29 +2064,29 @@ async def root():
     <!-- How It Works -->
     <div class="how-it-works">
         <div class="section-header">
-            <h2>How It Works</h2>
-            <p>Get started in less than 3 minutes</p>
+            <h2>How BridgeKit Works</h2>
+            <p>Secure setup in less than 3 minutes</p>
         </div>
         <div class="steps">
             <div class="step">
                 <div class="step-number">1</div>
-                <h3>Sign Up Free</h3>
-                <p>Connect your Google account with one click. No credit card required for the 3-day trial.</p>
+                <h3>Create Account</h3>
+                <p>Sign up with email or Google. No credit card required for the 3-day trial.</p>
             </div>
             <div class="step">
                 <div class="step-number">2</div>
-                <h3>Choose Categories</h3>
-                <p>Select which tool categories you want. Start with everything free for 3 days.</p>
+                <h3>Authorize Access</h3>
+                <p>Connect the platforms you want via OAuth. You control exactly what's shared.</p>
             </div>
             <div class="step">
                 <div class="step-number">3</div>
-                <h3>Connect to Claude</h3>
-                <p>Add the server URL to Claude Desktop. Copy-paste setup takes 30 seconds.</p>
+                <h3>Choose Your Tools</h3>
+                <p>Select which integration categories you need. Only pay for what you use.</p>
             </div>
             <div class="step">
                 <div class="step-number">4</div>
-                <h3>Start Using Tools</h3>
-                <p>Ask Claude to check your email, schedule meetings, or create docs. It just works.</p>
+                <h3>Start Integrating</h3>
+                <p>Access your tools through our secure API. Compatible with Claude Desktop and other clients.</p>
             </div>
         </div>
     </div>
@@ -2141,8 +2141,8 @@ async def root():
 
     <!-- Footer CTA -->
     <div class="footer-cta">
-        <h2>Ready to Transform Your Workflow?</h2>
-        <p>Join thousands using the most powerful MCP server for Claude Desktop.</p>
+        <h2>Ready to Connect Your Tools?</h2>
+        <p>Join BridgeKit - secure integration for all your productivity platforms.</p>
         <div class="cta-buttons">
             <a href="/signup" class="cta-button">Start Free Trial →</a>
             <a href="/login" class="cta-button-secondary">Log In</a>
@@ -3777,7 +3777,7 @@ async def signup_form(request: Request, error: Optional[str] = Query(None)):
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sign Up - AI Email Assistant</title>
+    <title>Sign Up - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {{
@@ -4095,7 +4095,7 @@ async def login_form(request: Request, error: Optional[str] = Query(None)):
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Log In - AI Email Assistant</title>
+    <title>Log In - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {{
@@ -4235,7 +4235,7 @@ async def login_form(request: Request, error: Optional[str] = Query(None)):
 <body>
     <div class="container">
         <h1>👋 Welcome Back</h1>
-        <p class="subtitle">Log in to access your AI Email Assistant</p>
+        <p class="subtitle">Log in to access BridgeKit</p>
 
         {f'<div class="error-msg">❌ {error}</div>' if error else ''}
 
@@ -4645,7 +4645,7 @@ async def dashboard(
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MCP Dashboard - Login Required</title>
+    <title>BridgeKit - Login Required</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -5007,7 +5007,7 @@ async def dashboard(
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MCP Dashboard - {ctx.email}</title>
+    <title>BridgeKit Dashboard - {ctx.email}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {{
@@ -5182,7 +5182,7 @@ async def dashboard(
     <!-- Navigation Bar -->
     <nav style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: -50px -20px 30px -20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto;">
-            <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🤖 AI Email Assistant</a>
+            <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🔗 BridgeKit</a>
             <div style="display: flex; gap: 15px; align-items: center;">
                 <a href="/dashboard?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.2); font-weight: 500;">Dashboard</a>
                 <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; color: white; font-size: 14px;">{ctx.email}</div>
@@ -5224,7 +5224,7 @@ async def dashboard(
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
             <div style="font-size: 32px; margin-bottom: 10px;">👋</div>
             <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Welcome back{f", {user.get('name', '') or first_name or ctx.email.split('@')[0]}" if not is_new_user == 'True' else ""}!</h2>
-            <p style="margin: 0; font-size: 16px; opacity: 0.95;">Good to see you again. Manage your subscriptions below or check the Setup tab to connect to Claude Desktop.</p>
+            <p style="margin: 0; font-size: 16px; opacity: 0.95;">Good to see you again. Manage your subscriptions below or check the Setup tab to connect BridgeKit to Claude Desktop.</p>
         </div>
         ''' if (is_new_user == 'False' or welcome == 'true') else '')}
 
@@ -5232,7 +5232,7 @@ async def dashboard(
         <div style="background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; animation: bannerSlideDown 0.5s ease-out;">
             <div style="font-size: 32px; margin-bottom: 10px;">🎉</div>
             <h2 style="color: white; margin: 0 0 10px 0; font-size: 24px;">Subscription Successful!</h2>
-            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95;">Your tools are now active! Go to the Setup tab to connect to Claude Desktop.</p>
+            <p style="margin: 0 0 15px 0; font-size: 16px; opacity: 0.95;">Your tools are now active! Go to the Setup tab to connect BridgeKit to Claude Desktop.</p>
             <button onclick="this.parentElement.style.display='none'" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">Got it! ✓</button>
         </div>
         ''' if subscription_success == 'true' else ''}
@@ -5524,8 +5524,8 @@ async def dashboard(
         <!-- Tab Content: Setup -->
         <div class="tab-content" id="setup" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;">
-                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">⚙️ Connect to Claude Desktop</h2>
-                <p style="color: #718096; margin-bottom: 25px;">Add this remote MCP server to Claude Desktop</p>
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">⚙️ Connect BridgeKit to Claude Desktop</h2>
+                <p style="color: #718096; margin-bottom: 25px;">Add BridgeKit as an MCP server in Claude Desktop</p>
 
                 <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin-bottom: 30px; border-left: 4px solid #f59e0b;">
                     <strong style="color: #92400e; font-size: 16px;">📝 Setup Instructions:</strong>
@@ -5543,7 +5543,7 @@ async def dashboard(
                 <div style="display: grid; gap: 20px; margin-bottom: 30px;">
                     <div>
                         <h3 style="color: #1a202c; margin-bottom: 10px; font-size: 16px;">📌 Server Name</h3>
-                        <input type="text" value="AI Email Assistant" readonly onclick="this.select()" style="width: 100%; padding: 14px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600;">
+                        <input type="text" value="BridgeKit" readonly onclick="this.select()" style="width: 100%; padding: 14px; background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600;">
                         <p style="color: #9ca3af; font-size: 12px; margin-top: 6px;">Click to select and copy</p>
                     </div>
 
@@ -7379,7 +7379,7 @@ async def add_team_member(
     <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px;">
         <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
 
-        <p style="font-size: 16px; margin-bottom: 20px;">{ctx.email} has invited you to join their team "<strong>{team_name}</strong>" on the AI Email Assistant MCP server.</p>
+        <p style="font-size: 16px; margin-bottom: 20px;">{ctx.email} has invited you to join their team "<strong>{team_name}</strong>" on BridgeKit.</p>
 
         <p style="font-size: 16px; margin-bottom: 20px;">This gives you access to powerful AI tools for Gmail, Calendar, Docs, Sheets, and more through Claude.</p>
 
@@ -7410,7 +7410,7 @@ async def add_team_member(
             """
 
             resend.Emails.send({
-                "from": "AI Email Assistant <noreply@leadgenjay.com>",
+                "from": "BridgeKit <noreply@getbridgekit.com>",
                 "to": [email],
                 "subject": f"You're invited to join {team_name}",
                 "html": email_html
@@ -8694,7 +8694,7 @@ async def admin_login_page(error: Optional[str] = Query(None)):
 <body>
     <div class="login-card">
         <h1>🔐 Admin Login</h1>
-        <p class="subtitle">Gmail Reply Tracker MCP - Admin Dashboard</p>
+        <p class="subtitle">BridgeKit - Admin Dashboard</p>
         {'<div class="error-msg">❌ Invalid password. Please try again.</div>' if error else ''}
         <form method="post" action="/admin/login">
             <input type="email" name="admin_email" placeholder="Enter your email" required autofocus style="margin-bottom: 15px;">
@@ -9633,7 +9633,7 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Dashboard - Gmail Reply Tracker MCP</title>
+    <title>Admin Dashboard - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {{
@@ -9912,7 +9912,7 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
         <div class="header">
             <div class="header-content">
                 <h1>🛠️ Admin Dashboard</h1>
-                <p>Gmail Reply Tracker MCP - System Overview</p>
+                <p>BridgeKit - System Overview</p>
                 <p style="opacity: 0.8; font-size: 14px; margin-top: 8px;">Logged in as: {admin_email}</p>
             </div>
             <a href="/admin/logout" class="logout-btn">Logout</a>
@@ -12362,7 +12362,7 @@ async def admin_generate_password(
     <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 12px 12px;">
         <p style="font-size: 16px; margin-bottom: 20px;">Hello,</p>
 
-        <p style="font-size: 16px; margin-bottom: 20px;">Your account credentials for the AI Email Assistant have been set up:</p>
+        <p style="font-size: 16px; margin-bottom: 20px;">Your account credentials for BridgeKit have been set up:</p>
 
         <div style="background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
             <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px; font-weight: 600;">EMAIL</p>
@@ -12394,9 +12394,9 @@ async def admin_generate_password(
             """
 
             resend.Emails.send({
-                "from": "AI Email Assistant <noreply@leadgenjay.com>",
+                "from": "BridgeKit <noreply@getbridgekit.com>",
                 "to": [user_email],
-                "subject": "Your Account Credentials - AI Email Assistant",
+                "subject": "Your Account Credentials - BridgeKit",
                 "html": email_html
             })
 
