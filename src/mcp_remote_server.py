@@ -8015,46 +8015,46 @@ async def admin_login_page(error: Optional[str] = Query(None)):
 </html>
         """, status_code=500)
 
-    return HTMLResponse("""
+    return HTMLResponse(f"""
 <!DOCTYPE html>
 <html>
 <head>
     <title>Admin Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        :root {
+        :root {{
             --background: 0 0% 100%;
             --foreground: 222.2 84% 4.9%;
             --card: 0 0% 100%;
             --primary: 221.2 83.2% 53.3%;
             --primary-foreground: 210 40% 98%;
             --radius: 0.5rem;
-        }
-        body {
+        }}
+        body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             max-width: 500px;
             margin: 100px auto;
             padding: 20px;
             background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
             min-height: 100vh;
-        }
-        .login-card {
+        }}
+        .login-card {{
             background: hsl(var(--card));
             padding: 40px;
             border-radius: calc(var(--radius) * 2);
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-        h1 {
+        }}
+        h1 {{
             color: hsl(var(--foreground));
             margin-bottom: 10px;
             font-size: 28px;
-        }
-        .subtitle {
+        }}
+        .subtitle {{
             color: hsl(215.4 16.3% 46.9%);
             margin-bottom: 30px;
             font-size: 14px;
-        }
-        input {
+        }}
+        input {{
             width: 100%;
             padding: 12px;
             border: 2px solid hsl(214.3 31.8% 91.4%);
@@ -8062,12 +8062,12 @@ async def admin_login_page(error: Optional[str] = Query(None)):
             font-size: 16px;
             box-sizing: border-box;
             margin-bottom: 20px;
-        }
-        input:focus {
+        }}
+        input:focus {{
             outline: none;
             border-color: hsl(var(--primary));
-        }
-        button {
+        }}
+        button {{
             width: 100%;
             background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 58%) 100%);
             color: hsl(var(--primary-foreground));
@@ -8078,11 +8078,11 @@ async def admin_login_page(error: Optional[str] = Query(None)):
             font-weight: 600;
             cursor: pointer;
             transition: opacity 0.2s;
-        }
-        button:hover {
+        }}
+        button:hover {{
             opacity: 0.9;
-        }
-        .error-msg {
+        }}
+        .error-msg {{
             background: hsl(0 84.2% 60.2% / 0.1);
             color: hsl(0 84.2% 60.2%);
             padding: 12px;
@@ -8090,7 +8090,7 @@ async def admin_login_page(error: Optional[str] = Query(None)):
             margin-bottom: 20px;
             font-size: 14px;
             text-align: center;
-        }
+        }}
     </style>
 </head>
 <body>
