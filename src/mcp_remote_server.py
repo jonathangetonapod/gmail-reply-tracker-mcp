@@ -5378,6 +5378,7 @@ async def dashboard(
                 </div>
             </div>
         </div>''') if personal_subscriptions or not user_teams else ''}
+        </div>
 
         {f'''<!-- Tab Content: Teams -->
         <div class="tab-content" id="teams" style="display: none;">
