@@ -5327,10 +5327,10 @@ async def dashboard(
                 </div>
             </div>''' if active_subscriptions else '<div style="background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;"><div style="font-size: 64px; margin-bottom: 15px;">📭</div><div style="font-size: 18px; font-weight: 600; color: #1a202c; margin-bottom: 8px;">No Active Subscriptions</div><div style="font-size: 15px; color: #6b7280;">Subscribe to categories below to get started!</div></div>'}
 
-            <!-- Manage Button -->
-            <div style="text-align: center; margin-bottom: 40px;">
+            <!-- Manage Button (hide for team-only members who have no personal subscriptions) -->
+            {f'''<div style="text-align: center; margin-bottom: 40px;">
                 <a href="/billing?session_token={session_token}" style="display: inline-block; padding: 12px 24px; background: #e2e8f0; color: #4a5568; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.2s; font-size: 15px;">💳 Manage Subscriptions in Stripe</a>
-            </div>
+            </div>''' if not is_team_member_only else ''}
 
             <!-- Cancelled Subscriptions (with Resume button) -->
             {f'''<div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
