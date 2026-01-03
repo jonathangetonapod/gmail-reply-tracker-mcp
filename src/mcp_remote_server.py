@@ -5239,12 +5239,12 @@ async def dashboard(
             </div>''' if cancelled_subscriptions else ''}
 
             <!-- Available Subscriptions (only show if user has personal subs OR is not on any teams) -->
-            {f'''<div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
+            {(f'''<div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">Subscribe to More Tools</h2>
                 <p style="color: #718096; margin-bottom: 25px;">Select categories to add ($5/month each)</p>
 
                 <!-- Team Subscription Selector -->
-                ''' if personal_subscriptions or not user_teams else ''}{f'''
+                {f'''
                 <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #667eea30;">
                     <div style="margin-bottom: 15px;">
                         <label style="font-size: 14px; font-weight: 600; color: #374151; display: block; margin-bottom: 10px;">
@@ -5311,7 +5311,7 @@ async def dashboard(
                     <div id="cart-items-list" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 14px; opacity: 0.9;"></div>
                 </div>
             </div>
-        </div>''' if personal_subscriptions or not user_teams else ''}
+        </div>''') if personal_subscriptions or not user_teams else ''}
 
         {f'''<!-- Tab Content: Teams -->
         <div class="tab-content" id="teams" style="display: none;">
