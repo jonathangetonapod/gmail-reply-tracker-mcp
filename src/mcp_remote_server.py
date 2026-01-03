@@ -7400,7 +7400,7 @@ async def invitation_page(
         <div class="info-box">
             <div class="info-row">
                 <span class="label">Invited to:</span>
-                <span class="value">{invitation['email']}</span>
+                <span class="value">{invitation.get('email', 'N/A')}</span>
             </div>
             <div class="info-row">
                 <span class="label">Expires:</span>
@@ -7408,7 +7408,7 @@ async def invitation_page(
             </div>
         </div>
 
-        {'<div class="alert alert-warning">⚠️ You are logged in as ' + user_email + ', but this invitation is for ' + invitation["email"] + '. Please log out or use the correct account.</div>' if is_logged_in and not email_matches else ''}
+        {'<div class="alert alert-warning">⚠️ You are logged in as ' + user_email + ', but this invitation is for ' + invitation.get("email", "unknown") + '. Please log out or use the correct account.</div>' if is_logged_in and not email_matches else ''}
 
         <div id="error-message" class="alert alert-error"></div>
 
@@ -7423,7 +7423,7 @@ async def invitation_page(
         <form id="signup-form" onsubmit="handleSignup(event)">
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" id="email" value="{invitation['email']}" readonly style="background: #f9fafb;">
+                <input type="email" id="email" value="{invitation.get('email', '')}" readonly style="background: #f9fafb;">
             </div>
             <div class="form-group">
                 <label>Password</label>
