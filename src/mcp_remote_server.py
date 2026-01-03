@@ -5359,7 +5359,7 @@ async def dashboard(
             </div>
         </div>''' if teams_enabled else ''}
 
-        <!-- Tab Content: API Keys -->
+        {f'''<!-- Tab Content: API Keys -->
         <div class="tab-content" id="api-keys" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">🔑 API Keys</h2>
@@ -5414,9 +5414,9 @@ async def dashboard(
                 </div>
                 '''}
             </div>
-        </div>
+        </div>'''}
 
-        <!-- Tab Content: Setup -->
+        {f'''<!-- Tab Content: Setup -->
         <div class="tab-content" id="setup" style="display: none;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;">
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">⚙️ Connect to Claude Desktop</h2>
@@ -5461,7 +5461,7 @@ async def dashboard(
                     </div>
                 </div>
             </div>
-        </div>
+        </div>'''}
     </div>
 
     <script>
