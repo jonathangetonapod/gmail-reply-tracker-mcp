@@ -26,7 +26,7 @@ from typing import Dict, Optional, Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Header, Query, HTTPException, Form
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette import EventSourceResponse
 
@@ -1038,6 +1038,31 @@ async def health_check():
     })
 
 
+@app.get("/static/{filename}")
+async def serve_static(filename: str):
+    """Serve static files (logo, favicon, etc.)."""
+    static_dir = Path(__file__).parent.parent / "static"
+    file_path = static_dir / filename
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Determine content type
+    content_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".ico": "image/x-icon",
+        ".svg": "image/svg+xml",
+        ".css": "text/css",
+        ".js": "application/javascript"
+    }
+    suffix = file_path.suffix.lower()
+    media_type = content_types.get(suffix, "application/octet-stream")
+
+    return FileResponse(file_path, media_type=media_type)
+
+
 @app.get("/")
 async def root():
     """Landing page - Product-focused marketing."""
@@ -1049,6 +1074,7 @@ async def root():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BridgeKit - Connect Your Productivity Tools | Gmail, Calendar, Docs, Sheets & More</title>
     <meta name="description" content="BridgeKit is a professional integration platform connecting 7+ productivity tools. Secure OAuth, encrypted credentials, user-controlled access. Free 3-day trial.">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         * {
             margin: 0;
@@ -1809,8 +1835,21 @@ async def root():
     </style>
 </head>
 <body>
+    <!-- Navigation Header -->
+    <nav style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 12px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <a href="/" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+            <img src="/static/logo.png" alt="BridgeKit" style="height: 40px; width: 40px; border-radius: 8px;">
+            <span style="font-size: 1.4rem; font-weight: 700; color: #1a202c;">BridgeKit</span>
+        </a>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <a href="#pricing" style="color: #4a5568; text-decoration: none; font-weight: 500;">Pricing</a>
+            <a href="/login" style="color: #4a5568; text-decoration: none; font-weight: 500;">Login</a>
+            <a href="/signup" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102,126,234,0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">Get Started</a>
+        </div>
+    </nav>
+
     <!-- Hero Section -->
-    <div class="hero">
+    <div class="hero" style="padding-top: 140px;">
         <div class="hero-content">
             <div class="hero-badge">🔗 Professional Integration Platform for Productivity Tools</div>
             <h1>BridgeKit: <span class="highlight">Connect Everything</span></h1>
@@ -1950,8 +1989,8 @@ async def root():
                 <ul class="tool-list">
                     <li>Search emails with advanced filters</li>
                     <li>Read, send, and reply to messages</li>
-                    <li>Manage labels and organize inbox</li>
-                    <li>Mark as read/unread, archive, delete</li>
+                    <li>Create and manage email drafts</li>
+                    <li>Track unreplied conversations</li>
                     <li>Extract attachments and metadata</li>
                     <li>Bulk operations and email analysis</li>
                 </ul>
@@ -2263,7 +2302,7 @@ async def root():
                                 difficulty: 'basic',
                                 prompts: [
                                     '"Find all investor emails from the past month"',
-                                    '"Create labels for Board, Investors, Customers, Team"',
+                                    '"Show me unreplied emails from board members"',
                                     '"Search all emails mentioning \\\'fundraising\\\' or \\\'capital\\\'"'
                                 ]
                             },
@@ -3274,6 +3313,7 @@ async def privacy_policy():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy - BridgeKit</title>
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -3482,6 +3522,7 @@ async def terms_of_service():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terms of Service - BridgeKit</title>
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -3929,7 +3970,7 @@ async def setup_start(
         client_id = os.getenv("GOOGLE_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
         redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
-        scopes = os.getenv("GMAIL_OAUTH_SCOPES", "").split(",")
+        scopes = os.getenv("GOOGLE_OAUTH_SCOPES", "").split(",")
 
         if not client_id or not client_secret or not redirect_uri:
             raise ValueError("OAuth environment variables not configured")
@@ -4030,7 +4071,7 @@ async def signup_start(
         client_id = os.getenv("GOOGLE_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
         redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
-        scopes = os.getenv("GMAIL_OAUTH_SCOPES", "").split(",")
+        scopes = os.getenv("GOOGLE_OAUTH_SCOPES", "").split(",")
 
         if not client_id or not client_secret or not redirect_uri:
             raise ValueError("OAuth environment variables not configured")
@@ -4135,7 +4176,7 @@ async def login_start(
         client_id = os.getenv("GOOGLE_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
         redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
-        scopes = os.getenv("GMAIL_OAUTH_SCOPES", "").split(",")
+        scopes = os.getenv("GOOGLE_OAUTH_SCOPES", "").split(",")
 
         if not client_id or not client_secret or not redirect_uri:
             raise ValueError("OAuth environment variables not configured")
@@ -4242,6 +4283,7 @@ async def signup_form(request: Request, error: Optional[str] = Query(None)):
 <head>
     <title>Sign Up - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -4560,6 +4602,7 @@ async def login_form(request: Request, error: Optional[str] = Query(None)):
 <head>
     <title>Log In - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -5555,6 +5598,7 @@ async def dashboard(
 <head>
     <title>BridgeKit Dashboard - {ctx.email}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
@@ -5728,7 +5772,10 @@ async def dashboard(
     <!-- Navigation Bar -->
     <nav style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: -50px -20px 30px -20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto;">
-            <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🔗 BridgeKit</a>
+            <a href="/" style="display: flex; align-items: center; gap: 10px; color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">
+                <img src="/static/logo.png" alt="BridgeKit" style="height: 36px; width: 36px; border-radius: 8px;">
+                BridgeKit
+            </a>
             <div style="display: flex; gap: 15px; align-items: center;">
                 <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; color: white; font-size: 14px;">{ctx.email}</div>
                 <a href="/logout?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.1); font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Logout</a>
@@ -10262,6 +10309,7 @@ async def admin_dashboard(request: Request, admin_password: Optional[str] = Quer
 <head>
     <title>Admin Dashboard - BridgeKit</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
     <style>
         :root {{
             --background: 0 0% 100%;
