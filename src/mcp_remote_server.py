@@ -6519,24 +6519,6 @@ async def team_settings_page(
                         </div>
                     </div>
 
-                    <div>
-                        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Password</label>
-                        <div style="display: flex; gap: 16px; margin-bottom: 12px;">
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="radio" name="password-method" value="auto" checked onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;">
-                                <span style="font-size: 14px; color: #374151;">Auto-generate password</span>
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="radio" name="password-method" value="manual" onchange="togglePasswordMethod()" style="width: 16px; height: 16px; cursor: pointer;">
-                                <span style="font-size: 14px; color: #374151;">Set password manually</span>
-                            </label>
-                        </div>
-                        <div id="manual-password-container" style="display: none;">
-                            <input type="password" id="add-member-password" placeholder="Enter password (min 8 characters)" minlength="8" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
-                            <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Password will be emailed to the user</p>
-                        </div>
-                    </div>
-
                     {('<div><label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Grant Access to Tools</label><div style="background: #f9fafb; padding: 12px; border-radius: 6px; border: 2px solid #e2e8f0;"><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">' + ''.join([f'<label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"><input type="checkbox" name="tool-permission" value="{cat}" checked class="tool-permission-checkbox" style="width: 16px; height: 16px; cursor: pointer;"><span style="font-size: 13px; color: #374151;">{cat.title()}</span></label>' for cat in team_subscription_categories]) + '</div></div>' + ('<p style="font-size: 12px; color: #6b7280; margin-top: 6px;">💡 Select which team tools this member can access</p>' if team_subscription_categories else '<p style="font-size: 12px; color: #f59e0b; margin-top: 6px;">⚠️ No team subscriptions yet - subscribe first to grant access</p>') + '</div>' if team_subscription_categories else '')}
 
                     <div>
@@ -6622,38 +6604,14 @@ async def team_settings_page(
             }}
         }}
 
-        function togglePasswordMethod() {{
-            const passwordMethod = document.querySelector('input[name="password-method"]:checked').value;
-            const manualPasswordContainer = document.getElementById('manual-password-container');
-            const passwordInput = document.getElementById('add-member-password');
-
-            if (passwordMethod === 'manual') {{
-                manualPasswordContainer.style.display = 'block';
-                passwordInput.required = true;
-            }} else {{
-                manualPasswordContainer.style.display = 'none';
-                passwordInput.required = false;
-                passwordInput.value = '';
-            }}
-        }}
-
         async function addMember(event) {{
             event.preventDefault();
             const email = document.getElementById('add-member-email').value;
             const role = document.getElementById('add-member-role').value;
-            const passwordMethod = document.querySelector('input[name="password-method"]:checked').value;
             const sessionToken = '{session_token}';
 
             // Build request payload
             const payload = {{ email, role }};
-
-            // Add password if manually entered
-            if (passwordMethod === 'manual') {{
-                const password = document.getElementById('add-member-password').value;
-                if (password) {{
-                    payload.password = password;
-                }}
-            }}
 
             // Collect selected tool permissions
             const toolPermissions = Array.from(document.querySelectorAll('.tool-permission-checkbox:checked'))
@@ -6678,41 +6636,17 @@ async def team_settings_page(
                 const result = await response.json();
 
                 if (response.ok) {{
-                    // Check if invitation was created (user didn't exist)
-                    if (result.invitation_created && result.invitation_url) {{
-                        // Show modal with copyable invitation link
-                        showInvitationModal(email, result.invitation_url);
+                    // Show modal with copyable invitation link
+                    const invitationUrl = result.invitation_url;
+                    if (invitationUrl) {{
+                        showInvitationModal(email, invitationUrl);
                         document.getElementById('add-member-email').value = '';
-                        document.getElementById('add-member-password').value = '';
-                        document.querySelector('input[name="password-method"][value="auto"]').checked = true;
-                        togglePasswordMethod();
                         submitBtn.textContent = originalText;
                         submitBtn.disabled = false;
                     }} else {{
-                        // User already existed - just added to team
-                        let message = result.user_existed
-                            ? `✓ Added ${{email}} to team as ${{role}}`
-                            : `✓ Created account and added ${{email}} as ${{role}}`;
-
-                        if (!result.user_existed) {{
-                            if (result.password_generated) {{
-                                // Auto-generated password
-                                message += result.email_sent
-                                    ? '\\n📧 Auto-generated password emailed to user'
-                                    : '\\n⚠️ Email failed - password: ' + result.password;
-                            }} else {{
-                                // Manual password
-                                message += result.email_sent
-                                    ? '\\n📧 Login credentials emailed to user'
-                                    : '\\n⚠️ Email failed - please share the password with the user manually';
-                            }}
-                        }}
-
-                        alert(message);
+                        // Fallback - shouldn't happen but handle gracefully
+                        alert('✓ Invitation sent to ' + email);
                         document.getElementById('add-member-email').value = '';
-                        document.getElementById('add-member-password').value = '';
-                        document.querySelector('input[name="password-method"][value="auto"]').checked = true;
-                        togglePasswordMethod();
                         window.location.reload();
                     }}
                 }} else {{
@@ -7333,7 +7267,6 @@ async def add_team_member(
         body = await request.json()
         email = body.get('email', '').strip().lower()
         role = body.get('role', 'member').strip().lower()
-        manual_password = body.get('password', '').strip()  # Optional manual password
         tool_permissions = body.get('tool_permissions', [])  # List of tool categories to grant access to
 
         if not email:
@@ -7346,10 +7279,6 @@ async def add_team_member(
         # Validate role
         if role not in ['member', 'admin']:
             raise HTTPException(400, "Role must be 'member' or 'admin'")
-
-        # Validate manual password if provided
-        if manual_password and len(manual_password) < 8:
-            raise HTTPException(400, "Password must be at least 8 characters")
 
         # Check if user is team owner or admin
         teams = server.database.get_user_teams(ctx.user_id)
