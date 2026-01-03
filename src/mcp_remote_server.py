@@ -4377,6 +4377,26 @@ async def login_submit(request: Request):
         )
 
 
+@app.get("/logout")
+async def logout(session_token: Optional[str] = Query(None)):
+    """Logout user by invalidating their session token."""
+    from fastapi.responses import RedirectResponse
+
+    # Invalidate session token in database if provided
+    if session_token:
+        try:
+            # Clear the session token from the user record
+            server.database.supabase.table('users').update({
+                'session_token': None
+            }).eq('session_token', session_token).execute()
+            logger.info(f"User logged out, session token invalidated")
+        except Exception as e:
+            logger.error(f"Error invalidating session token: {e}")
+
+    # Redirect to login page
+    return RedirectResponse(url="/login", status_code=303)
+
+
 @app.get("/setup/callback")
 async def setup_callback(
     request: Request,
@@ -5163,9 +5183,10 @@ async def dashboard(
     <nav style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: -50px -20px 30px -20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto;">
             <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🤖 AI Email Assistant</a>
-            <div style="display: flex; gap: 20px; align-items: center;">
+            <div style="display: flex; gap: 15px; align-items: center;">
                 <a href="/dashboard?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.2); font-weight: 500;">Dashboard</a>
                 <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; color: white; font-size: 14px;">{ctx.email}</div>
+                <a href="/logout?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.1); font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Logout</a>
             </div>
         </div>
     </nav>
