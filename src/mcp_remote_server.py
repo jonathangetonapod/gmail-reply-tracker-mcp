@@ -5730,7 +5730,6 @@ async def dashboard(
         <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto;">
             <a href="/" style="color: white; font-size: 1.5rem; font-weight: 700; text-decoration: none;">🔗 BridgeKit</a>
             <div style="display: flex; gap: 15px; align-items: center;">
-                <a href="/dashboard?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.2); font-weight: 500;">Dashboard</a>
                 <div style="background: rgba(255,255,255,0.15); padding: 8px 16px; border-radius: 20px; color: white; font-size: 14px;">{ctx.email}</div>
                 <a href="/logout?session_token={session_token}" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; background: rgba(255,255,255,0.1); font-weight: 500; border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Logout</a>
             </div>
