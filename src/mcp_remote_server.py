@@ -6113,20 +6113,20 @@ async def dashboard(
 
                 <div id="subscription-cart" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     {''.join([f'''
-                        <label class="subscription-item" data-category="{cat}" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; background: white; transition: all 0.2s;">
+                        <label class="subscription-item" data-category="{cat}" style="display: flex; flex-direction: column; padding: 20px; border: 2px solid {'#10b981' if cat in active_subscriptions else '#e2e8f0'}; border-radius: 12px; cursor: {'default' if cat in active_subscriptions else 'pointer'}; background: {'#f0fdf4' if cat in active_subscriptions else 'white'}; transition: all 0.2s; {'opacity: 0.7;' if cat in active_subscriptions else ''}">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
                                 <span style="font-size: 36px;">{category_info[cat]["emoji"]}</span>
                                 <div class="subscription-status">
-                                    <input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">
+                                    {f'<span style="background: #10b981; color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;">✓ Active</span>' if cat in active_subscriptions else f'<input type="checkbox" name="subscribe-{cat}" value="{cat}" class="subscription-checkbox" style="width: 22px; height: 22px; cursor: pointer;">'}
                                 </div>
                             </div>
-                            <h3 style="margin: 0 0 8px 0; font-size: 18px; color: #1a202c;">{category_info[cat]["name"]}</h3>
+                            <h3 style="margin: 0 0 8px 0; font-size: 18px; color: {'#059669' if cat in active_subscriptions else '#1a202c'};">{category_info[cat]["name"]}</h3>
                             <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b7280; flex: 1;">{category_info[cat]["desc"]}</p>
                             <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid #e2e8f0;">
                                 <span style="font-size: 13px; color: #9ca3af;">{category_info[cat]["tools"]} tools</span>
-                                <span style="font-size: 16px; font-weight: 700; color: #667eea;">$5/mo</span>
+                                <span style="font-size: 16px; font-weight: 700; color: {'#059669' if cat in active_subscriptions else '#667eea'};">{'Subscribed' if cat in active_subscriptions else '$5/mo'}</span>
                             </div>
-                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] else ''}
+                            {f'<div style="font-size: 12px; color: #f59e0b; margin-top: 8px;">{category_info[cat].get("note", "")}</div>' if cat in ['fathom', 'instantly', 'bison'] and cat not in active_subscriptions else ''}
                         </label>
                     ''' for cat in all_categories])}
                 </div>
