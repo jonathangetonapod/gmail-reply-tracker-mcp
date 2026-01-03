@@ -4866,6 +4866,12 @@ async def dashboard(
         'bison': {'emoji': '🦬', 'name': 'Bison Tools', 'tools': 4, 'desc': 'Email campaigns & lead management (EmailBison)', 'note': '💡 Requires Bison API key'}
     }
 
+    # Compute API keys empty state message
+    if active_subscriptions and not any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']):
+        api_keys_message = f'Your <strong>{", ".join([cat.title() for cat in active_subscriptions])}</strong> tools use secure OAuth authentication - no API keys needed!'
+    else:
+        api_keys_message = 'No API keys to configure yet.'
+
     # Render dashboard HTML
     return HTMLResponse(f"""
 <!DOCTYPE html>
@@ -5373,7 +5379,7 @@ async def dashboard(
                         <div style="font-size: 64px; margin-bottom: 15px;">✨</div>
                         <h3 style="color: #1a202c; font-size: 22px; margin-bottom: 12px; font-weight: 700;">You're All Set!</h3>
                         <p style="color: #334155; font-size: 16px; max-width: 550px; margin: 0 auto; line-height: 1.6;">
-                            {f'Your <strong>{", ".join([cat.title() for cat in active_subscriptions])}</strong> tools use secure OAuth authentication - no API keys needed!' if active_subscriptions and not any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else 'No API keys to configure yet.'}
+                            {api_keys_message}
                         </p>
                     </div>
 
