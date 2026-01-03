@@ -1063,6 +1063,16 @@ async def serve_static(filename: str):
     return FileResponse(file_path, media_type=media_type)
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon."""
+    static_dir = Path(__file__).parent.parent / "static"
+    file_path = static_dir / "logo.png"
+    if file_path.exists():
+        return FileResponse(file_path, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+
 @app.get("/")
 async def root():
     """Landing page - Product-focused marketing."""
