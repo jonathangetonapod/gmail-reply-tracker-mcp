@@ -5372,9 +5372,11 @@ async def dashboard(
                     <div style="font-size: 64px; margin-bottom: 15px;">🔑</div>
                     <h3 style="color: #1a202c; font-size: 20px; margin-bottom: 10px;">No API Keys Required</h3>
                     <p style="color: #6b7280; font-size: 15px; max-width: 500px; margin: 0 auto 20px;">
-                        {'You currently have access through your team. No API keys are needed from you.' if user_teams and not personal_subscriptions else 'Subscribe to Fathom, Instantly, or Bison tools to add API keys here.'}
+                        {'Your current subscriptions (Google Sheets, Docs, Gmail, or Calendar) use OAuth authentication and don\'t require API keys.' if active_subscriptions and not any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else 'Subscribe to Fathom, Instantly, or Bison tools to add API keys here.'}
                     </p>
-                    {f'<p style="color: #6b7280; font-size: 14px; max-width: 500px; margin: 0 auto;"><strong>Note:</strong> API keys are only required for certain third-party integrations (Fathom, Instantly, EmailBison). Your team owner manages API keys for team subscriptions.</p>' if user_teams else '<p style="color: #6b7280; font-size: 14px;">API keys are only needed for Fathom meeting recordings, Instantly campaigns, or EmailBison tools.</p>'}
+                    <p style="color: #6b7280; font-size: 14px; max-width: 500px; margin: 0 auto;">
+                        <strong>💡 Note:</strong> API keys are only needed for third-party integrations like Fathom meeting recordings, Instantly campaigns, or EmailBison tools. If you subscribe to these services, you'll add your own API keys here.
+                    </p>
                 </div>
                 '''}
             </div>
@@ -5463,13 +5465,16 @@ async def dashboard(
             }}, 4000);
         }}
 
-        // Shopping Cart Logic
+        // Shopping Cart Logic (only if subscribe section exists)
         const cart = new Set();
         const cartSummary = document.getElementById('cart-summary');
         const cartTotal = document.getElementById('cart-total');
         const cartCount = document.getElementById('cart-count');
         const cartItemsList = document.getElementById('cart-items-list');
         const checkoutBtn = document.getElementById('checkout-btn');
+
+        // Check if cart elements exist (they won't for team members with only team subscriptions)
+        const hasCartElements = cartSummary && cartTotal && cartCount && cartItemsList;
 
         const categoryNames = {{
             'gmail': 'Gmail Tools',
@@ -5489,6 +5494,8 @@ async def dashboard(
         console.log('Team Subscriptions Map:', teamSubscriptionsMap);
 
         function updateCart() {{
+            if (!hasCartElements) return; // Skip if cart elements don't exist
+
             if (cart.size > 0) {{
                 cartSummary.style.display = 'block';
                 cartTotal.textContent = cart.size * 5;
@@ -5548,7 +5555,10 @@ async def dashboard(
         // Update subscription type UI feedback
         function updateSubscriptionType() {{
             const selectedType = document.querySelector('input[name="subscription-type"]:checked');
+            if (!selectedType) return; // Skip if no subscription type selector exists
+
             const tip = document.getElementById('subscription-tip');
+            if (!tip) return; // Skip if tip element doesn't exist
 
             // Update border styles
             document.querySelectorAll('.subscription-type-option').forEach(label => {{
