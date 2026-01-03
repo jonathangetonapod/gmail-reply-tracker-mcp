@@ -5860,6 +5860,7 @@ async def dashboard(
             {f'<button class="tab" data-tab="teams" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">👥 Teams</button>' if teams_enabled else ''}
             <button class="tab" data-tab="api-keys" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">🔑 API Keys</button>
             <button class="tab" data-tab="setup" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">⚙️ Setup</button>
+            <button class="tab" data-tab="account" style="padding: 12px 24px; background: none; border: none; color: #718096; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s;">👤 Account</button>
         </div>
 
         <div id="success-message" class="success"></div>
@@ -6015,9 +6016,30 @@ async def dashboard(
                 </div>
             </div>
             ''' if is_team_member_only else ''}
+        </div>
+
+        <!-- Tab Content: Account -->
+        <div class="tab-content" id="account" style="display: none;">
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 30px;">
+                <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">👤 Account Information</h2>
+                <p style="color: #718096; margin-bottom: 25px;">Manage your account settings</p>
+
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: grid; gap: 15px;">
+                        <div>
+                            <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Email</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #1a202c;">{ctx.email}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Account Status</div>
+                            <div style="font-size: 16px; font-weight: 600; color: #10b981;">Active</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Danger Zone - Delete Account -->
-            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 40px; border: 2px solid #fecaca;">
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 2px solid #fecaca;">
                 <h2 style="font-size: 1.25rem; color: #dc2626; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
                     <span>⚠️</span> Danger Zone
                 </h2>
