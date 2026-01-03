@@ -6287,7 +6287,15 @@ async def team_settings_page(
         <a href="/dashboard?session_token={session_token}" class="back-link">← Back to Dashboard</a>
 
         <div class="header">
-            <h1>👥 {team['team_name']}</h1>
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                <h1 id="team-name-display" style="margin: 0;">👥 {team['team_name']}</h1>
+                {f'''<button onclick="editTeamName()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">✏️ Edit Name</button>''' if is_admin else ''}
+            </div>
+            <div id="team-name-edit" style="display: none; margin-bottom: 15px;">
+                <input type="text" id="team-name-input" value="{team['team_name']}" style="padding: 10px; border: 2px solid #667eea; border-radius: 6px; font-size: 16px; width: 300px; margin-right: 10px;">
+                <button onclick="saveTeamName()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">✓ Save</button>
+                <button onclick="cancelEditTeamName()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">✗ Cancel</button>
+            </div>
             <div class="meta">
                 <strong>Owner:</strong> {owner_email}
                 <span class="badge {'badge-owner' if is_owner else 'badge-' + user_member['role']}">
@@ -6659,6 +6667,66 @@ async def team_settings_page(
                 document.getElementById('success-message').style.display = 'none';
             }}
         }}
+
+        function editTeamName() {{
+            document.getElementById('team-name-display').style.display = 'none';
+            document.getElementById('team-name-edit').style.display = 'block';
+            document.getElementById('team-name-input').focus();
+        }}
+
+        function cancelEditTeamName() {{
+            document.getElementById('team-name-display').style.display = 'block';
+            document.getElementById('team-name-edit').style.display = 'none';
+            document.getElementById('team-name-input').value = document.getElementById('team-name-display').textContent.replace('👥 ', '');
+        }}
+
+        async function saveTeamName() {{
+            const newName = document.getElementById('team-name-input').value.trim();
+
+            if (!newName) {{
+                alert('Team name cannot be empty');
+                return;
+            }}
+
+            if (newName.length > 50) {{
+                alert('Team name must be 50 characters or less');
+                return;
+            }}
+
+            const sessionToken = '{session_token}';
+
+            try {{
+                const response = await fetch('/teams/{team_id}/name?session_token=' + sessionToken, {{
+                    method: 'PATCH',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{
+                        team_name: newName
+                    }})
+                }});
+
+                const result = await response.json();
+
+                if (response.ok) {{
+                    document.getElementById('team-name-display').innerHTML = '👥 ' + newName;
+                    document.getElementById('team-name-display').style.display = 'block';
+                    document.getElementById('team-name-edit').style.display = 'none';
+                    document.getElementById('success-message').textContent = '✓ Team name updated successfully';
+                    document.getElementById('success-message').style.display = 'block';
+                    document.getElementById('error-message').style.display = 'none';
+                    setTimeout(() => {{
+                        document.getElementById('success-message').style.display = 'none';
+                    }}, 3000);
+                }} else {{
+                    document.getElementById('error-message').textContent = '✗ ' + result.detail;
+                    document.getElementById('error-message').style.display = 'block';
+                    document.getElementById('success-message').style.display = 'none';
+                }}
+            }} catch (error) {{
+                document.getElementById('error-message').textContent = '✗ Network error. Please try again.';
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('success-message').style.display = 'none';
+            }}
+        }}
     </script>
 
     <!-- Invitation Link Modal -->
@@ -6884,6 +6952,77 @@ async def toggle_team_permission_endpoint(
     except Exception as e:
         logger.error(f"Error managing permission: {e}")
         raise HTTPException(500, f"Failed to manage permission: {str(e)}")
+
+
+@app.patch("/teams/{team_id}/name")
+async def update_team_name_endpoint(
+    request: Request,
+    team_id: str,
+    session_token: Optional[str] = Query(None)
+):
+    """Update team name (owner/admin only)."""
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Lightweight session validation (no API clients needed)
+    try:
+        user = server.database.get_user_by_session(session_token)
+        if not user:
+            raise HTTPException(401, "Invalid session")
+
+        # Check session expiry
+        session_expiry = user.get('session_expiry')
+        if session_expiry:
+            if isinstance(session_expiry, str):
+                from dateutil import parser
+                session_expiry = parser.parse(session_expiry)
+            if datetime.now(timezone.utc) > session_expiry:
+                raise HTTPException(401, "Session expired")
+
+        user_id = user['user_id']
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Session validation error: {e}")
+        raise HTTPException(401, "Invalid session")
+
+    # Parse request body
+    body = await request.json()
+    team_name = body.get('team_name', '').strip()
+
+    if not team_name:
+        raise HTTPException(400, "Team name cannot be empty")
+
+    if len(team_name) > 50:
+        raise HTTPException(400, "Team name must be 50 characters or less")
+
+    # Check if requester is owner or admin
+    members = server.database.get_team_members(team_id)
+    requester_member = next((m for m in members if m['user_id'] == user_id), None)
+
+    if not requester_member:
+        raise HTTPException(403, "You are not a member of this team")
+
+    if requester_member['role'] not in ['owner', 'admin']:
+        raise HTTPException(403, "Only team owners and admins can update the team name")
+
+    # Update team name in database
+    try:
+        server.database.supabase.table('teams').update({
+            'team_name': team_name
+        }).eq('team_id', team_id).execute()
+
+        logger.info(f"User {user_id} updated team {team_id} name to '{team_name}'")
+
+        return JSONResponse({
+            "success": True,
+            "message": "Team name updated successfully",
+            "team_name": team_name
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating team name: {e}")
+        raise HTTPException(500, f"Failed to update team name: {str(e)}")
 
 
 @app.delete("/invitations/{invitation_id}")
