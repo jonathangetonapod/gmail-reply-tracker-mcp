@@ -2149,7 +2149,54 @@ async def root():
         </div>
     </div>
 
-    <!-- Note: Modal and JavaScript would continue here but keeping this shorter for readability -->
+    <!-- Footer -->
+    <footer style="background: #1a202c; color: #a0aec0; padding: 60px 20px 30px;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 40px;">
+                <!-- Brand Column -->
+                <div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 15px;">🔗 BridgeKit</div>
+                    <p style="font-size: 14px; line-height: 1.6;">Professional integration platform connecting your productivity tools securely.</p>
+                </div>
+
+                <!-- Product Column -->
+                <div>
+                    <h4 style="color: white; font-size: 14px; font-weight: 600; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Product</h4>
+                    <ul style="list-style: none; margin: 0; padding: 0;">
+                        <li style="margin-bottom: 10px;"><a href="/signup" style="color: #a0aec0; text-decoration: none; font-size: 14px; transition: color 0.2s;">Start Free Trial</a></li>
+                        <li style="margin-bottom: 10px;"><a href="/login" style="color: #a0aec0; text-decoration: none; font-size: 14px; transition: color 0.2s;">Log In</a></li>
+                        <li style="margin-bottom: 10px;"><a href="/#pricing" style="color: #a0aec0; text-decoration: none; font-size: 14px; transition: color 0.2s;">Pricing</a></li>
+                    </ul>
+                </div>
+
+                <!-- Legal Column -->
+                <div>
+                    <h4 style="color: white; font-size: 14px; font-weight: 600; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Legal</h4>
+                    <ul style="list-style: none; margin: 0; padding: 0;">
+                        <li style="margin-bottom: 10px;"><a href="/privacy" style="color: #a0aec0; text-decoration: none; font-size: 14px; transition: color 0.2s;">Privacy Policy</a></li>
+                        <li style="margin-bottom: 10px;"><a href="/terms" style="color: #a0aec0; text-decoration: none; font-size: 14px; transition: color 0.2s;">Terms of Service</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact Column -->
+                <div>
+                    <h4 style="color: white; font-size: 14px; font-weight: 600; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">Contact</h4>
+                    <ul style="list-style: none; margin: 0; padding: 0;">
+                        <li style="margin-bottom: 10px;"><a href="mailto:support@getbridgekit.com" style="color: #a0aec0; text-decoration: none; font-size: 14px; transition: color 0.2s;">support@getbridgekit.com</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div style="border-top: 1px solid #2d3748; padding-top: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                <p style="font-size: 13px; margin: 0;">&copy; 2025 BridgeKit. All rights reserved.</p>
+                <div style="display: flex; gap: 20px;">
+                    <a href="/privacy" style="color: #a0aec0; text-decoration: none; font-size: 13px;">Privacy</a>
+                    <a href="/terms" style="color: #a0aec0; text-decoration: none; font-size: 13px;">Terms</a>
+                </div>
+            </div>
+        </div>
+    </footer>
 </body>
 
     <!-- Possibilities Modal -->
@@ -3187,6 +3234,397 @@ async def root():
             }
         });
     </script>
+</body>
+</html>
+    """)
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy():
+    """Privacy Policy page - required for Google OAuth verification."""
+    return HTMLResponse("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - BridgeKit</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.8;
+            color: #1a202c;
+            background: #f7fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+        .content {
+            background: white;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h2 {
+            font-size: 1.5rem;
+            color: #667eea;
+            margin: 40px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        h2:first-child { margin-top: 0; }
+        h3 { font-size: 1.2rem; margin: 25px 0 15px; color: #2d3748; }
+        p { margin-bottom: 15px; color: #4a5568; }
+        ul { margin: 15px 0 15px 25px; color: #4a5568; }
+        li { margin-bottom: 10px; }
+        .highlight {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .last-updated {
+            color: #9ca3af;
+            font-size: 14px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Privacy Policy</h1>
+        <p>How BridgeKit handles your data</p>
+    </div>
+
+    <div class="container">
+        <div class="content">
+            <h2>Overview</h2>
+            <p>BridgeKit ("we", "our", or "us") is a professional integration platform that connects productivity tools like Gmail, Google Calendar, Google Docs, Google Sheets, Fathom, Instantly, and Bison. This Privacy Policy explains how we collect, use, and protect your information.</p>
+
+            <div class="highlight">
+                <strong>Key Points:</strong>
+                <ul style="margin-top: 10px;">
+                    <li>We only access your data when you explicitly request it</li>
+                    <li>Your credentials are encrypted with 256-bit encryption</li>
+                    <li>We do not sell or share your data with third parties</li>
+                    <li>You can delete your account and all data at any time</li>
+                </ul>
+            </div>
+
+            <h2>Information We Collect</h2>
+
+            <h3>Account Information</h3>
+            <p>When you create an account, we collect:</p>
+            <ul>
+                <li><strong>Email address</strong> - Used for account identification and communication</li>
+                <li><strong>Password</strong> - Stored securely using industry-standard hashing (bcrypt)</li>
+            </ul>
+
+            <h3>OAuth Tokens</h3>
+            <p>When you connect third-party services (Google, Fathom, Instantly, Bison), we store:</p>
+            <ul>
+                <li><strong>OAuth access tokens</strong> - Encrypted at rest using Fernet (AES-128-CBC)</li>
+                <li><strong>OAuth refresh tokens</strong> - Encrypted at rest using Fernet (AES-128-CBC)</li>
+            </ul>
+            <p>We never store your Google password or third-party service passwords. OAuth tokens allow us to access your data on your behalf without knowing your credentials.</p>
+
+            <h3>API Keys</h3>
+            <p>If you provide API keys for services like Fathom, these are:</p>
+            <ul>
+                <li>Stored encrypted at rest</li>
+                <li>Only used when you explicitly request actions through our platform</li>
+            </ul>
+
+            <h2>How We Use Your Information</h2>
+            <p>We use your information solely to:</p>
+            <ul>
+                <li><strong>Provide the service</strong> - Access your connected platforms when you request it</li>
+                <li><strong>Authenticate you</strong> - Verify your identity when you log in</li>
+                <li><strong>Send important updates</strong> - Account-related emails (password resets, security alerts)</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>User-Initiated Access Only:</strong>
+                <p style="margin-bottom: 0; margin-top: 10px;">We only access your connected services (Gmail, Calendar, etc.) when you explicitly request an action. We do not perform background scanning, automated reading, or data harvesting.</p>
+            </div>
+
+            <h2>Data Storage and Security</h2>
+
+            <h3>Encryption</h3>
+            <ul>
+                <li>All sensitive data (OAuth tokens, API keys) encrypted with Fernet (AES-128-CBC)</li>
+                <li>Passwords hashed with bcrypt (one-way encryption)</li>
+                <li>All data transmitted over HTTPS (TLS 1.2+)</li>
+            </ul>
+
+            <h3>Data Isolation</h3>
+            <ul>
+                <li>Each user's data is completely isolated from other users</li>
+                <li>Per-user encryption keys where applicable</li>
+                <li>No cross-user data access possible</li>
+            </ul>
+
+            <h3>Infrastructure</h3>
+            <ul>
+                <li>Hosted on Railway (secure cloud infrastructure)</li>
+                <li>Database hosted on Supabase with encryption at rest</li>
+                <li>Rate limiting on all authentication endpoints</li>
+            </ul>
+
+            <h2>Third-Party Services</h2>
+            <p>BridgeKit integrates with the following third-party services:</p>
+            <ul>
+                <li><strong>Google Workspace</strong> (Gmail, Calendar, Docs, Sheets) - Subject to <a href="https://policies.google.com/privacy" target="_blank">Google's Privacy Policy</a></li>
+                <li><strong>Fathom</strong> - Meeting transcription service</li>
+                <li><strong>Instantly</strong> - Email campaign platform</li>
+                <li><strong>Bison</strong> - Data analysis platform</li>
+                <li><strong>Stripe</strong> - Payment processing (subject to <a href="https://stripe.com/privacy" target="_blank">Stripe's Privacy Policy</a>)</li>
+            </ul>
+
+            <h2>Your Rights and Controls</h2>
+            <p>You have full control over your data:</p>
+            <ul>
+                <li><strong>Access</strong> - View all data we store about you in your dashboard</li>
+                <li><strong>Revoke</strong> - Disconnect any third-party service at any time via OAuth revocation</li>
+                <li><strong>Delete</strong> - Delete your account and all associated data instantly</li>
+                <li><strong>Export</strong> - Request a copy of your data by contacting support</li>
+            </ul>
+
+            <h2>Data Retention</h2>
+            <ul>
+                <li><strong>Active accounts</strong> - Data retained while your account is active</li>
+                <li><strong>Deleted accounts</strong> - All data permanently deleted within 30 days</li>
+                <li><strong>OAuth tokens</strong> - Deleted immediately when you disconnect a service</li>
+            </ul>
+
+            <h2>Cookies</h2>
+            <p>We use only essential cookies for:</p>
+            <ul>
+                <li>Session management (keeping you logged in)</li>
+                <li>Security (CSRF protection)</li>
+            </ul>
+            <p>We do not use advertising cookies or tracking cookies.</p>
+
+            <h2>Children's Privacy</h2>
+            <p>BridgeKit is not intended for users under 18 years of age. We do not knowingly collect information from children.</p>
+
+            <h2>Changes to This Policy</h2>
+            <p>We may update this Privacy Policy from time to time. We will notify you of significant changes via email or a notice on our website.</p>
+
+            <h2>Contact Us</h2>
+            <p>If you have questions about this Privacy Policy or your data, contact us at:</p>
+            <p><strong>Email:</strong> <a href="mailto:support@getbridgekit.com">support@getbridgekit.com</a></p>
+
+            <p class="last-updated">Last updated: January 2025</p>
+
+            <a href="/" class="back-link">← Back to BridgeKit</a>
+        </div>
+    </div>
+</body>
+</html>
+    """)
+
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_of_service():
+    """Terms of Service page - required for Google OAuth verification."""
+    return HTMLResponse("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service - BridgeKit</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.8;
+            color: #1a202c;
+            background: #f7fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+        .content {
+            background: white;
+            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h2 {
+            font-size: 1.5rem;
+            color: #667eea;
+            margin: 40px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        h2:first-child { margin-top: 0; }
+        p { margin-bottom: 15px; color: #4a5568; }
+        ul { margin: 15px 0 15px 25px; color: #4a5568; }
+        li { margin-bottom: 10px; }
+        .highlight {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            margin: 20px 0;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .last-updated {
+            color: #9ca3af;
+            font-size: 14px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Terms of Service</h1>
+        <p>Agreement for using BridgeKit</p>
+    </div>
+
+    <div class="container">
+        <div class="content">
+            <h2>1. Agreement to Terms</h2>
+            <p>By accessing or using BridgeKit ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.</p>
+
+            <h2>2. Description of Service</h2>
+            <p>BridgeKit is a professional integration platform that allows users to connect and interact with third-party productivity tools including:</p>
+            <ul>
+                <li>Google Workspace (Gmail, Calendar, Docs, Sheets)</li>
+                <li>Fathom (meeting transcription)</li>
+                <li>Instantly (email campaigns)</li>
+                <li>Bison (data analysis)</li>
+            </ul>
+            <p>The Service provides API access to these platforms through secure OAuth authentication and encrypted credential storage.</p>
+
+            <h2>3. Account Registration</h2>
+            <ul>
+                <li>You must provide accurate and complete information when creating an account</li>
+                <li>You are responsible for maintaining the security of your account credentials</li>
+                <li>You must notify us immediately of any unauthorized access to your account</li>
+                <li>You must be at least 18 years old to use this Service</li>
+            </ul>
+
+            <h2>4. Acceptable Use</h2>
+            <p>You agree NOT to use the Service to:</p>
+            <ul>
+                <li>Violate any applicable laws or regulations</li>
+                <li>Send spam or unsolicited messages</li>
+                <li>Harass, abuse, or harm other users</li>
+                <li>Attempt to gain unauthorized access to other users' accounts</li>
+                <li>Interfere with or disrupt the Service</li>
+                <li>Use the Service for any illegal or fraudulent purposes</li>
+                <li>Reverse engineer or attempt to extract source code</li>
+                <li>Resell or redistribute the Service without permission</li>
+            </ul>
+
+            <h2>5. Third-Party Services</h2>
+            <p>BridgeKit integrates with third-party services. By using these integrations, you also agree to:</p>
+            <ul>
+                <li>Google's Terms of Service and Privacy Policy</li>
+                <li>The terms of any other third-party services you connect</li>
+            </ul>
+            <p>We are not responsible for the availability, accuracy, or content of third-party services.</p>
+
+            <h2>6. Payment and Subscriptions</h2>
+            <ul>
+                <li><strong>Free Trial:</strong> New users receive a 3-day free trial with full access</li>
+                <li><strong>Billing:</strong> Subscriptions are billed monthly through Stripe</li>
+                <li><strong>Cancellation:</strong> You may cancel your subscription at any time</li>
+                <li><strong>Refunds:</strong> We do not offer refunds for partial months of service</li>
+                <li><strong>Price Changes:</strong> We may change prices with 30 days notice</li>
+            </ul>
+
+            <h2>7. Intellectual Property</h2>
+            <p>The Service and its original content, features, and functionality are owned by BridgeKit and are protected by international copyright, trademark, and other intellectual property laws.</p>
+
+            <h2>8. User Data</h2>
+            <ul>
+                <li>You retain ownership of all data you provide to the Service</li>
+                <li>You grant us a limited license to process your data as necessary to provide the Service</li>
+                <li>We handle your data in accordance with our Privacy Policy</li>
+            </ul>
+
+            <h2>9. Disclaimer of Warranties</h2>
+            <div class="highlight">
+                <p style="margin-bottom: 0;">The Service is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+            </div>
+
+            <h2>10. Limitation of Liability</h2>
+            <p>In no event shall BridgeKit, its directors, employees, partners, agents, suppliers, or affiliates be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from:</p>
+            <ul>
+                <li>Your use or inability to use the Service</li>
+                <li>Any unauthorized access to or use of our servers</li>
+                <li>Any interruption or cessation of transmission to or from the Service</li>
+                <li>Any bugs, viruses, or similar issues transmitted through the Service</li>
+            </ul>
+
+            <h2>11. Termination</h2>
+            <ul>
+                <li>We may terminate or suspend your account immediately, without prior notice, for any breach of these Terms</li>
+                <li>You may terminate your account at any time through the dashboard settings</li>
+                <li>Upon termination, your right to use the Service will immediately cease</li>
+                <li>Data deletion follows the timeline specified in our Privacy Policy</li>
+            </ul>
+
+            <h2>12. Changes to Terms</h2>
+            <p>We reserve the right to modify or replace these Terms at any time. We will provide notice of significant changes via email or a prominent notice on the Service. Your continued use of the Service after such changes constitutes acceptance of the new Terms.</p>
+
+            <h2>13. Governing Law</h2>
+            <p>These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to its conflict of law provisions.</p>
+
+            <h2>14. Contact Us</h2>
+            <p>If you have questions about these Terms, contact us at:</p>
+            <p><strong>Email:</strong> <a href="mailto:support@getbridgekit.com">support@getbridgekit.com</a></p>
+
+            <p class="last-updated">Last updated: January 2025</p>
+
+            <a href="/" class="back-link">← Back to BridgeKit</a>
+        </div>
+    </div>
 </body>
 </html>
     """)
@@ -4397,6 +4835,89 @@ async def logout(session_token: Optional[str] = Query(None)):
     return RedirectResponse(url="/login", status_code=303)
 
 
+@app.delete("/account/delete")
+async def delete_account(session_token: Optional[str] = Query(None)):
+    """
+    Permanently delete user account and all associated data.
+
+    This endpoint:
+    - Deletes user's OAuth tokens (encrypted_google_token)
+    - Deletes user's API keys (encrypted_api_keys)
+    - Removes user from all teams
+    - Cancels all Stripe subscriptions
+    - Deletes the user record
+    """
+    if not session_token:
+        raise HTTPException(401, "Missing session token")
+
+    # Get user from session token
+    user = server.database.get_user_by_session(session_token)
+    if not user:
+        raise HTTPException(401, "Invalid session token")
+
+    user_id = user['user_id']
+    email = user['email']
+
+    try:
+        logger.info(f"Starting account deletion for user {email} ({user_id})")
+
+        # 1. Cancel all Stripe subscriptions
+        if user.get('stripe_customer_id'):
+            try:
+                import stripe
+                stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+                # Get all subscriptions for this customer
+                subscriptions = stripe.Subscription.list(customer=user['stripe_customer_id'], status='all')
+                for sub in subscriptions.data:
+                    if sub.status in ['active', 'trialing', 'past_due']:
+                        stripe.Subscription.cancel(sub.id)
+                        logger.info(f"Cancelled Stripe subscription {sub.id} for user {email}")
+            except Exception as stripe_error:
+                logger.error(f"Error cancelling Stripe subscriptions: {stripe_error}")
+                # Continue with deletion even if Stripe fails
+
+        # 2. Remove user from all teams
+        try:
+            teams = server.database.get_user_teams(user_id)
+            for team in teams:
+                # Remove team membership
+                server.database.supabase.table('team_members').delete().eq(
+                    'user_id', user_id
+                ).eq('team_id', team['team_id']).execute()
+                logger.info(f"Removed user from team {team['team_id']}")
+
+                # If user is team owner, we could either:
+                # a) Delete the team, or b) Leave it orphaned
+                # For now, we'll leave teams orphaned (admins can take over)
+        except Exception as team_error:
+            logger.error(f"Error removing team memberships: {team_error}")
+
+        # 3. Delete team permissions for this user
+        try:
+            server.database.supabase.table('team_permissions').delete().eq('user_id', user_id).execute()
+            logger.info(f"Deleted team permissions for user {email}")
+        except Exception as perm_error:
+            logger.error(f"Error deleting team permissions: {perm_error}")
+
+        # 4. Delete any pending invitations sent BY this user
+        try:
+            server.database.supabase.table('team_invitations').delete().eq('invited_by_user_id', user_id).execute()
+            logger.info(f"Deleted invitations sent by user {email}")
+        except Exception as inv_error:
+            logger.error(f"Error deleting invitations: {inv_error}")
+
+        # 5. Delete the user record (this includes encrypted tokens and API keys)
+        server.database.supabase.table('users').delete().eq('user_id', user_id).execute()
+        logger.info(f"Successfully deleted user account for {email}")
+
+        return {"success": True, "message": "Account deleted successfully"}
+
+    except Exception as e:
+        logger.error(f"Error deleting account for {email}: {e}")
+        raise HTTPException(500, f"Failed to delete account: {str(e)}")
+
+
 @app.get("/setup/callback")
 async def setup_callback(
     request: Request,
@@ -5469,6 +5990,27 @@ async def dashboard(
                 </div>
             </div>
             ''' if is_team_member_only else ''}
+
+            <!-- Danger Zone - Delete Account -->
+            <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 40px; border: 2px solid #fecaca;">
+                <h2 style="font-size: 1.25rem; color: #dc2626; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                    <span>⚠️</span> Danger Zone
+                </h2>
+                <p style="color: #6b7280; margin-bottom: 20px; font-size: 14px;">
+                    Once you delete your account, there is no going back. Please be certain.
+                </p>
+                <div style="background: #fef2f2; padding: 20px; border-radius: 8px; border-left: 4px solid #dc2626;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                        <div>
+                            <div style="font-weight: 600; color: #991b1b; margin-bottom: 5px;">Delete your account</div>
+                            <div style="font-size: 13px; color: #7f1d1d;">Permanently delete your account and all data, including OAuth tokens, API keys, and team memberships.</div>
+                        </div>
+                        <button onclick="confirmDeleteAccount()" style="background: #dc2626; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.2s;">
+                            Delete Account
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {f'''<!-- Tab Content: Teams -->
@@ -5976,6 +6518,45 @@ async def dashboard(
         // Initial load if on Teams tab (shouldn't happen on page load, but just in case)
         if (window.location.hash === '#teams') {{
             loadTeams();
+        }}
+
+        // Delete Account functionality
+        async function confirmDeleteAccount() {{
+            const confirmed = confirm(
+                'Are you sure you want to delete your account?\\n\\n' +
+                'This will permanently delete:\\n' +
+                '• All your OAuth tokens and API keys\\n' +
+                '• All your subscriptions\\n' +
+                '• All team memberships\\n\\n' +
+                'This action cannot be undone.'
+            );
+
+            if (!confirmed) return;
+
+            // Double confirmation
+            const email = prompt('To confirm, please type your email address:');
+            if (email !== '{ctx.email}') {{
+                alert('Email does not match. Account deletion cancelled.');
+                return;
+            }}
+
+            try {{
+                const response = await fetch('/account/delete?session_token={session_token}', {{
+                    method: 'DELETE'
+                }});
+
+                const data = await response.json();
+
+                if (response.ok) {{
+                    alert('Your account has been deleted. You will now be redirected to the homepage.');
+                    window.location.href = '/';
+                }} else {{
+                    alert('Error: ' + (data.detail || 'Failed to delete account'));
+                }}
+            }} catch (error) {{
+                alert('Network error. Please try again.');
+                console.error('Delete account error:', error);
+            }}
         }}
     </script>
 </body>
