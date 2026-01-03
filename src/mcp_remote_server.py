@@ -5365,7 +5365,7 @@ async def dashboard(
                 <h2 style="font-size: 1.5rem; color: #1a202c; margin-bottom: 10px;">🔑 API Keys</h2>
                 <p style="color: #718096; margin-bottom: 30px;">Add API keys for third-party services you've subscribed to</p>
 
-                {f'''
+                {f"""
                 <form id="api-keys-form">
                     {'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="' + api_keys.get('fathom', '') + '" placeholder="Your Fathom API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Fathom meeting recording tools</p></div>' if 'fathom' in active_subscriptions else ''}
                     {'<div class="form-group"><label for="instantly_key">Instantly API Key</label><input type="text" id="instantly_key" name="instantly_key" value="' + api_keys.get('instantly', '') + '" placeholder="Your Instantly.ai API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Instantly campaign management tools</p></div>' if 'instantly' in active_subscriptions else ''}
@@ -5373,7 +5373,7 @@ async def dashboard(
 
                     {('<button type="submit" class="btn" style="background: #667eea; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;">💾 Save API Keys</button>' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else '<div style="text-align: center; padding: 40px; background: #f9fafb; border-radius: 8px;"><div style="font-size: 48px; margin-bottom: 10px;">🔒</div><p style="color: #6b7280;">Subscribe to Fathom, Instantly, or Bison tools to add API keys here.</p></div>')}
                 </form>
-                ''' if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else f'''
+                """ if any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison']) else f"""
                 <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 40px; border-radius: 12px; border: 2px dashed #0284c7;">
                     <div style="text-align: center; margin-bottom: 30px;">
                         <div style="font-size: 64px; margin-bottom: 15px;">✨</div>
@@ -5412,7 +5412,7 @@ async def dashboard(
                         </div>
                     </div>
                 </div>
-                '''}
+                """}
             </div>
         </div>'''}
 
