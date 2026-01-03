@@ -4875,6 +4875,14 @@ async def dashboard(
     # Pre-compute API Keys tab content to avoid nested f-string issues
     has_api_key_subscriptions = any(cat in active_subscriptions for cat in ['fathom', 'instantly', 'bison'])
 
+    # Check if user can subscribe themselves (has personal subs, no teams, or is team owner/admin)
+    is_team_member_only = user_teams and all(t.get('role') == 'member' for t in user_teams) and not personal_subscriptions
+
+    if is_team_member_only:
+        api_keys_tip = '''Ask your <strong>team admin</strong> to subscribe to Fathom, Instantly, or EmailBison if you need access to third-party integrations that require API keys.'''
+    else:
+        api_keys_tip = '''Head to the <strong>Subscriptions</strong> tab to add Fathom, Instantly, or EmailBison. Once subscribed, you'll add your API keys here to connect the services.'''
+
     if has_api_key_subscriptions:
         # Show form for API key input
         fathom_input = f'<div class="form-group"><label for="fathom_key">Fathom API Key</label><input type="text" id="fathom_key" name="fathom_key" value="{api_keys.get("fathom", "")}" placeholder="Your Fathom API key"><p style="font-size: 13px; color: #6b7280; margin-top: 5px;">Required for Fathom meeting recording tools</p></div>' if 'fathom' in active_subscriptions else ''
@@ -4924,7 +4932,7 @@ async def dashboard(
                     <div>
                         <strong style="color: #92400e; font-size: 15px; display: block; margin-bottom: 6px;">Want to use third-party tools?</strong>
                         <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.6;">
-                            Head to the <strong>Subscriptions</strong> tab to add Fathom, Instantly, or EmailBison. Once subscribed, you'll add your API keys here to connect the services.
+                            {api_keys_tip}
                         </p>
                     </div>
                 </div>
