@@ -5092,7 +5092,7 @@ async def dashboard(
                 </div>
             </div>
         </div>
-        ''' if trial_status['is_trial'] else ''}
+        ''' if trial_status['is_trial'] and not active_subscriptions else ''}
 
         <!-- Usage Counter -->
         <div style="background: {"linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" if usage_limit and daily_usage >= 8 else "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"}; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;">
